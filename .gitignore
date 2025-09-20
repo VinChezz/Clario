@@ -42,3 +42,5 @@ next-env.d.ts
 
 # Local info
 /info.txt
+
+/src/generated/prisma
