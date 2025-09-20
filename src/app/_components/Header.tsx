@@ -1,4 +1,8 @@
 import Image from "next/image";
+import {
+  RegisterLink,
+  LoginLink,
+} from "@kinde-oss/kinde-auth-nextjs/components";
 
 export default function Header() {
   return (
@@ -68,18 +72,21 @@ export default function Header() {
 
           <div className="flex items-center gap-4">
             <div className="sm:flex sm:gap-4">
-              <a className="block rounded-md  px-5 py-2.5 text-medium font-medium text-white transition ">
-                Login
-              </a>
-
-              <a
-                className="hidden rounded-md bg-gray-100
-                px-5 py-2.5 text-medium font-medium
-                text-black transition
-                hover:text-slate-800 sm:block"
+              <div
+                className="block rounded-md  px-5 py-2.5 text-sm font-medium
+            text-white transition "
               >
-                Register
-              </a>
+                <LoginLink postLoginRedirectURL="/dashboard"> Login</LoginLink>
+              </div>
+
+              <div
+                className="hidden rounded-md bg-gray-100
+            px-5 py-2.5 text-sm font-medium
+             text-black transition
+              hover:text-slate-800 sm:block"
+              >
+                <RegisterLink>Register</RegisterLink>
+              </div>
             </div>
 
             <button className="block rounded-sm bg-gray-100 p-2.5 text-gray-600 transition hover:text-gray-600/75 md:hidden">
