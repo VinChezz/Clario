@@ -53,3 +53,27 @@ export async function POST(req: Request) {
     );
   }
 }
+
+export async function GET() {
+  try {
+    const { getUser } = await getKindeServerSession();
+    const user = await getUser();
+
+    if (!user || !user.id || !user.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const teams = await prisma.team.findMany({
+      where: { createdById: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(teams, { status: 200 });
+  } catch (e) {
+    console.error("Error fetching teams:", e);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
