@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Imprima } from "next/font/google";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import Loader from "@/app/_loaders/loader";
 
 const imprima = Imprima({
   subsets: ["latin"],
@@ -34,7 +35,7 @@ export default function CreateTeam() {
     }
   }, [user, isLoading]);
 
-  if (!dbUser) return <p>Loading...</p>;
+  if (!dbUser) return <Loader />;
 
   const createNewTeam = async () => {
     try {
