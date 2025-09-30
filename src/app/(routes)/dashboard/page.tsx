@@ -6,8 +6,12 @@ import {
   LogoutLink,
 } from "@kinde-oss/kinde-auth-nextjs";
 import Header from "@/app/_components/Header";
+import { HeaderProps } from "@/types/header";
+import { TextProps } from "@/types/common";
 
-export default function Dashboard() {
+export default function Dashboard({
+  variant = "light",
+}: HeaderProps & TextProps) {
   const { user, isLoading } = useKindeBrowserClient();
   const [dbUser, setDbUser] = useState<any>(null);
 
@@ -25,16 +29,16 @@ export default function Dashboard() {
     }
   }, [user, isLoading]);
 
-  if (!dbUser) return <p>Loading...</p>;
+  const isLight = variant === "light";
 
+  if (!dbUser) return <p>Loading...</p>;
   return (
-    <div className="bg-black">
-      <Header />
-      <h1 className="text-white">Welcome, {dbUser.name}</h1>
-      <p className="text-white">Email: {dbUser.email}</p>
-      <img src={dbUser.image || "/default-avatar.png"} width={80} />
+    <div className="p-8">
+      <Header variant={variant} />
       <button>
-        <LogoutLink className="text-white">Logout</LogoutLink>
+        <LogoutLink className={isLight ? "text-black" : "text-white"}>
+          Logout
+        </LogoutLink>
       </button>
     </div>
   );
