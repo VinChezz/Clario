@@ -5,9 +5,11 @@ import {
   useKindeBrowserClient,
   LogoutLink,
 } from "@kinde-oss/kinde-auth-nextjs";
-import Header from "@/app/_components/Header";
+import Header from "./_components/Header";
 import { HeaderProps } from "@/types/header";
 import { TextProps } from "@/types/common";
+import FileList from "./_components/FileList";
+import Loader from "@/app/_loaders/loader";
 
 export default function Dashboard({
   variant = "light",
@@ -31,10 +33,15 @@ export default function Dashboard({
 
   const isLight = variant === "light";
 
-  if (!dbUser) return <p>Loading...</p>;
+  if (!dbUser) return <Loader />;
   return (
     <div className="p-8">
-      <Header variant={variant} />
+      <Header />
+
+      <FileList />
+
+      {/* AdBanner */}
+
       <button>
         <LogoutLink className={isLight ? "text-black" : "text-white"}>
           Logout

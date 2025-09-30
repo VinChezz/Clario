@@ -21,12 +21,13 @@ export default function SideNav() {
   const onFileCreate = async (fileName: string) => {
     if (!activeTeam) return;
     try {
-      const resp = await fetch("/api/files", {
+      const resp = await fetch("/api/files/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fileName,
           teamId: activeTeam.id,
+          createdById: user?.id,
         }),
       });
 
