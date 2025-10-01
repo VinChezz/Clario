@@ -5,13 +5,12 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Imprima } from "next/font/google";
+import Virgil from "next/font/local";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import Loader from "@/app/_loaders/loader";
 
-const imprima = Imprima({
-  subsets: ["latin"],
-  weight: ["400", "400"],
+const virgil = Virgil({
+  src: "../../../fonts/Virgil.woff2",
 });
 
 export default function CreateTeam() {
@@ -70,7 +69,7 @@ export default function CreateTeam() {
         <div className="mt-1 ml-2 text-5xl text-black font-bold">Clario</div>
       </div>
       <div className="flex flex-col items-center mt-8">
-        <h2 className={`${imprima.className} text-[42px] py-2 font-extrabold`}>
+        <h2 className={`${virgil.className} text-[42px] py-2 font-extrabold`}>
           What should we call your team?
         </h2>
         <h2 className="text-gray-500">
