@@ -22,17 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-interface FILE {
-  archive: boolean;
-  createdBy: string;
-  document: string;
-  fileName: string;
-  teamId: string;
-  whiteboard: string;
-  _id: string;
-  _creationTime: number;
-}
+import { FILE } from "@/shared/types/file.interface";
 
 export default function FileList() {
   const { fileList_, setFileList_ } = useContext(FileListContext);
@@ -43,6 +33,10 @@ export default function FileList() {
   useEffect(() => {
     if (fileList_) setFileList(fileList_);
   }, [fileList_]);
+
+  useEffect(() => {
+    console.log("File list: ", fileList);
+  });
 
   return (
     <div className="mt-5">
@@ -59,9 +53,9 @@ export default function FileList() {
         <TableBody>
           {fileList.map((file, index) => (
             <TableRow
-              key={file._id || index}
+              key={file.id || index}
               className="cursor-pointer hover:bg-gray-50"
-              onClick={() => router.push(`/workspace/${file._id}`)}
+              onClick={() => router.push(`/workspace/${file.id}`)}
             >
               <TableCell className="font-medium">{file.fileName}</TableCell>
               <TableCell>
