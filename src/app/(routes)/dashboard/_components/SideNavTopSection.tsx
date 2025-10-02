@@ -1,6 +1,14 @@
-import { ChevronDown, LayoutGrid, LogOut, Settings, Users } from "lucide-react";
+import {
+  ChevronDown,
+  FileText,
+  LayoutGrid,
+  LogOut,
+  Settings,
+  Users,
+  ChevronRight,
+} from "lucide-react";
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   Popover,
   PopoverContent,
@@ -10,6 +18,9 @@ import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { FileListContext } from "@/app/_context/FileListContext";
+import { FILE } from "@/shared/types/file.interface";
+import { motion, AnimatePresence } from "framer-motion";
 
 export interface TEAM {
   id: string;
@@ -25,6 +36,13 @@ function SideNavTopSection({ user, setActiveTeamInfo }: any) {
   const router = useRouter();
   const [activeTeam, setActiveTeam] = useState<TEAM>();
   const [teamList, setTeamList] = useState<TEAM[]>();
+  const { fileList_ } = useContext(FileListContext);
+  const [fileList, setFileList] = useState<FILE[]>([]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (fileList_) setFileList(fileList_);
+  }, [fileList_]);
 
   useEffect(() => {
     if (user) getTeamList();
@@ -122,14 +140,43 @@ function SideNavTopSection({ user, setActiveTeamInfo }: any) {
         </PopoverContent>
       </Popover>
 
-      {/* All File Button */}
       <Button
         variant="outline"
         className="w-full justify-start gap-2 font-bold mt-8 bg-gray-100"
+        onClick={() => setOpen(!open)}
       >
+        {open ? (
+          <ChevronDown className="h-5 w-5" />
+        ) : (
+          <ChevronRight className="h-5 w-5" />
+        )}
         <LayoutGrid className="h-5 w-5" />
         All Files
       </Button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="file-list"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            className="overflow-hidden mt-4"
+          >
+            {fileList.map((file) => (
+              <div
+                key={file.id}
+                className="flex items-center gap-2 p-2 hover:bg-gray-200 rounded-lg cursor-pointer text-sm"
+                onClick={() => router.push(`/workspace/${file.id}`)}
+              >
+                <FileText className="h-4 w-4 text-gray-700" />
+                <span>{file.fileName}</span>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
