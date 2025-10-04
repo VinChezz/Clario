@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import WorkspaceHeader from "../_components/WorkspaceHeader";
 import { FILE } from "@/shared/types/file.interface";
-import Loader from "@/app/_loaders/loader";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
+import EraserLoader from "@/app/_loaders/ErasorLoader";
 
 const Editor = dynamic(() => import("../_components/Editor"), {
   loading: () => <div>Loading Editor...</div>,
@@ -26,12 +26,6 @@ export default function WorkspacePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Функция для обновления файла
-  const updateFileData = useCallback((updatedData: Partial<FILE>) => {
-    setFileData((prev) => (prev ? { ...prev, ...updatedData } : null));
-  }, []);
-
-  // Fetch file data
   useEffect(() => {
     const fetchFileData = async () => {
       if (!fileId) return;
@@ -56,7 +50,7 @@ export default function WorkspacePage() {
     fetchFileData();
   }, [fileId]);
 
-  if (!fileId || isLoading) return <Loader />;
+  if (!fileId || isLoading) return <EraserLoader />;
 
   if (error)
     return (
