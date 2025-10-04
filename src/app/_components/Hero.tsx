@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { redirect } from "next/navigation";
 
 export default function Hero() {
   return (
@@ -102,7 +103,12 @@ export default function Hero() {
             }}
             whileTap={{ scale: 0.95 }}
           >
-            <span className="relative z-10">Get Started Free</span>
+            <span
+              className="relative z-10"
+              onClick={() => redirect("/dashboard")}
+            >
+              Get Started Free
+            </span>
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
           </motion.a>
 
