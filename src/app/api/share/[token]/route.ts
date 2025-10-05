@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: Request,
-  { params }: { params: { token: string } } // УБРАЛ async!
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const { token } = params; // ПРАВИЛЬНОЕ получение params
+    const { token } = await params;
 
     const file = await prisma.file.findFirst({
       where: { 
