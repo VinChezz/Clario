@@ -89,11 +89,10 @@ export default function ShareButton({ fileId, fileName, children }: ShareButtonP
       }
     }
 
-    // getShareableLink => ...
 
     const getShareableLink = () => {
       if (!shareInfo?.shareToken) return ''
-      return `${window.location.origin}/api/share/${shareInfo.shareToken}`
+      return `${window.location.origin}/public/${shareInfo.shareToken}`
     }
 
     const copyToClipboard = async () => {
