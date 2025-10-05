@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
 }
 
 model User {
@@ -15,32 +14,34 @@ model User {
   image     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   files     File[]
   teams     Team[]   @relation("TeamCreator")
 }
 
 model Team {
-  id        String   @id @default(cuid())
-  name      String
-  createdBy User     @relation("TeamCreator", fields: [createdById], references: [id])
+  id          String   @id @default(cuid())
+  name        String
   createdById String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  files     File[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  files       File[]
+  createdBy   User     @relation("TeamCreator", fields: [createdById], references: [id])
 }
 
 model File {
-  id         String   @id @default(cuid())
-  fileName   String
-  archive    Boolean
-  document   String?
-  whiteboard String?
-  team       Team     @relation(fields: [teamId], references: [id])
-  teamId     String
-  createdBy  User     @relation(fields: [createdById], references: [id])
+  id          String   @id @default(cuid())
+  fileName    String
+  archive     Boolean
+  document    String?
+  whiteboard  String?
+  teamId      String
   createdById String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isPublic    Boolean  @default(false)
+  permissions String   @default("VIEW")
+  shareToken  String?  @unique
+  version     Int      @default(1)
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  team        Team     @relation(fields: [teamId], references: [id])
 }

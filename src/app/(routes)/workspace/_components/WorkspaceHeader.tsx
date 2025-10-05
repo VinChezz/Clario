@@ -1,11 +1,12 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Link, Save } from "lucide-react";
+import { Link, Save, Share } from "lucide-react";
 import Image from "next/image";
 import React from "react";
 import { FILE } from "@/shared/types/file.interface";
 import { redirect } from "next/navigation";
+import ShareButton from "./share-button/ShareButton";
 
 interface WorkspaceHeaderProps {
   file?: FILE;
@@ -38,10 +39,11 @@ export default function WorkspaceHeader({
           <Save className="h-4 w-4" />
           Save
         </Button>
-        <Button className="h-8 text-[12px] gap-2 bg-blue-600 hover:bg-blue-700">
-          Share
-          <Link className="h-4 w-4" />
-        </Button>
+        <ShareButton
+          fileId={file?.id || ""} 
+          fileName={file?.fileName || "Untitled"}
+        />
+
       </div>
     </div>
   );

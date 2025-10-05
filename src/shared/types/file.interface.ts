@@ -7,4 +7,5 @@ export interface FILE {
   whiteboard: string;
   id: string;
   _creationTime: number;
+  version: number;
 }
