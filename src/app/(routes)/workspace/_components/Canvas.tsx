@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import { MainMenu, WelcomeScreen } from "@excalidraw/excalidraw";
-import "@excalidraw/excalidraw/index.css"; // <- важно: стили Excalidraw
+import "@excalidraw/excalidraw/index.css";
 import { FILE } from "@/shared/types/file.interface";
 
 const Excalidraw = dynamic(
