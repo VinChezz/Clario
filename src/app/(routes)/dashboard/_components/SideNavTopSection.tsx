@@ -164,16 +164,22 @@ function SideNavTopSection({ user, setActiveTeamInfo }: any) {
             transition={{ duration: 0.5, ease: "easeInOut" }}
             className="overflow-hidden mt-4"
           >
-            {fileList.map((file) => (
-              <div
-                key={file.id}
-                className="flex items-center gap-2 p-2 hover:bg-gray-200 rounded-lg cursor-pointer text-sm"
-                onClick={() => router.push(`/workspace/${file.id}`)}
-              >
-                <FileText className="h-4 w-4 text-gray-700" />
-                <span>{file.fileName}</span>
+            {fileList && fileList.length > 0 ? (
+              fileList.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center gap-2 p-2 hover:bg-gray-200 rounded-lg cursor-pointer text-sm"
+                  onClick={() => router.push(`/workspace/${file.id}`)}
+                >
+                  <FileText className="h-4 w-4 text-gray-700" />
+                  <span>{file.fileName}</span>
+                </div>
+              ))
+            ) : (
+              <div className="flex items-center gap-2 p-2 text-sm text-gray-500">
+                <span>No files added yet</span>
               </div>
-            ))}
+            )}
           </motion.div>
         )}
       </AnimatePresence>
