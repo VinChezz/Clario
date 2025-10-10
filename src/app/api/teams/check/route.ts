@@ -11,8 +11,17 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Находим пользователя в базе
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email as string },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json([], { status: 200 });
+    }
+
     const teams = await prisma.team.findMany({
-      where: { createdById: user.id },
+      where: { createdById: dbUser.id },
       select: { id: true, name: true },
     });
 
