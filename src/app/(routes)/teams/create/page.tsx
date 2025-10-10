@@ -39,17 +39,32 @@ export default function CreateTeam() {
   const createNewTeam = async () => {
     try {
       setLoading(true);
+      const trimmedTeamName = teamName.trim();
+
+      if (!trimmedTeamName) {
+        toast.error("Team name cannot be empty");
+        return;
+      }
+
       const res = await fetch("/api/teams", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ teamName }),
+        body: JSON.stringify({ teamName: trimmedTeamName }),
       });
 
+      const responseText = await res.text();
+      let data;
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = {};
+      }
+
       if (!res.ok) {
-        const err = await res.json();
-        toast.error(err.error || "Failed to create team");
+        toast.error(data.error || `Failed to create team: ${res.status}`);
         return;
       }
 
@@ -62,6 +77,7 @@ export default function CreateTeam() {
       setLoading(false);
     }
   };
+
   return (
     <div className="px-6 md:px-16 my-16">
       <div className="relative flex items-start justify-start">

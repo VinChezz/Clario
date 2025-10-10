@@ -34,10 +34,6 @@ export default function FileList() {
     if (fileList_) setFileList(fileList_);
   }, [fileList_]);
 
-  useEffect(() => {
-    console.log("File list: ", fileList);
-  });
-
   return (
     <div className="mt-5">
       <Table>
