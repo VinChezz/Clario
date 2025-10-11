@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
@@ -7,142 +7,136 @@ export async function GET() {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    console.log("API Teams GET - User:", {
-      id: user?.id,
-      email: user?.email,
-      name: user?.given_name,
-    });
+    console.log("🔍 API Teams - User:", user?.email);
 
-    if (!user || !user.id || !user.email) {
-      console.log("API Teams GET - Unauthorized: missing user data");
+    if (!user || !user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Находим пользователя в базе по email
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email },
     });
 
-    console.log("API Teams GET - DB User found:", !!dbUser);
-
     if (!dbUser) {
-      console.log("API Teams GET - User not found in database");
-      return NextResponse.json([], { status: 200 });
+      console.log("ℹ️ User not found in database, returning empty teams");
+      return NextResponse.json([]);
     }
 
     const teams = await prisma.team.findMany({
-      where: { createdById: dbUser.id },
+      where: {
+        OR: [
+          { createdById: dbUser.id },
+          { members: { some: { userId: dbUser.id } } },
+        ],
+      },
+      include: {
+        _count: {
+          select: { members: true },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
 
-    console.log("API Teams GET - Teams found:", teams.length);
-
-    return NextResponse.json(teams, { status: 200 });
-  } catch (e) {
-    console.error("API Teams GET - Error:", e);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    console.log("✅ Teams found:", teams.length);
+    return NextResponse.json(teams);
+  } catch (error: any) {
+    console.error("❌ API Teams Error:", error);
+    return NextResponse.json([], { status: 200 });
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    console.log("API Teams POST - User:", {
-      id: user?.id,
-      email: user?.email,
-      name: user?.given_name,
-    });
-
-    if (!user || !user.id || !user.email) {
-      console.log("API Teams POST - Unauthorized: missing user data");
+    if (!user || !user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { teamName } = await req.json();
+    const { name } = await request.json();
 
-    if (!teamName || teamName.trim().length === 0) {
+    if (!name?.trim()) {
       return NextResponse.json(
         { error: "Team name is required" },
         { status: 400 }
       );
     }
 
-    // Проверяем, не превышает ли пользователь лимит команд
-    const userTeamsCount = await prisma.team.count({
-      where: { createdById: user.id },
-    });
+    const trimmedName = name.trim();
 
-    // Например, ограничим максимум 5 команд на пользователя
-    if (userTeamsCount >= 5) {
+    try {
+      let dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!dbUser) {
+        dbUser = await prisma.user.create({
+          data: {
+            email: user.email,
+            name:
+              user.given_name +
+              (user.family_name ? ` ${user.family_name}` : ""),
+            image: user.picture,
+          },
+        });
+      }
+
+      const team = await prisma.team.create({
+        data: {
+          name: trimmedName,
+          createdById: dbUser.id,
+          members: {
+            create: {
+              userId: dbUser.id,
+              role: "EDIT",
+            },
+          },
+        },
+        include: {
+          _count: { select: { members: true } },
+          members: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true, image: true },
+              },
+            },
+          },
+        },
+      });
+
+      return NextResponse.json(team);
+    } catch (dbError: any) {
+      console.error("❌ Database error:", dbError);
+
+      if (dbError.code === "P1001") {
+        return NextResponse.json(
+          { error: "Service temporarily unavailable. Please try again later." },
+          { status: 503 }
+        );
+      }
+
       return NextResponse.json(
-        { error: "Maximum team limit reached (5 teams per user)" },
-        { status: 400 }
+        { error: "Failed to create team due to database issues" },
+        { status: 500 }
       );
     }
-
-    const userName =
-      user.given_name || user.family_name || user.email.split("@")[0];
-    const userImage = user.picture || "";
-
-    // Upsert пользователя по email
-    const prismaUser = await prisma.user.upsert({
-      where: { email: user.email },
-      update: {
-        name: userName,
-        image: userImage,
-      },
-      create: {
-        id: user.id,
-        email: user.email,
-        name: userName,
-        image: userImage,
-      },
-    });
-
-    // Проверяем, нет ли уже команды с таким именем у этого пользователя
-    const existingTeam = await prisma.team.findFirst({
-      where: {
-        name: teamName,
-        createdById: prismaUser.id,
-      },
-    });
-
-    if (existingTeam) {
-      return NextResponse.json(
-        { error: "You already have a team with this name" },
-        { status: 400 }
-      );
-    }
-
-    // Создаём команду
-    const team = await prisma.team.create({
-      data: {
-        name: teamName,
-        createdById: prismaUser.id,
-      },
-    });
-
-    console.log("API Teams POST - Team created:", team.id);
-
-    return NextResponse.json(team, { status: 201 });
-  } catch (e) {
-    console.error("API Teams POST - Error creating team:", e);
-
-    // Проверяем, является ли ошибка уникальным constraint violation
-    if (e instanceof Error && e.message.includes("Unique constraint")) {
-      return NextResponse.json(
-        { error: "Team with this name already exists" },
-        { status: 400 }
-      );
-    }
-
+  } catch (error: any) {
+    console.error("❌ Create team error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

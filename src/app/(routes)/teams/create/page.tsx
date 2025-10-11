@@ -15,7 +15,6 @@ const virgil = Virgil({
 
 export default function CreateTeam() {
   const { user, isLoading } = useKindeBrowserClient();
-  const [dbUser, setDbUser] = useState<any>(null);
   const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -26,15 +25,9 @@ export default function CreateTeam() {
         "/api/auth/login?post_login_redirect_url=/teams/create";
       return;
     }
-
-    if (user) {
-      fetch("/api/auth/[kindeAuth]/kinde_callback")
-        .then((res) => res.json())
-        .then((data) => setDbUser(data));
-    }
   }, [user, isLoading]);
 
-  if (!dbUser) return <Loader />;
+  if (isLoading) return <Loader />;
 
   const createNewTeam = async () => {
     try {
@@ -46,33 +39,49 @@ export default function CreateTeam() {
         return;
       }
 
+      console.log("Creating team with name:", trimmedTeamName);
+
       const res = await fetch("/api/teams", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ teamName: trimmedTeamName }),
+        body: JSON.stringify({
+          name: trimmedTeamName,
+        }),
       });
 
-      const responseText = await res.text();
       let data;
-
       try {
-        data = responseText ? JSON.parse(responseText) : {};
-      } catch {
-        data = {};
-      }
-
-      if (!res.ok) {
-        toast.error(data.error || `Failed to create team: ${res.status}`);
+        data = await res.json();
+      } catch (parseError) {
+        console.error("Failed to parse response:", parseError);
+        toast.error("Invalid response from server");
         return;
       }
 
+      if (!res.ok) {
+        console.error("API Error:", data);
+
+        if (res.status === 503) {
+          toast.error(
+            "Service temporarily unavailable. Please try again in a moment."
+          );
+        } else {
+          toast.error(data.error || `Failed to create team: ${res.status}`);
+        }
+        return;
+      }
+
+      console.log("Team created successfully:", data);
       toast.success("Team created successfully!");
-      router.push("/dashboard");
+
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1000);
     } catch (e) {
-      console.error("Error: ", e);
-      toast.error("Something went wrong");
+      console.error("Network error: ", e);
+      toast.error("Network error - please check your connection");
     } finally {
       setLoading(false);
     }
@@ -96,15 +105,21 @@ export default function CreateTeam() {
           <Input
             placeholder="Team Name"
             className="mt-3"
+            value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && teamName.trim().length > 0 && !loading) {
+                createNewTeam();
+              }
+            }}
           />
         </div>
         <Button
           className="bg-blue-500 mt-9 w-[30%] hover:bg-blue-600"
-          disabled={!(teamName && teamName?.length > 0)}
-          onClick={() => createNewTeam()}
+          disabled={!(teamName && teamName.trim().length > 0) || loading}
+          onClick={createNewTeam}
         >
-          {loading ? "Creating..." : "Create Team"}
+          {loading ? "Creating Team..." : "Create Team"}
         </Button>
       </div>
     </div>
