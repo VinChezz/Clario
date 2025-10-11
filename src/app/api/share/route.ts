@@ -2,13 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
-// Эндпоинт для работы с шарингом конкретного файла
 export async function GET(req: Request) {
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
-    
-    // Получаем fileId из query параметров
+
     const url = new URL(req.url);
     const fileId = url.searchParams.get("fileId");
 
@@ -17,21 +15,24 @@ export async function GET(req: Request) {
     }
 
     if (!fileId) {
-      return NextResponse.json({ error: "File ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "File ID is required" },
+        { status: 400 }
+      );
     }
 
     const file = await prisma.file.findFirst({
-      where: { 
+      where: {
         id: fileId,
-        createdById: user.id 
+        createdById: user.id,
       },
       select: {
         id: true,
         fileName: true,
         isPublic: true,
         shareToken: true,
-        permissions: true
-      }
+        permissions: true,
+      },
     });
 
     if (!file) {
@@ -60,15 +61,17 @@ export async function PATCH(req: Request) {
     const { fileId, isPublic, permissions = "VIEW" } = await req.json();
 
     if (!fileId) {
-      return NextResponse.json({ error: "File ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "File ID is required" },
+        { status: 400 }
+      );
     }
 
-    // Проверяем что пользователь владеет файлом
     const file = await prisma.file.findFirst({
-      where: { 
+      where: {
         id: fileId,
-        createdById: user.id 
-      }
+        createdById: user.id,
+      },
     });
 
     if (!file) {
@@ -77,22 +80,20 @@ export async function PATCH(req: Request) {
 
     const updateData: any = {
       isPublic,
-      permissions
+      permissions,
     };
 
-    // Генерируем токен если делаем публичным
     if (isPublic && !file.shareToken) {
       updateData.shareToken = generateShareToken();
     }
 
-    // Если доступ закрываем - очищаем токен
     if (!isPublic) {
       updateData.shareToken = null;
     }
 
     const updatedFile = await prisma.file.update({
       where: { id: fileId },
-      data: updateData
+      data: updateData,
     });
 
     return NextResponse.json(updatedFile);
@@ -106,6 +107,8 @@ export async function PATCH(req: Request) {
 }
 
 function generateShareToken(): string {
-  return Math.random().toString(36).substring(2, 15) + 
-         Math.random().toString(36).substring(2, 15);
+  return (
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15)
+  );
 }

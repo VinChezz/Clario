@@ -26,7 +26,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Сначала находим или создаем пользователя
     const userName =
       user.given_name || user.family_name || user.email.split("@")[0];
     const userImage = user.picture || "";
@@ -45,22 +44,30 @@ export async function POST(request: Request) {
       },
     });
 
-    // Проверяем, существует ли команда и принадлежит ли пользователю
-    const team = await prisma.team.findFirst({
+    const teamAccess = await prisma.team.findFirst({
       where: {
         id: teamId,
-        createdById: dbUser.id,
+        OR: [
+          { createdById: dbUser.id },
+          {
+            members: {
+              some: {
+                userId: dbUser.id,
+                role: { in: ["EDIT"] },
+              },
+            },
+          },
+        ],
       },
     });
 
-    if (!team) {
+    if (!teamAccess) {
       return NextResponse.json(
         { error: "Team not found or access denied" },
         { status: 404 }
       );
     }
 
-    // Создаем файл
     const file = await prisma.file.create({
       data: {
         fileName,
@@ -68,7 +75,7 @@ export async function POST(request: Request) {
         document,
         whiteboard,
         teamId,
-        createdById: dbUser.id, // Используем ID из базы данных
+        createdById: dbUser.id,
       },
     });
 
@@ -101,7 +108,6 @@ export async function GET(request: Request) {
       );
     }
 
-    // Находим пользователя в базе
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email },
     });
@@ -110,15 +116,23 @@ export async function GET(request: Request) {
       return NextResponse.json([], { status: 200 });
     }
 
-    // Проверяем доступ к команде
-    const team = await prisma.team.findFirst({
+    const teamAccess = await prisma.team.findFirst({
       where: {
         id: teamId,
-        createdById: dbUser.id,
+        OR: [
+          { createdById: dbUser.id },
+          {
+            members: {
+              some: {
+                userId: dbUser.id,
+              },
+            },
+          },
+        ],
       },
     });
 
-    if (!team) {
+    if (!teamAccess) {
       return NextResponse.json(
         { error: "Team not found or access denied" },
         { status: 404 }
@@ -128,7 +142,16 @@ export async function GET(request: Request) {
     const files = await prisma.file.findMany({
       where: { teamId },
       orderBy: { createdAt: "desc" },
-      include: { createdBy: true },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json(files, { status: 200 });

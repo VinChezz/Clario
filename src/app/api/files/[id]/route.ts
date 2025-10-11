@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 interface UpdateBody {
   document?: string;
@@ -56,11 +57,15 @@ export async function PATCH(
 }
 
 export async function GET(
-  req: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+
+    console.log("🔍 Fetching file by ID:", id);
 
     if (!id) {
       return NextResponse.json(
@@ -72,18 +77,68 @@ export async function GET(
     const file = await prisma.file.findUnique({
       where: { id },
       include: {
-        createdBy: true,
-        team: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+            createdById: true,
+            members: {
+              select: {
+                userId: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
     });
 
     if (!file) {
+      console.log("❌ File not found:", id);
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
+    if (file.isPublic) {
+      console.log("✅ Public file accessed:", id);
+      return NextResponse.json(file, { status: 200 });
+    }
+
+    if (!user || !user.id || !user.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const hasAccess =
+      file.createdById === dbUser.id ||
+      file.team.createdById === dbUser.id ||
+      file.team.members.some((member) => member.userId === dbUser.id);
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "Access denied to this file" },
+        { status: 403 }
+      );
+    }
+
+    console.log("✅ File accessed successfully:", id);
     return NextResponse.json(file, { status: 200 });
-  } catch (err) {
-    console.log("Error getting file by ID: ", err);
+  } catch (error) {
+    console.error("❌ Error fetching file:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
