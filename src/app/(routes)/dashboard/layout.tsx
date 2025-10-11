@@ -13,35 +13,60 @@ function DashboardLayout({
 }>) {
   const { user }: any = useKindeBrowserClient();
   const [fileList_, setFileList_] = useState();
+  const [isChecking, setIsChecking] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     if (user) {
       checkTeam();
+    } else {
+      setIsChecking(false);
     }
   }, [user]);
 
   const checkTeam = async () => {
     try {
-      const resp = await fetch("/api/teams/check", {
+      setIsChecking(true);
+      console.log("🔍 Checking teams for user:", user.email);
+
+      const resp = await fetch("/api/teams", {
         method: "GET",
         cache: "no-store",
       });
 
-      if (!resp.ok) {
-        console.error("Failed to check teams");
-        return;
-      }
-
       const result = await resp.json();
 
-      if (!result?.length) {
+      console.log("📋 Teams check result:", {
+        status: resp.status,
+        teamsCount: Array.isArray(result) ? result.length : "invalid response",
+        hasTeams: Array.isArray(result) && result.length > 0,
+      });
+
+      if (Array.isArray(result) && result.length === 0) {
+        console.log("➡️ No teams found, redirecting to create team");
         router.push("/teams/create");
+      } else {
+        console.log(
+          "✅ Teams found or database unavailable, staying on dashboard"
+        );
       }
     } catch (err) {
-      console.error("Error checking team:", err);
+      console.error("❌ Error checking team:", err);
+    } finally {
+      setIsChecking(false);
     }
   };
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your workspace...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

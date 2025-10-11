@@ -7,10 +7,11 @@ import { toast } from "sonner";
 import { FileListContext } from "@/app/_context/FileListContext";
 import SideNavTopSection, { TEAM } from "./SideNavTopSection";
 import SideNavBottomSection from "./SideNavBottomSection";
+import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 
 export default function SideNav() {
   const { user }: any = useKindeBrowserClient();
-  const [activeTeam, setActiveTeam] = useState<TEAM | any>();
+  const { activeTeam, setActiveTeam } = useActiveTeam();
   const [totalFiles, setTotalFiles] = useState<number>(0);
   const { fileList_, setFileList_ } = useContext(FileListContext);
 
@@ -48,7 +49,7 @@ export default function SideNav() {
   const getFiles = async () => {
     if (!activeTeam) return;
     try {
-      const resp = await fetch(`/api/files?teamId=${activeTeam.id}`, {
+      const resp = await fetch(`/api/teams/${activeTeam.id}/files`, {
         method: "GET",
         cache: "no-store",
       });
@@ -67,10 +68,7 @@ export default function SideNav() {
   return (
     <div className="h-screen fixed w-72 border-r border-[1px] p-6 flex flex-col">
       <div className="flex-1">
-        <SideNavTopSection
-          user={user}
-          setActiveTeamInfo={(team: TEAM) => setActiveTeam(team)}
-        />
+        <SideNavTopSection user={user} setActiveTeamInfo={setActiveTeam} />
       </div>
       <div>
         <SideNavBottomSection

@@ -34,6 +34,7 @@ export default function Dashboard({
   const isLight = variant === "light";
 
   if (!dbUser) return <Loader />;
+
   return (
     <div className="p-8">
       <Header />
