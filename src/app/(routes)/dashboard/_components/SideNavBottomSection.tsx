@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Archive, Flag, Github } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogClose,
@@ -14,6 +14,9 @@ import {
 import { Input } from "@/components/ui/input";
 import Constant from "@/app/_constant/Constant";
 import PricingDialog from "./PricingDialog";
+import { TeamMember } from "@prisma/client";
+import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 
 export default function SideNavBottomSection({
   onFileCreate,
@@ -39,7 +42,40 @@ export default function SideNavBottomSection({
       path: "",
     },
   ];
+  const { user }: any = useKindeBrowserClient();
   const [fileInput, setFileInput] = useState("");
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const { activeTeam, setActiveTeam } = useActiveTeam();
+  const [dbUser, setDbUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (user?.email) {
+      fetch("/api/auth/user")
+        .then((res) => res.json())
+        .then((data) => setDbUser(data))
+        .catch((error) => console.error("Failed to load user:", error));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (activeTeam?.members) {
+      const membersWithDates = activeTeam.members.map((member) => ({
+        ...member,
+        joinedAt: new Date(member.joinedAt),
+      }));
+      setTeamMembers(membersWithDates);
+    } else {
+      setTeamMembers([]);
+    }
+  }, [activeTeam]);
+
+  const currentUserMember = teamMembers.find(
+    (member) => member.userId === dbUser?.id
+  );
+  const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
+
+  const canCreateFiles =
+    isCurrentUserCreator || currentUserMember?.role === "EDIT";
   return (
     <div>
       {menuList.map((menu, index) => (
@@ -59,6 +95,7 @@ export default function SideNavBottomSection({
           <Button
             className="w-full bg-blue-600
       hover:bg-blue-700 justify-start mt-3"
+            disabled={!canCreateFiles}
           >
             New File
           </Button>
