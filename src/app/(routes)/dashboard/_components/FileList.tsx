@@ -55,25 +55,34 @@ export default function FileList() {
             >
               <TableCell className="font-medium">{file.fileName}</TableCell>
               <TableCell>
-                {moment(file._creationTime).format("DD MMM YYYY")}
+                {moment(file._creationTime || file.createdAt).format(
+                  "DD MMM YYYY"
+                )}
               </TableCell>
               <TableCell>
-                {moment(file._creationTime).format("DD MMM YYYY")}
+                {moment(file._creationTime || file.createdAt).format(
+                  "DD MMM YYYY"
+                )}
               </TableCell>
               <TableCell>
-                {user && (
-                  <Image
-                    src={user?.picture}
-                    alt="user"
-                    width={30}
-                    height={30}
-                    className="ml-1 rounded-full"
-                  />
+                {file.createdBy && (
+                  <div className="flex items-center gap-2">
+                    <Image
+                      src={file.createdBy.image || "/default-avatar.png"}
+                      alt={file.createdBy.name}
+                      width={30}
+                      height={30}
+                      className="rounded-full"
+                    />
+                    <span className="text-sm text-gray-600">
+                      {file.createdBy.name}
+                    </span>
+                  </div>
                 )}
               </TableCell>
               <TableCell>
                 <DropdownMenu>
-                  <DropdownMenuTrigger>
+                  <DropdownMenuTrigger onClick={(e) => e.stopPropagation()}>
                     <MoreHorizontal className="cursor-pointer" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>

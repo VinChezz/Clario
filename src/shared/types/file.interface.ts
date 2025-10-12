@@ -1,11 +1,16 @@
 export interface FILE {
+  id: string;
   archive: boolean;
-  createdBy: string;
+  createdBy: {
+    id: string;
+    name: string;
+    image: string | null;
+  };
+  createdAt: string;
   document: string;
   fileName: string;
   teamId: string;
   whiteboard: string;
-  id: string;
   _creationTime: number;
   version: number;
 }

@@ -149,6 +149,7 @@ export async function GET(request: Request) {
             name: true,
             email: true,
             image: true,
+            createdAt: true,
           },
         },
       },
