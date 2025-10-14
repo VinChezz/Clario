@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import Virgil from "next/font/local";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import Loader from "@/app/_loaders/loader";
+import { ChevronLeft } from "lucide-react";
 
 const virgil = Virgil({
   src: "../../../fonts/Virgil.woff2",
@@ -92,6 +93,16 @@ export default function CreateTeam() {
       <div className="relative flex items-start justify-start">
         <Image src={"/logo-1.png"} alt={"logo"} width={150} height={150} />
         <div className="mt-1 ml-2 text-5xl text-black font-bold">Clario</div>
+        <div className="relative flex justify-end-safe w-full mt-2">
+          <Button
+            size={"lg"}
+            variant={"outline"}
+            onClick={() => router.push("/dashboard?skipTeamCheck=true")}
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back
+          </Button>
+        </div>
       </div>
       <div className="flex flex-col items-center mt-8">
         <h2 className={`${virgil.className} text-[42px] py-2 font-extrabold`}>

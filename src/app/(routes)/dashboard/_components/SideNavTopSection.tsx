@@ -108,8 +108,7 @@ function SideNavTopSection({
         console.log("🎯 Setting active team to first team:", data[0]);
         setActiveTeam(data[0]);
       } else {
-        console.log("⚠️ No teams found - redirecting to create team");
-        router.push("/teams/create");
+        console.log("⚠️ No teams found");
       }
     } catch (e: any) {
       console.error("❌ Error fetching teams:", e.message);

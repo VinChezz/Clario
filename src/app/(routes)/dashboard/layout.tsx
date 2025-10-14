@@ -1,7 +1,7 @@
 "use client";
 
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import SideNav from "./_components/SideNav";
 import { FileListContext } from "@/app/_context/FileListContext";
@@ -15,14 +15,23 @@ function DashboardLayout({
   const [fileList_, setFileList_] = useState();
   const [isChecking, setIsChecking] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // 💡 Проверяем query-параметр ?skipTeamCheck=true
+  const skipTeamCheck = searchParams.get("skipTeamCheck") === "true";
 
   useEffect(() => {
     if (user) {
-      checkTeam();
+      if (!skipTeamCheck) {
+        checkTeam();
+      } else {
+        console.log("⚡ Skipping team check (Back button pressed)");
+        setIsChecking(false);
+      }
     } else {
       setIsChecking(false);
     }
-  }, [user]);
+  }, [user, skipTeamCheck]);
 
   const checkTeam = async () => {
     try {
@@ -46,9 +55,7 @@ function DashboardLayout({
         console.log("➡️ No teams found, redirecting to create team");
         router.push("/teams/create");
       } else {
-        console.log(
-          "✅ Teams found or database unavailable, staying on dashboard"
-        );
+        console.log("✅ Teams found, staying on dashboard");
       }
     } catch (err) {
       console.error("❌ Error checking team:", err);
