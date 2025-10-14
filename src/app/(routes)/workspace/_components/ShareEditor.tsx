@@ -34,7 +34,7 @@ export default function ShareEditor({
     }
 
     isSaving.current = true;
-    
+
     try {
       const outputData = await editorRef.current.save();
       console.log("💾 Saving document...");
@@ -65,7 +65,6 @@ export default function ShareEditor({
       if (onSaveSuccess) {
         onSaveSuccess();
       }
-
     } catch (err) {
       console.error("💥 Save error:", err);
       toast.error(
@@ -140,41 +139,42 @@ export default function ShareEditor({
         const editor = new EditorJS({
           holder: "editorjs",
           tools: {
-            header: { 
-              class: Header, 
+            header: {
+              class: Header,
               shortcut: "CMD+SHIFT+H",
               config: {
                 placeholder: "Enter a header",
                 levels: [1, 2, 3, 4],
                 defaultLevel: 2,
-              }
+              },
             },
-            list: { 
-              class: List, 
+            list: {
+              class: List,
               inlineToolbar: true,
-              shortcut: "CMD+SHIFT+L" 
+              shortcut: "CMD+SHIFT+L",
             },
-            checklist: { 
-              class: Checklist, 
+            checklist: {
+              class: Checklist,
               inlineToolbar: true,
-              shortcut: "CMD+SHIFT+C" 
+              shortcut: "CMD+SHIFT+C",
             },
-            paragraph: { 
-              class: Paragraph, 
-              inlineToolbar: true 
-            },
-            warning: { 
-              class: Warning, 
+            paragraph: {
+              class: Paragraph,
               inlineToolbar: true,
-              shortcut: "CMD+SHIFT+W" 
+            },
+            warning: {
+              class: Warning,
+              inlineToolbar: true,
+              shortcut: "CMD+SHIFT+W",
             },
           },
           data: editorData,
           readOnly: permissions === "VIEW",
           autofocus: false,
-          placeholder: permissions === "VIEW" 
-            ? "Read-only mode" 
-            : "Start writing your notes...",
+          placeholder:
+            permissions === "VIEW"
+              ? "Read-only mode"
+              : "Start writing your notes...",
           onReady: () => {
             console.log("🎉 Editor.js is ready!");
           },
@@ -208,28 +208,28 @@ export default function ShareEditor({
     <div className="h-full">
       <div className="p-2 bg-gray-100 border-b flex justify-between items-center">
         <div className="flex gap-2">
-            {permissions !== "VIEW" && (
-                <button
-                    onClick={saveDocument}
-                    className="px-3 py-1 bg-green-500 text-white rounded text-sm"
-                    disabled={isSaving.current}
-                >
-                    {isSaving.current ? "Saving..." : "Save"}
-                </button>
-            )}
-          
+          {permissions !== "VIEW" && (
+            <button
+              onClick={saveDocument}
+              className="px-3 py-1 bg-green-500 text-white rounded text-sm"
+              disabled={isSaving.current}
+            >
+              {isSaving.current ? "Saving..." : "Save"}
+            </button>
+          )}
+
           {permissions === "VIEW" && (
             <span className="px-3 py-1 bg-yellow-200 rounded text-sm">
               Read-only
             </span>
           )}
         </div>
-        
+
         <div className="text-sm text-gray-600">
           {permissions === "EDIT" ? "Manual save only" : "Viewing only"}
         </div>
       </div>
-      
+
       <div
         id="editorjs"
         className="h-full min-h-[500px] border rounded-lg p-4 bg-white"

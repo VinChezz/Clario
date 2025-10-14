@@ -34,19 +34,29 @@ interface ShareInfo {
 interface ShareButtonProps {
   fileId: string;
   fileName: string;
+  permissions: "VIEW" | "EDIT";
   children?: React.ReactNode;
 }
 
 export default function ShareButton({
   fileId,
   fileName,
+  permissions,
   children,
 }: ShareButtonProps) {
   const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const canShare = permissions === "EDIT";
+
   const fetchShareInfo = async () => {
+    if (!canShare) {
+      toast.error("You don't have permission to share files");
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const res = await fetch(`/api/share?fileId=${fileId}`);
       if (!res.ok) throw new Error("Failed to fetch share info");
@@ -60,7 +70,12 @@ export default function ShareButton({
     }
   };
 
-  const handleShareToogle = async (isPublic: boolean, permissions = "VIEW") => {
+  const handleShareToggle = async (isPublic: boolean, permissions = "VIEW") => {
+    if (!canShare) {
+      toast.error("You don't have permission to change share settings");
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const res = await fetch("/api/share", {
@@ -99,13 +114,13 @@ export default function ShareButton({
       await navigator.clipboard.writeText(getShareableLink());
       toast.success("The link has been copied to the clipboard.");
     } catch (e) {
-      console.error("Ошибка копирования: ", e);
+      console.error("Copy error: ", e);
       toast.error("Failed to copy link");
     }
   };
 
   const shareToTelegram = () => {
-    const text = `Посмотри файл "${fileName}": ${getShareableLink()}`;
+    const text = `Check out the file "${fileName}": ${getShareableLink()}`;
     const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(
       getShareableLink()
     )}&text=${encodeURIComponent(text)}`;
@@ -116,11 +131,13 @@ export default function ShareButton({
     <Dialog>
       <DialogTrigger asChild>
         <Button
-          className="h-8 text-[12px] gap-2 bg-blue-600 hover:bg-blue-700"
+          className="h-8 text-[12px] gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400"
           onClick={fetchShareInfo}
+          disabled={!canShare}
         >
           {children || <Link className="h-4 w-4" />}
           Share
+          {!canShare && <span className="text-xs">(No permission)</span>}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -128,6 +145,11 @@ export default function ShareButton({
           <DialogTitle>Share file</DialogTitle>
           <DialogDescription>
             Set up access to file "{fileName}"
+            {!canShare && (
+              <span className="text-red-500 block mt-1">
+                You don't have permission to change share settings
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -143,15 +165,15 @@ export default function ShareButton({
                 className="flex flex-col space-y-1"
               >
                 <span>Public access</span>
-                <span className="font-normal text-xs text-muted-foreqround">
+                <span className="font-normal text-xs text-muted-foreground">
                   Allow access via link
                 </span>
               </Label>
               <Switch
                 id="public-access"
                 checked={shareInfo?.isPublic || false}
-                onCheckedChange={(checked) => handleShareToogle(checked)}
-                disabled={isUpdating}
+                onCheckedChange={(checked) => handleShareToggle(checked)}
+                disabled={isUpdating || !canShare}
               />
             </div>
 
@@ -179,8 +201,8 @@ export default function ShareButton({
                   <Label htmlFor="permissions">Access rights</Label>
                   <Select
                     value={shareInfo?.permissions || "VIEW"}
-                    onValueChange={(value) => handleShareToogle(true, value)}
-                    disabled={isUpdating}
+                    onValueChange={(value) => handleShareToggle(true, value)}
+                    disabled={isUpdating || !canShare}
                   >
                     <SelectTrigger id="permissions">
                       <SelectValue />
@@ -193,7 +215,7 @@ export default function ShareButton({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Fast sharing</Label>
+                  <Label>Quick sharing</Label>
                   <div className="flex space-x-2">
                     <Button
                       onClick={shareToTelegram}
@@ -208,7 +230,7 @@ export default function ShareButton({
                       size="sm"
                       className="flex-1"
                       onClick={() => {
-                        const text = `Hi! Look at the file "${fileName}": ${getShareableLink()}`;
+                        const text = `Hi! Check out the file "${fileName}": ${getShareableLink()}`;
                         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
                           text
                         )}`;
@@ -228,9 +250,14 @@ export default function ShareButton({
               </div>
             )}
 
-            {shareInfo?.isPublic && (
+            {!shareInfo?.isPublic && (
               <div className="text-center py-4 text-muted-foreground">
                 <p>Enable public access to share the file via a link</p>
+                {!canShare && (
+                  <p className="text-red-500 text-sm mt-2">
+                    Only users with EDIT permissions can change share settings
+                  </p>
+                )}
               </div>
             )}
           </div>

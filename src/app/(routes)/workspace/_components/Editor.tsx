@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import { FILE } from "@/shared/types/file.interface";
 import type EditorJS from "@editorjs/editorjs";
 import { toast } from "sonner";
+import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 
 const rawDocument = {
   time: Date.now(),
@@ -34,6 +35,42 @@ export default function Editor({
   const isInitialized = useRef(false);
   const isSaving = useRef(false);
   const [editorData, setEditorData] = useState<any>(null);
+  const { activeTeam } = useActiveTeam();
+  const [permissions, setPermissions] = useState<"VIEW" | "EDIT">("VIEW");
+
+  useEffect(() => {
+    const determinePermissions = async () => {
+      try {
+        const userRes = await fetch("/api/auth/user");
+        if (!userRes.ok) throw new Error("Failed to fetch user");
+        const dbUser = await userRes.json();
+
+        if (!activeTeam || !dbUser) {
+          setPermissions("VIEW");
+          return;
+        }
+
+        const isCreator = activeTeam.createdById === dbUser.id;
+
+        const isEditor = activeTeam.members?.some(
+          (member: any) => member.userId === dbUser.id && member.role === "EDIT"
+        );
+
+        setPermissions(isCreator || isEditor ? "EDIT" : "VIEW");
+
+        console.log("🔐 Permissions:", {
+          isCreator,
+          isEditor,
+          permissions: isCreator || isEditor ? "EDIT" : "VIEW",
+        });
+      } catch (err) {
+        console.error("Error determining permissions:", err);
+        setPermissions("VIEW");
+      }
+    };
+
+    determinePermissions();
+  }, [activeTeam]);
 
   const saveDocument = useCallback(async () => {
     if (!editorRef.current || isSaving.current) {
@@ -263,19 +300,17 @@ export default function Editor({
   return (
     <div className="h-full">
       <div className="p-2 bg-gray-100 border-b">
-        <button
-          onClick={() => {
-            toast.info("Check console for editor data");
-            alert(`🔍 Current editorData: ${editorData}`);
-          }}
-          className="px-3 py-1 bg-gray-300 rounded text-sm"
-        >
-          Debug Data
-        </button>
+        <div className="text-sm text-gray-600">
+          {permissions === "EDIT"
+            ? "Manual save available"
+            : "Viewing only - no editing permissions"}
+        </div>
       </div>
       <div
         id="editorjs"
-        className="h-full min-h-[500px] border rounded-lg p-4 bg-white"
+        className={`h-full min-h-[500px] border rounded-lg p-4 bg-white ${
+          permissions === "VIEW" ? "opacity-50 pointer-events-none" : ""
+        }`}
       ></div>
     </div>
   );
