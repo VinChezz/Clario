@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { FILE } from "@/shared/types/file.interface";
 import { toast } from "sonner";
 import "@excalidraw/excalidraw/index.css";
+import { MainMenu, WelcomeScreen } from "@excalidraw/excalidraw";
 
 const Excalidraw = dynamic(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
@@ -175,15 +176,37 @@ export default function ShareCanvas({
           theme="light"
           initialData={{ elements: whiteBoardData }}
           onChange={handleChange}
+          viewModeEnabled={permissions === "VIEW"}
           UIOptions={{
             canvasActions: {
               saveToActiveFile: false,
               loadScene: false,
-              export: permissions === "EDIT" ? {} : false,
-              toggleTheme: true,
+              export: false,
+              toggleTheme: false,
+              changeViewBackgroundColor: permissions === "EDIT",
             },
           }}
-        />
+        >
+          <MainMenu>
+            <MainMenu.DefaultItems.ClearCanvas />
+            <MainMenu.DefaultItems.SaveAsImage />
+            <MainMenu.DefaultItems.ChangeCanvasBackground />
+            {permissions === "VIEW" && (
+              <MainMenu.Item onSelect={() => {}}>
+                <div className="text-yellow-600 font-medium">
+                  🔒 Read-only Mode
+                </div>
+              </MainMenu.Item>
+            )}
+          </MainMenu>
+          <WelcomeScreen>
+            <WelcomeScreen.Hints.MenuHint />
+            <WelcomeScreen.Hints.ToolbarHint />
+            <WelcomeScreen.Center>
+              <WelcomeScreen.Center.MenuItemHelp />
+            </WelcomeScreen.Center>
+          </WelcomeScreen>
+        </Excalidraw>
       </div>
     </div>
   );
