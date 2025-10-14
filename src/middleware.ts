@@ -5,7 +5,9 @@ export function middleware(request: NextRequest) {
   // const token = request.cookies.get("kinde_auth")?.value;
   const token = request.cookies.get("id_token")?.value;
 
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
+
+  const skipTeamCheck = searchParams.get("skipTeamCheck");
 
   if (token && pathname === "/") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -21,6 +23,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(loginUrl, request.url));
   }
 
+  if (pathname.startsWith("/dashboard") && skipTeamCheck === "true") {
+    return NextResponse.next();
+  }
   return NextResponse.next();
 }
 
