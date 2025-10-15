@@ -7,6 +7,7 @@ export interface FILE {
     image: string | null;
   };
   createdAt: string;
+  updatedAt: string;
   document: string;
   fileName: string;
   teamId: string;

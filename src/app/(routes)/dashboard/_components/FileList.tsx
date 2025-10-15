@@ -34,6 +34,24 @@ export default function FileList() {
     if (fileList_) setFileList(fileList_);
   }, [fileList_]);
 
+  const formatDate = (dateString: string) => {
+    const date = moment(dateString);
+    const now = moment();
+
+    if (date.isSame(now, "day")) {
+      return "Today";
+    } else if (date.isSame(now.clone().subtract(1, "day"), "day")) {
+      return "Yesterday";
+    } else if (date.isSame(now, "week")) {
+      return date.format("dddd");
+    } else {
+      return date.format("DD MMM YYYY");
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    return moment(dateString).format("HH:mm");
+  };
   return (
     <div className="mt-5">
       <Table>
@@ -55,14 +73,14 @@ export default function FileList() {
             >
               <TableCell className="font-medium">{file.fileName}</TableCell>
               <TableCell>
-                {moment(file._creationTime || file.createdAt).format(
-                  "DD MMM YYYY"
-                )}
+                <div className="flex flex-col">
+                  <span className="text-m">{formatDate(file.createdAt)}</span>
+                </div>
               </TableCell>
               <TableCell>
-                {moment(file._creationTime || file.createdAt).format(
-                  "DD MMM YYYY"
-                )}
+                <div className="flex flex-col">
+                  <span className="text-m">{formatDate(file.updatedAt)}</span>
+                </div>
               </TableCell>
               <TableCell>
                 {file.createdBy && (
@@ -70,8 +88,8 @@ export default function FileList() {
                     <Image
                       src={file.createdBy.image || "/default-avatar.png"}
                       alt={file.createdBy.name}
-                      width={30}
-                      height={30}
+                      width={24}
+                      height={24}
                       className="rounded-full"
                     />
                     <span className="text-sm text-gray-600">
