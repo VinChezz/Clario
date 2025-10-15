@@ -11,24 +11,25 @@ export async function PATCH(request: NextRequest) {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    if (!user) {
+    if (!user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { memberId, role, teamId } = await request.json();
+    const { memberId, teamId, role } = await request.json();
 
-    if (!memberId || !role || !teamId) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const userMembership = await prisma.teamMember.findFirst({
       where: {
         teamId,
-        userId: user.id,
-        OR: [{ role: "EDIT" }, { team: { createdById: user.id } }],
+        userId: dbUser.id,
+        OR: [{ role: "EDIT" }, { team: { createdById: dbUser.id } }],
       },
     });
 
@@ -63,7 +64,7 @@ export async function DELETE(request: NextRequest) {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    if (!user) {
+    if (!user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -76,11 +77,19 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const userMembership = await prisma.teamMember.findFirst({
       where: {
         teamId,
-        userId: user.id,
-        OR: [{ role: "EDIT" }, { team: { createdById: user.id } }],
+        userId: dbUser.id,
+        OR: [{ role: "EDIT" }, { team: { createdById: dbUser.id } }],
       },
       include: {
         team: true,
@@ -104,6 +113,20 @@ export async function DELETE(request: NextRequest) {
 
     if (!memberToRemove) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    if (memberToRemove.userId === dbUser.id) {
+      return NextResponse.json(
+        { error: "Cannot remove yourself from the team" },
+        { status: 400 }
+      );
+    }
+
+    if (memberToRemove.userId === memberToRemove.team.createdById) {
+      return NextResponse.json(
+        { error: "Cannot remove team owner" },
+        { status: 400 }
+      );
     }
 
     await prisma.teamMember.delete({
