@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { teamId: string } }
 ) {
   try {
-    const { teamId } = params;
+    const { teamId } = await params;
 
     const members = await prisma.teamMember.findMany({
       where: { teamId },
