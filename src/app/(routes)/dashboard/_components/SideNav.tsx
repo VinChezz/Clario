@@ -14,13 +14,23 @@ export default function SideNav() {
   const { activeTeam, setActiveTeam } = useActiveTeam();
   const [totalFiles, setTotalFiles] = useState<number>(0);
   const { fileList_, setFileList_ } = useContext(FileListContext);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (activeTeam) getFiles();
+    if (activeTeam) {
+      getFiles();
+    } else {
+      setFileList_([]);
+      setTotalFiles(0);
+    }
   }, [activeTeam]);
 
   const onFileCreate = async (fileName: string) => {
-    if (!activeTeam) return;
+    if (!activeTeam || !user) {
+      toast.error("No team selected or user not authenticated");
+      return;
+    }
+
     try {
       const resp = await fetch("/api/files/", {
         method: "POST",
@@ -28,7 +38,6 @@ export default function SideNav() {
         body: JSON.stringify({
           fileName,
           teamId: activeTeam.id,
-          createdById: user?.id,
         }),
       });
 
@@ -41,27 +50,54 @@ export default function SideNav() {
       toast.success("File created successfully!");
       getFiles();
     } catch (err) {
-      console.error(err);
+      console.error("File creation error:", err);
       toast.error("Error while creating file");
     }
   };
 
   const getFiles = async () => {
-    if (!activeTeam) return;
+    if (!activeTeam || !user) {
+      console.log("No active team or user");
+      return;
+    }
+
+    setIsLoading(true);
     try {
+      console.log("🔄 Fetching files for team:", activeTeam.id);
+
       const resp = await fetch(`/api/teams/${activeTeam.id}/files`, {
         method: "GET",
-        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+        },
       });
+
+      console.log("📡 Response status:", resp.status);
+
       if (!resp.ok) {
-        console.error("Failed to fetch files");
+        const errorData = await resp.json().catch(() => ({}));
+        console.error("❌ Failed to fetch files:", resp.status, errorData);
+
+        if (resp.status === 401) {
+          toast.error("Please log in to access files");
+        } else if (resp.status === 404) {
+          toast.error("Team not found or access denied");
+        } else {
+          toast.error(errorData.error || "Failed to load files");
+        }
         return;
       }
+
       const result = await resp.json();
+      console.log("✅ Files fetched successfully:", result.length, "files");
+
       setFileList_(result);
       setTotalFiles(result?.length || 0);
     } catch (err) {
-      console.error(err);
+      console.error("💥 Error fetching files:", err);
+      toast.error("Network error while loading files");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -74,6 +110,7 @@ export default function SideNav() {
         <SideNavBottomSection
           totalFiles={totalFiles}
           onFileCreate={onFileCreate}
+          isLoading={isLoading}
         />
       </div>
     </div>

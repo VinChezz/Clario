@@ -234,7 +234,7 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
             <div className="flex items-center gap-1 cursor-pointer">
               <div className="flex -space-x-2">
                 {displayedMembers.map((member, index) => (
-                  <div key={member.id} className="relative">
+                  <div key={`${member.id}-${index}`} className="relative">
                     <Image
                       src={member.user.image || "/default-avatar.png"}
                       alt={member.user.name}
@@ -272,9 +272,9 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
             </div>
 
             <div className="max-h-80 overflow-y-auto">
-              {teamMembers.map((member) => (
+              {teamMembers.map((member, index) => (
                 <div
-                  key={member.id}
+                  key={`${member.id}-${index}-full`}
                   className="flex items-center justify-between p-4 hover:bg-gray-50 border-b last:border-b-0 transition-colors"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
