@@ -9,23 +9,23 @@ export async function GET(
     const { token } = await params;
 
     const file = await prisma.file.findFirst({
-      where: { 
+      where: {
         shareToken: token,
-        isPublic: true 
+        isPublic: true,
       },
       include: {
         createdBy: {
           select: {
             name: true,
-            image: true
-          }
+            image: true,
+          },
         },
         team: {
           select: {
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     if (!file) {
@@ -39,7 +39,7 @@ export async function GET(
       whiteboard: file.whiteboard,
       permissions: file.permissions,
       createdBy: file.createdBy,
-      team: file.team
+      team: file.team,
     });
   } catch (err) {
     console.error("Error accessing public file:", err);
