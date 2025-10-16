@@ -13,25 +13,41 @@ model User {
   name        String
   email       String       @unique
   image       String?
+  bio         String?
+  timezone    String?      @default("UTC")
+  language    String?      @default("en")
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
   files       File[]
   received    Invite[]     @relation("Invitee")
   invited     Invite[]     @relation("Inviter")
   teams       Team[]       @relation("TeamCreator")
   teamMembers TeamMember[]
+
+  comments    Comment[]
+  commentReplies CommentReply[]
+  documentVersions DocumentVersion[]
+  userPresence UserPresence[]
+  userSettings UserSettings?
+
+  CommentMention CommentMention[]
 }
 
 model Team {
   id          String       @id @default(cuid())
   name        String
+  description String?
+  logo        String?
   createdById String
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
   files       File[]
   invites     Invite[]
   createdBy   User         @relation("TeamCreator", fields: [createdById], references: [id])
   members     TeamMember[]
+  teamSettings TeamSettings?
 }
 
 model File {
@@ -48,8 +64,147 @@ model File {
   permissions String   @default("VIEW")
   shareToken  String?  @unique
   version     Int      @default(1)
+
+  currentVersion Int    @default(1)
+  autoVersioning Boolean @default(true)
+
   createdBy   User     @relation(fields: [createdById], references: [id])
   team        Team     @relation(fields: [teamId], references: [id])
+
+  comments    Comment[]
+  versions    DocumentVersion[]
+
+  UserPresence UserPresence[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  type      CommentType @default(QUESTION)
+  status    CommentStatus @default(OPEN)
+  priority  CommentPriority @default(MEDIUM)
+  authorId  String
+  fileId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author     User          @relation(fields: [authorId], references: [id])
+  file       File          @relation(fields: [fileId], references: [id])
+  selection  CommentSelection?
+  replies    CommentReply[]
+  mentions   CommentMention[]
+
+  @@index([fileId])
+  @@index([authorId])
+  @@index([status])
+}
+
+model CommentSelection {
+  id        String @id @default(cuid())
+  commentId String @unique
+  start     Int
+  end       Int
+  text      String
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+}
+
+model CommentReply {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String
+  commentId String
+  createdAt DateTime @default(now())
+
+  author  User    @relation(fields: [authorId], references: [id])
+  comment Comment @relation(fields: [commentId], references: [id])
+  mentions CommentMention[]
+}
+
+model CommentMention {
+  id        String   @id @default(cuid())
+  commentId String?
+  replyId   String?
+  userId    String
+  position  Int
+  createdAt DateTime @default(now())
+
+  user    User         @relation(fields: [userId], references: [id])
+  comment Comment?     @relation(fields: [commentId], references: [id])
+  reply   CommentReply? @relation(fields: [replyId], references: [id])
+
+  @@index([userId])
+}
+
+model DocumentVersion {
+  id          String   @id @default(cuid())
+  version     Int
+  name        String?
+  description String?
+  content     String
+  fileId      String
+  authorId    String
+  createdAt   DateTime @default(now())
+
+  author User @relation(fields: [authorId], references: [id])
+  file   File @relation(fields: [fileId], references: [id])
+
+  @@unique([fileId, version])
+  @@index([fileId])
+}
+
+model UserPresence {
+  id        String   @id @default(cuid())
+  userId    String
+  fileId     String
+  cursor    Json?
+  status    PresenceStatus @default(VIEWING)
+  lastActive DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  file File @relation(fields: [fileId], references: [id])
+
+  @@unique([userId, fileId])
+  @@index([fileId])
+  @@index([lastActive])
+}
+
+model UserSettings {
+  id        String @id @default(cuid())
+  userId    String @unique
+  theme     Theme @default(LIGHT)
+  fontSize  FontSize @default(MEDIUM)
+  language  String @default("en")
+  timezone  String @default("UTC")
+
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(true)
+  mentionEmails      Boolean @default(true)
+  commentEmails      Boolean @default(true)
+
+  autoSave      Boolean @default(true)
+  spellCheck    Boolean @default(true)
+  lineNumbers   Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model TeamSettings {
+  id        String @id @default(cuid())
+  teamId    String @unique
+
+  defaultRole Role @default(VIEW)
+  inviteOnly  Boolean @default(true)
+
+  requireTwoFactor Boolean @default(false)
+  sessionTimeout   Int     @default(60)
+  allowPublicLinks Boolean @default(true)
+
+  autoArchive      Boolean @default(false)
+  fileRetention    FileRetention @default(ONE_YEAR)
+  versionHistory   Boolean @default(true)
+
+  team Team @relation(fields: [teamId], references: [id])
 }
 
 model Invite {
@@ -65,9 +220,10 @@ model Invite {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   role      Role     @default(VIEW)
-  invitee   User?    @relation("Invitee", fields: [inviteeId], references: [id], onDelete: Cascade)
-  inviter   User     @relation("Inviter", fields: [inviterId], references: [id])
-  team      Team     @relation(fields: [teamId], references: [id])
+
+  invitee   User? @relation("Invitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  inviter   User  @relation("Inviter", fields: [inviterId], references: [id])
+  team      Team  @relation(fields: [teamId], references: [id])
 
   @@index([token])
   @@index([email])
@@ -80,8 +236,9 @@ model TeamMember {
   teamId   String
   role     Role     @default(VIEW)
   joinedAt DateTime @default(now())
-  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, teamId])
 }
@@ -89,4 +246,49 @@ model TeamMember {
 enum Role {
   VIEW
   EDIT
+}
+
+enum CommentType {
+  QUESTION
+  SUGGESTION
+  PRAISE
+  ISSUE
+}
+
+enum CommentStatus {
+  OPEN
+  RESOLVED
+  CLOSED
+}
+
+enum CommentPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum PresenceStatus {
+  VIEWING
+  EDITING
+  COMMENTING
+  IDLE
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  AUTO
+}
+
+enum FontSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum FileRetention {
+  THIRTY_DAYS
+  ONE_YEAR
+  FOREVER
 }
