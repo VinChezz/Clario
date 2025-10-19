@@ -1,4 +1,3 @@
-// types/editorjs.d.ts
 declare module "@editorjs/checklist" {
   const Checklist: any;
   export default Checklist;
