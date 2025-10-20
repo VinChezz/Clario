@@ -1,17 +1,29 @@
 export interface FILE {
   id: string;
+  fileName: string;
   archive: boolean;
+  document?: string;
+  whiteboard?: string;
+  teamId: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  isPublic: boolean;
+  permissions: string;
+  shareToken?: string;
+  version: number;
+  currentVersion: number;
+  autoVersioning: boolean;
   createdBy: {
     id: string;
     name: string;
-    image: string | null;
+    email: string;
+    image?: string;
   };
-  createdAt: string;
-  updatedAt: string;
-  document: string;
-  fileName: string;
-  teamId: string;
-  whiteboard: string;
-  _creationTime: number;
-  version: number;
+  team: {
+    id: string;
+    name: string;
+    description?: string;
+    logo?: string;
+  };
 }

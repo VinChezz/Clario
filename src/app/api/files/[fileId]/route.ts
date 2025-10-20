@@ -8,17 +8,17 @@ interface UpdateBody {
 }
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  req: NextRequest,
+  { params }: { params: { fileId: string } }
 ) {
   try {
+    const { fileId } = await params;
     const { document, whiteboard }: UpdateBody = await req.json();
-    const { id } = await params;
 
-    console.log("🔄 API PATCH request for file:", id);
+    console.log("🔄 API PATCH request for file:", fileId);
     console.log("📦 Document data received:", document ? "present" : "missing");
 
-    if (!id) {
+    if (!fileId) {
       return NextResponse.json(
         { error: "File ID is required" },
         { status: 400 }
@@ -26,22 +26,19 @@ export async function PATCH(
     }
 
     const existingFile = await prisma.file.findUnique({
-      where: { id },
+      where: { id: fileId },
     });
 
     if (!existingFile) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    const updateData: any = {};
-    if (document !== undefined) {
-      updateData.document = document;
-      console.log("💾 Updating document data");
-    }
+    const updateData: UpdateBody = {};
+    if (document !== undefined) updateData.document = document;
     if (whiteboard !== undefined) updateData.whiteboard = whiteboard;
 
     const updatedFile = await prisma.file.update({
-      where: { id },
+      where: { id: fileId },
       data: updateData,
     });
 
@@ -57,17 +54,17 @@ export async function PATCH(
 }
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  req: NextRequest,
+  { params }: { params: { fileId: string } }
 ) {
   try {
-    const { id } = await params;
+    const { fileId } = await params;
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    console.log("🔍 Fetching file by ID:", id);
+    console.log("🔍 Fetching file by ID:", fileId);
 
-    if (!id) {
+    if (!fileId) {
       return NextResponse.json(
         { error: "File ID is required" },
         { status: 400 }
@@ -75,7 +72,7 @@ export async function GET(
     }
 
     const file = await prisma.file.findUnique({
-      where: { id },
+      where: { id: fileId },
       include: {
         createdBy: {
           select: {
@@ -102,12 +99,12 @@ export async function GET(
     });
 
     if (!file) {
-      console.log("❌ File not found:", id);
+      console.log("❌ File not found:", fileId);
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
     if (file.isPublic) {
-      console.log("✅ Public file accessed:", id);
+      console.log("✅ Public file accessed:", fileId);
       return NextResponse.json(file, { status: 200 });
     }
 
@@ -125,8 +122,8 @@ export async function GET(
 
     const hasAccess =
       file.createdById === dbUser.id ||
-      file.team.createdById === dbUser.id ||
-      file.team.members.some((member) => member.userId === dbUser.id);
+      file.team?.createdById === dbUser.id ||
+      file.team?.members.some((member) => member.userId === dbUser.id);
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -135,7 +132,7 @@ export async function GET(
       );
     }
 
-    console.log("✅ File accessed successfully:", id);
+    console.log("✅ File accessed successfully:", fileId);
     return NextResponse.json(file, { status: 200 });
   } catch (error) {
     console.error("❌ Error fetching file:", error);
