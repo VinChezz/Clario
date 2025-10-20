@@ -5,6 +5,12 @@ import { FILE } from "@/shared/types/file.interface";
 import type EditorJS from "@editorjs/editorjs";
 import { toast } from "sonner";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import { useComments } from "@/hooks/useComments";
+import { usePresence } from "@/hooks/usePresence";
+import { useVersionManager } from "@/hooks/useVersionManager";
+import { CommentThread } from "./CommentThread";
+import { VersionHistory } from "./VersionHistory";
+import { EditorCanvasHeader } from "./header/EditorCanvasHeader";
 
 const rawDocument = {
   time: Date.now(),
@@ -23,6 +29,7 @@ interface EditorProps {
   fileData: FILE | null;
   onSaveTrigger: number;
   onSaveSuccess?: () => void;
+  onVersionRestore?: (content: string, type: "document" | "whiteboard") => void;
 }
 
 export default function Editor({
@@ -30,6 +37,7 @@ export default function Editor({
   fileData,
   onSaveTrigger,
   onSaveSuccess,
+  onVersionRestore,
 }: EditorProps) {
   const editorRef = useRef<EditorJS | null>(null);
   const isInitialized = useRef(false);
@@ -37,6 +45,35 @@ export default function Editor({
   const [editorData, setEditorData] = useState<any>(null);
   const { activeTeam } = useActiveTeam();
   const [permissions, setPermissions] = useState<"VIEW" | "EDIT">("VIEW");
+  const [selection, setSelection] = useState<{
+    start: number;
+    end: number;
+    text: string;
+  } | null>(null);
+  const [showCommentSidebar, setShowCommentSidebar] = useState(false);
+
+  const { comments, createComment, fetchComments } = useComments(fileId);
+  const { activeUsers, updatePresence, startPresenceUpdates } =
+    usePresence(fileId);
+
+  const versionManager = useVersionManager({
+    fileId,
+    fileData,
+    onVersionRestore,
+  });
+
+  const {
+    versions,
+    showVersionHistory,
+    setShowVersionHistory,
+    fetchVersions,
+    createManualVersion,
+    restoreVersion,
+    hasSignificantChanges,
+    lastContent,
+    autoVersioning,
+    isLoading: versionsLoading,
+  } = versionManager;
 
   useEffect(() => {
     const determinePermissions = async () => {
@@ -51,18 +88,11 @@ export default function Editor({
         }
 
         const isCreator = activeTeam.createdById === dbUser.id;
-
         const isEditor = activeTeam.members?.some(
           (member: any) => member.userId === dbUser.id && member.role === "EDIT"
         );
 
         setPermissions(isCreator || isEditor ? "EDIT" : "VIEW");
-
-        console.log("🔐 Permissions:", {
-          isCreator,
-          isEditor,
-          permissions: isCreator || isEditor ? "EDIT" : "VIEW",
-        });
       } catch (err) {
         console.error("Error determining permissions:", err);
         setPermissions("VIEW");
@@ -72,14 +102,47 @@ export default function Editor({
     determinePermissions();
   }, [activeTeam]);
 
-  const saveDocument = useCallback(async () => {
+  useEffect(() => {
+    if (fileId && permissions === "EDIT") {
+      fetchComments();
+      const cleanup = startPresenceUpdates();
+      return cleanup;
+    }
+  }, [fileId, permissions, fetchComments, startPresenceUpdates]);
+
+  const checkAndCreateAutoVersion = useCallback(
+    async (content: string) => {
+      if (!autoVersioning) return;
+
+      try {
+        if (hasSignificantChanges(content, lastContent.current)) {
+          console.log("🎯 Significant changes detected, creating auto-version");
+
+          await createManualVersion({
+            name: `Auto-save ${new Date().toLocaleString()}`,
+            description:
+              "Automatically created version after significant changes",
+            content: content,
+            type: "document",
+          });
+
+          lastContent.current = content;
+        }
+      } catch (error) {
+        console.error("❌ Failed to create auto-version:", error);
+      }
+    },
+    [createManualVersion, autoVersioning, hasSignificantChanges]
+  );
+
+  const handleManualSave = useCallback(async () => {
     if (!editorRef.current || isSaving.current) {
       console.log("❌ Editor not ready or already saving, skipping save");
       return;
     }
 
     isSaving.current = true;
-    console.log("💾 Starting save process...");
+    console.log("💾 Starting manual save process...");
 
     try {
       const outputData = await editorRef.current.save();
@@ -91,13 +154,14 @@ export default function Editor({
         return;
       }
 
-      console.log("🔄 Sending to API...");
+      const contentString = JSON.stringify(outputData);
 
+      console.log("🔄 Saving document to API...");
       const res = await fetch(`/api/files/${fileId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          document: JSON.stringify(outputData),
+          document: contentString,
         }),
       });
 
@@ -110,9 +174,22 @@ export default function Editor({
       }
 
       const updatedFile = await res.json();
-      console.log("✅ Save successful! Updated file:", updatedFile);
+      console.log("✅ Document saved successfully! Updated file:", updatedFile);
 
-      toast.success("Document saved successfully!");
+      try {
+        await createManualVersion({
+          name: `Manual save ${new Date().toLocaleString()}`,
+          description: "Manually created version",
+          content: contentString,
+          type: "document",
+        });
+        toast.success("Document saved with new version!");
+      } catch (versionError) {
+        console.error("⚠️ Version creation failed:", versionError);
+        toast.success("Document saved! (Version creation failed)");
+      }
+
+      lastContent.current = contentString;
 
       if (onSaveSuccess) {
         console.log("🔄 Triggering data refresh...");
@@ -127,7 +204,83 @@ export default function Editor({
       isSaving.current = false;
       console.log("🏁 Save process finished");
     }
-  }, [fileId, onSaveSuccess]);
+  }, [fileId, onSaveSuccess, createManualVersion]);
+
+  const handleContentChange = useCallback(async () => {
+    if (!editorRef.current || permissions !== "EDIT") {
+      return;
+    }
+
+    try {
+      const outputData = await editorRef.current.save();
+      const contentString = JSON.stringify(outputData);
+
+      updatePresence({
+        status: "EDITING",
+        cursor: { position: 0 },
+      });
+
+      if (autoVersioning) {
+        await checkAndCreateAutoVersion(contentString);
+      }
+    } catch (error) {
+      console.error("Error handling content change:", error);
+    }
+  }, [permissions, autoVersioning, checkAndCreateAutoVersion, updatePresence]);
+
+  useEffect(() => {
+    if (showVersionHistory) {
+      fetchVersions();
+    }
+  }, [showVersionHistory, fetchVersions]);
+
+  const handleRestoreVersion = useCallback(
+    async (version: any) => {
+      try {
+        console.log("🔄 Starting version restore in Editor...", {
+          versionId: version.id,
+          versionNumber: version.version,
+        });
+
+        if (version.fileId !== fileId) {
+          console.log("❌ Version file mismatch");
+          toast.error("Version does not belong to this file");
+          return;
+        }
+
+        console.log("📞 Calling restore API...");
+        await restoreVersion(version.id, "document");
+
+        toast.success(`Version ${version.version} restored successfully!`);
+        setShowVersionHistory(false);
+
+        if (onSaveSuccess) {
+          console.log("🔄 Triggering parent refresh...");
+          onSaveSuccess();
+        }
+      } catch (error) {
+        console.error("💥 Restore failed:", error);
+
+        if (error instanceof Error) {
+          if (error.message.includes("404")) {
+            toast.error("Version or file not found");
+          } else if (
+            error.message.includes("401") ||
+            error.message.includes("403")
+          ) {
+            toast.error("Access denied");
+          } else if (error.message.includes("400")) {
+            toast.error("Invalid version data");
+          } else {
+            toast.error(`Restore failed: ${error.message}`);
+          }
+        } else {
+          toast.error("Failed to restore version");
+        }
+      }
+    },
+    [restoreVersion, onSaveSuccess, fileId]
+  );
 
   useEffect(() => {
     console.log("🎯 Save triggered, initialized:", isInitialized.current);
@@ -139,8 +292,8 @@ export default function Editor({
       return;
     }
 
-    saveDocument();
-  }, [onSaveTrigger, saveDocument]);
+    handleManualSave();
+  }, [onSaveTrigger, handleManualSave]);
 
   useEffect(() => {
     if (!fileData) {
@@ -167,6 +320,8 @@ export default function Editor({
             "✅ Using saved document data with blocks:",
             parsedData.blocks.length
           );
+
+          lastContent.current = fileData.document;
         } else {
           console.warn("⚠️ No blocks in saved data, using default");
           initialData = rawDocument;
@@ -183,7 +338,50 @@ export default function Editor({
     setEditorData(initialData);
   }, [fileData]);
 
-  // --- Инициализация редактора ---
+  const handleTextSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const selectedText = range.toString().trim();
+
+    if (selectedText && editorRef.current) {
+      const editorElement = document.getElementById("editorjs");
+      if (
+        editorElement &&
+        editorElement.contains(range.commonAncestorContainer)
+      ) {
+        setSelection({
+          start: 0,
+          end: selectedText.length,
+          text: selectedText,
+        });
+      }
+    } else {
+      setSelection(null);
+    }
+  }, []);
+
+  const handleAddComment = useCallback(
+    async (commentText: string) => {
+      if (!selection || permissions !== "EDIT") return;
+
+      try {
+        await createComment({
+          content: commentText,
+          type: "QUESTION",
+          selection: selection,
+        });
+        setSelection(null);
+        toast.success("Comment added");
+      } catch (error) {
+        console.error("Failed to add comment:", error);
+        toast.error("Failed to add comment");
+      }
+    },
+    [selection, permissions, createComment]
+  );
+
   useEffect(() => {
     if (!editorData) {
       console.log("⏳ Waiting for editor data...");
@@ -213,7 +411,6 @@ export default function Editor({
           import("@editorjs/warning"),
         ]);
 
-        // Очищаем предыдущий редактор
         if (editorRef.current) {
           console.log("🧹 Destroying previous editor instance");
           editorRef.current.destroy();
@@ -254,7 +451,7 @@ export default function Editor({
             },
           },
           data: editorData,
-          autofocus: false, // Отключаем автофокус чтобы избежать проблем
+          autofocus: false,
           placeholder: "Start writing your notes...",
           onReady: () => {
             console.log("🎉 Editor.js is ready!");
@@ -262,6 +459,10 @@ export default function Editor({
           },
           onChange: async (api, event) => {
             console.log("📝 Content changed");
+
+            if (isMounted) {
+              await handleContentChange();
+            }
           },
         });
 
@@ -295,23 +496,79 @@ export default function Editor({
         isInitialized.current = false;
       }
     };
-  }, [editorData]);
+  }, [editorData, handleContentChange]);
 
   return (
-    <div className="h-full">
-      <div className="p-2 bg-gray-100 border-b">
-        <div className="text-sm text-gray-600">
-          {permissions === "EDIT"
-            ? "Manual save available"
-            : "Viewing only - no editing permissions"}
-        </div>
+    <div className="h-full flex relative">
+      <div className="flex-1 flex flex-col">
+        <EditorCanvasHeader
+          permissions={permissions}
+          fileType="document"
+          activeUsers={activeUsers}
+          versions={versions}
+          versionsLoading={versionsLoading}
+          onToggleVersionHistory={() =>
+            setShowVersionHistory(!showVersionHistory)
+          }
+          onToggleCommentSidebar={() =>
+            setShowCommentSidebar(!showCommentSidebar)
+          }
+          showCommentSidebar={showCommentSidebar}
+          fetchVersions={fetchVersions}
+        />
+
+        <div
+          id="editorjs"
+          className={`flex-1 min-h-[500px] p-4 bg-white ${
+            permissions === "VIEW" ? "opacity-50 pointer-events-none" : ""
+          }`}
+          onMouseUp={handleTextSelection}
+        ></div>
+
+        {selection && permissions === "EDIT" && (
+          <div className="absolute bg-white border rounded-lg shadow-lg p-3 z-10">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm text-gray-600">Add comment to:</span>
+              <span className="text-sm font-medium bg-yellow-100 px-2 py-1 rounded">
+                "{selection.text}"
+              </span>
+            </div>
+            <button
+              onClick={() => handleAddComment("Comment on selected text")}
+              className="w-full bg-blue-500 text-white py-2 px-4 rounded text-sm hover:bg-blue-600"
+            >
+              Add Comment
+            </button>
+          </div>
+        )}
       </div>
-      <div
-        id="editorjs"
-        className={`h-full min-h-[500px] border rounded-lg p-4 bg-white ${
-          permissions === "VIEW" ? "opacity-50 pointer-events-none" : ""
-        }`}
-      ></div>
+
+      {/* Сайдбар коментарів */}
+      {showCommentSidebar && (
+        <div className="w-80 border-l bg-gray-50">
+          <CommentThread
+            comments={comments}
+            onAddComment={handleAddComment}
+            onReplyComment={() => {}}
+            onResolveComment={() => {}}
+            fileId={fileId}
+            permissions={permissions}
+          />
+        </div>
+      )}
+
+      {showVersionHistory && (
+        <div className="w-96 bg-white border-l border-gray-200 shadow-lg flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <VersionHistory
+              versions={versions}
+              onRestoreVersion={handleRestoreVersion}
+              onClose={() => setShowVersionHistory(false)}
+              isLoading={versionsLoading}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
