@@ -28,7 +28,9 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "src/db.js",
-    "src/types/**/*.d.ts"
+    "src/types/**/*.d.ts",
+    "src/server.js",
+    "src/lib/socket-server.js"
   ],
   "exclude": ["node_modules"],
   "typeRoots": ["./node_modules/@types", "./src/types"]
