@@ -87,7 +87,7 @@ export const useSocket = (fileId: string, currentUser: any) => {
       socket.off("reconnect_failed", onReconnectFailed);
       socket.disconnect();
     };
-  }, [fileId, currentUser]); // ДОБАВЬТЕ currentUser В ЗАВИСИМОСТИ
+  }, [fileId, currentUser]);
 
   const emitEvent = useCallback(
     (event: string, data: any) => {
@@ -121,23 +121,4 @@ export const useSocket = (fileId: string, currentUser: any) => {
     reconnectAttempts,
     socket: socketRef.current,
   };
-};
-
-const generateUserColor = (userId: string): string => {
-  const colors = [
-    "#3B82F6",
-    "#EF4444",
-    "#10B981",
-    "#F59E0B",
-    "#8B5CF6",
-    "#EC4899",
-    "#06B6D4",
-    "#84CC16",
-    "#F97316",
-    "#6366F1",
-  ];
-  const index =
-    userId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
-    colors.length;
-  return colors[index];
 };
