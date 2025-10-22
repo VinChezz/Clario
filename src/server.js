@@ -11,6 +11,7 @@ const io = new Server(httpServer, {
   cors: {
     origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
@@ -109,6 +110,7 @@ io.on("connection", (socket) => {
     if (!roomStates.has(fileId)) {
       roomStates.set(fileId, {
         content: null,
+        canvasContent: null,
         users: new Map(),
       });
     }
@@ -129,6 +131,7 @@ io.on("connection", (socket) => {
 
     if (roomState.content) {
       socket.emit("content_sync", roomState.content);
+      socket.emit("canvas_content_sync", roomState.canvasContent);
     }
 
     socket.to(fileId).emit("user_joined", {
@@ -166,6 +169,54 @@ io.on("connection", (socket) => {
     });
 
     console.log(`📨 Server sent cursor_update to room ${fileId}`);
+  });
+
+  socket.on("canvas_content_update", (data) => {
+    const { fileId, content } = data;
+
+    const roomState = roomStates.get(fileId);
+    if (!roomState) return;
+
+    const userData = roomState.users.get(socket.id);
+    if (!userData) return;
+
+    roomState.canvasContent = content;
+
+    socket.to(fileId).emit("canvas_content_update", {
+      content: content,
+      user: userData,
+    });
+
+    console.log(`⚡ FAST SERVER SEND: ${content?.length || 0} elements`);
+  });
+
+  socket.on("canvas_cursor_update", (data) => {
+    const { fileId, cursor } = data;
+
+    console.log("🎯 SERVER: canvas_cursor_update RECEIVED", {
+      fileId,
+      from: socket.id,
+      cursor: cursor.position,
+    });
+
+    const roomState = roomStates.get(fileId);
+    if (!roomState) {
+      console.log("❌ SERVER: Room state not found for cursor update");
+      return;
+    }
+
+    const userData = roomState.users.get(socket.id);
+    if (!userData) {
+      console.log("❌ SERVER: User data not found for cursor update");
+      return;
+    }
+
+    console.log("✅ SERVER: Sending cursor update to room", fileId);
+
+    socket.to(fileId).emit("canvas_cursor_update", {
+      ...cursor,
+      user: userData,
+    });
   });
 
   socket.on("selection_update", (data) => {
