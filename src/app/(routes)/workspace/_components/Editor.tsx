@@ -18,6 +18,8 @@ import { useRealtimeTyping } from "@/hooks/useRealtimeTyping";
 import { useRealtimeContent } from "@/hooks/useRealtimeContent";
 import { throttle } from "lodash";
 import { UserCursorEditor } from "./collaboration/UserCursorEditor";
+import { useRealtimeCursor } from "@/hooks/useRealTimeCursor";
+import { useLightweightPresence } from "@/hooks/useLightweightPresence";
 
 const rawDocument = {
   time: Date.now(),
@@ -65,10 +67,6 @@ export default function Editor({
   onSaveSuccess,
   onVersionRestore,
 }: EditorProps) {
-  const editorRef = useRef<EditorJS | null>(null);
-  const editorContainerRef = useRef<HTMLDivElement>(null);
-  const isInitialized = useRef(false);
-  const isSaving = useRef(false);
   const [editorData, setEditorData] = useState<any>(null);
   const { activeTeam } = useActiveTeam();
   const [permissions, setPermissions] = useState<"VIEW" | "EDIT">("VIEW");
@@ -76,7 +74,14 @@ export default function Editor({
   const [showCommentSidebar, setShowCommentSidebar] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // SOCKET
+  const editorRef = useRef<EditorJS | null>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const isInitialized = useRef(false);
+  const isSaving = useRef(false);
+  const isApplyingRemoteContent = useRef(false);
+  const lastMousePresenceUpdate = useRef<number>(0);
+  const mouseMoveTimeoutRef = useRef<NodeJS.Timeout>(null);
+
   const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
   const { typingCursors, sendTypingUpdate, subscribeToTypingUpdates } =
     useRealtimeTyping(fileId, currentUser);
@@ -84,17 +89,22 @@ export default function Editor({
   const { selections, sendSelectionUpdate, subscribeToSelectionUpdates } =
     useRealtimeSelection(fileId, currentUser);
 
+  const { cursors, sendCursorUpdate, subscribeToCursorUpdates } =
+    useRealtimeCursor(fileId, currentUser);
+
   const {
     remoteContent,
     sendContentUpdate,
+    sendContentUpdateImmediate,
     subscribeToContentUpdates,
     subscribeToContentSync,
+    resetLastSentContent,
   } = useRealtimeContent(fileId, currentUser);
 
-  //HOOKS
   const { comments, createComment, fetchComments } = useComments(fileId);
   const { activeUsers, updatePresence, startPresenceUpdates } =
     usePresence(fileId);
+  const { updateLightPresence } = useLightweightPresence(fileId, currentUser);
   const versionManager = useVersionManager({
     fileId,
     fileData,
@@ -143,22 +153,66 @@ export default function Editor({
   }, [activeTeam]);
 
   useEffect(() => {
+    if (!fileData) {
+      console.log("📄 No file data, using default");
+      setEditorData(rawDocument);
+      return;
+    }
+
+    let initialData = rawDocument;
+
+    if (fileData.document && fileData.document !== '""') {
+      try {
+        const parsedData = JSON.parse(fileData.document);
+        console.log("📖 Parsed document data:", parsedData);
+
+        if (
+          parsedData &&
+          typeof parsedData === "object" &&
+          Array.isArray(parsedData.blocks) &&
+          parsedData.blocks.length > 0
+        ) {
+          initialData = parsedData;
+          console.log(
+            "✅ Using saved document data with blocks:",
+            parsedData.blocks.length
+          );
+          lastContent.current = fileData.document;
+        } else {
+          console.warn("⚠️ No blocks in saved data, using default");
+          initialData = rawDocument;
+        }
+      } catch (parseError) {
+        console.error("❌ Error parsing document data:", parseError);
+        initialData = rawDocument;
+      }
+    } else {
+      console.log("📝 No document data, using default");
+      initialData = rawDocument;
+    }
+
+    setEditorData(initialData);
+    resetLastSentContent();
+  }, [fileData, resetLastSentContent]);
+
+  useEffect(() => {
     if (!currentUser || permissions !== "EDIT") return;
+
+    console.log("🔌 Starting realtime services for Editor...");
 
     fetchComments();
     const cleanup = startPresenceUpdates();
 
     const unsubscribeContent = subscribeToContentUpdates((content, user) => {
-      console.log("🎯 EDITOR: Processing content update from:", user?.name);
+      console.log("🎯 EDITOR: Processing content update from:", user?.name, {
+        blocks: content?.blocks?.length,
+      });
 
       if (editorRef.current && content && isInitialized.current) {
         console.log("🎯 EDITOR: Rendering remote content");
+        isApplyingRemoteContent.current = true;
 
-        // Временно отключаем onChange чтобы избежать цикла
-        const currentEditor = editorRef.current;
-
-        // Обновляем редактор с новым контентом
-        currentEditor
+        editorRef.current
           .render(content)
           .then(() => {
             console.log("✅ EDITOR: Successfully rendered remote content");
@@ -166,23 +220,42 @@ export default function Editor({
           })
           .catch((error) => {
             console.error("❌ EDITOR: Error rendering remote content:", error);
+          })
+          .finally(() => {
+            isApplyingRemoteContent.current = false;
           });
       }
     });
 
     const unsubscribeSync = subscribeToContentSync((content) => {
-      console.log("🔄 Received initial content sync");
-      if (editorRef.current && content) {
-        editorRef.current.render(content);
-        setEditorData(content);
+      console.log("🔄 EDITOR: Received initial content sync", {
+        blocks: content?.blocks?.length,
+      });
+
+      if (editorRef.current && content && isInitialized.current) {
+        console.log("🔄 EDITOR: Applying sync content");
+        isApplyingRemoteContent.current = true;
+
+        editorRef.current
+          .render(content)
+          .then(() => {
+            console.log("✅ EDITOR: Successfully applied sync content");
+            setEditorData(content);
+          })
+          .catch((error) => {
+            console.error("❌ EDITOR: Error applying sync content:", error);
+          })
+          .finally(() => {
+            isApplyingRemoteContent.current = false;
+          });
       }
     });
 
     const unsubscribeSelections = subscribeToSelectionUpdates();
-
     const unsubscribeTyping = subscribeToTypingUpdates();
 
     return () => {
+      console.log("🧹 Cleaning up Editor realtime services");
       cleanup();
       unsubscribeContent();
       unsubscribeSync();
@@ -203,7 +276,12 @@ export default function Editor({
 
   const sendContentToOthers = useCallback(async () => {
     if (!editorRef.current || !currentUser || permissions !== "EDIT") {
-      console.log("❌ Cannot send content: editor not ready or no permissions");
+      console.log("❌ Cannot send: editor not ready or no permissions");
+      return;
+    }
+
+    if (isApplyingRemoteContent.current) {
+      console.log("🔄 Skipping send - applying remote content");
       return;
     }
 
@@ -211,16 +289,13 @@ export default function Editor({
       const outputData = await editorRef.current.save();
       console.log("🚀 EDITOR: Sending content to others", {
         blocks: outputData.blocks?.length,
-        text: outputData.blocks?.map((block: any) =>
-          block.data?.text?.substring(0, 50)
-        ),
       });
 
-      sendContentUpdate(outputData);
+      sendContentUpdateImmediate(outputData);
     } catch (error) {
       console.error("❌ Error sending content update:", error);
     }
-  }, [sendContentUpdate, currentUser, permissions]);
+  }, [sendContentUpdateImmediate, currentUser, permissions]);
 
   const checkAndCreateAutoVersion = useCallback(
     async (content: string) => {
@@ -319,6 +394,19 @@ export default function Editor({
   }, [fileId, onSaveSuccess, createManualVersion]);
 
   useEffect(() => {
+    console.log("🎯 Save triggered, initialized:", isInitialized.current);
+
+    if (!isInitialized.current) {
+      console.log(
+        "⏳ Editor not initialized yet, save will be triggered after init"
+      );
+      return;
+    }
+
+    handleManualSave();
+  }, [onSaveTrigger, handleManualSave]);
+
+  useEffect(() => {
     if (showVersionHistory) {
       fetchVersions();
     }
@@ -372,68 +460,16 @@ export default function Editor({
     [restoreVersion, onSaveSuccess, fileId]
   );
 
-  useEffect(() => {
-    console.log("🎯 Save triggered, initialized:", isInitialized.current);
-
-    if (!isInitialized.current) {
-      console.log(
-        "⏳ Editor not initialized yet, save will be triggered after init"
-      );
-      return;
-    }
-
-    handleManualSave();
-  }, [onSaveTrigger, handleManualSave]);
-
-  useEffect(() => {
-    if (!fileData) {
-      console.log("📄 No file data");
-      setEditorData(rawDocument);
-      return;
-    }
-
-    let initialData = rawDocument;
-
-    if (fileData.document && fileData.document !== '""') {
-      try {
-        const parsedData = JSON.parse(fileData.document);
-        console.log("📖 Parsed document data:", parsedData);
-
-        if (
-          parsedData &&
-          typeof parsedData === "object" &&
-          Array.isArray(parsedData.blocks) &&
-          parsedData.blocks.length > 0
-        ) {
-          initialData = parsedData;
-          console.log(
-            "✅ Using saved document data with blocks:",
-            parsedData.blocks.length
-          );
-
-          lastContent.current = fileData.document;
-        } else {
-          console.warn("⚠️ No blocks in saved data, using default");
-          initialData = rawDocument;
-        }
-      } catch (parseError) {
-        console.error("❌ Error parsing document data:", parseError);
-        initialData = rawDocument;
-      }
-    } else {
-      console.log("📝 No document data, using default");
-      initialData = rawDocument;
-    }
-
-    setEditorData(initialData);
-  }, [fileData]);
-
   const handleTextSelection = useCallback(() => {
     if (!currentUser) return;
 
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      // Сбрасываем выделение когда ничего не выделено
+
+    if (
+      !selection ||
+      selection.rangeCount === 0 ||
+      selection.toString().trim() === ""
+    ) {
       setSelection(null);
 
       if (permissions === "EDIT") {
@@ -443,7 +479,7 @@ export default function Editor({
           selection: {
             start: 0,
             end: 0,
-            text: "", // Пустой текст = удалить выделение
+            text: "",
           },
         });
       }
@@ -460,7 +496,7 @@ export default function Editor({
         editorElement.contains(range.commonAncestorContainer)
       ) {
         const newSelection = {
-          start: 0, // Упрощаем логику позиций
+          start: 0,
           end: selectedText.length,
           text: selectedText,
         };
@@ -483,7 +519,6 @@ export default function Editor({
     } else {
       setSelection(null);
 
-      // Отправляем пустое выделение когда текст не выделен
       if (permissions === "EDIT") {
         sendSelectionUpdate({
           userId: currentUser.id,
@@ -500,7 +535,6 @@ export default function Editor({
 
   const handleEditorClick = useCallback(
     (event: React.MouseEvent) => {
-      // Если клик не на выделенном тексте, сбрасываем выделение
       const selection = window.getSelection();
       if (!selection || selection.toString().trim() === "") {
         setSelection(null);
@@ -613,27 +647,25 @@ export default function Editor({
           onChange: async (api, event) => {
             console.log("⌨️ EDITOR: onChange triggered", event);
 
-            if (isMounted && permissions === "EDIT") {
+            if (
+              isMounted &&
+              permissions === "EDIT" &&
+              !isApplyingRemoteContent.current
+            ) {
               try {
-                // Получаем текущий контент
                 const outputData = await api.saver.save();
                 console.log("⌨️ EDITOR: Content changed", {
                   blocks: outputData.blocks?.length,
-                  hasText: outputData.blocks?.some(
-                    (block: any) => block.data?.text
-                  ),
                 });
 
-                // Отправляем изменения другим пользователям
                 await sendContentToOthers();
 
-                // Обновляем присутствие
                 updatePresence({
                   status: "EDITING",
                   cursor: { position: 0 },
-                });
+                }).catch(console.error);
+                updateLightPresence("EDITING");
 
-                // Авто-версионирование
                 if (autoVersioning) {
                   const contentString = JSON.stringify(outputData);
                   await checkAndCreateAutoVersion(contentString);
@@ -680,6 +712,8 @@ export default function Editor({
     permissions,
     sendContentToOthers,
     updatePresence,
+    checkAndCreateAutoVersion,
+    autoVersioning,
   ]);
 
   const handleEditorMouseMove = useCallback(
@@ -694,21 +728,57 @@ export default function Editor({
       const y = event.clientY - rect.top;
 
       if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
-        console.log("⚠️ Cursor outside editor bounds:", { x, y });
         return;
       }
-
-      console.log("🖱️ Mouse move at:", { x, y });
 
       sendTypingUpdate({
         userId: currentUser.id,
         userColor: generateUserColor(currentUser.id),
         position: { x, y },
         isTyping: true,
+        isActive: true,
       });
+
+      const now = Date.now();
+      if (now - lastMousePresenceUpdate.current > 10000) {
+        updatePresence({
+          status: "VIEWING",
+          cursor: { x, y },
+        }).catch(console.error);
+        updateLightPresence("VIEWING", { x, y });
+        lastMousePresenceUpdate.current = now;
+      }
+
+      if (mouseMoveTimeoutRef.current) {
+        clearTimeout(mouseMoveTimeoutRef.current);
+      }
+
+      mouseMoveTimeoutRef.current = setTimeout(() => {
+        sendCursorUpdate({
+          userId: currentUser.id,
+          userColor: generateUserColor(currentUser.id),
+          position: { x, y },
+          isActive: false,
+        });
+      }, 1000);
     }, 100),
-    [currentUser, permissions, sendTypingUpdate]
+    [currentUser, permissions, sendCursorUpdate, sendTypingUpdate]
   );
+
+  const handleEditorMouseLeave = useCallback(() => {
+    if (currentUser && permissions === "EDIT") {
+      sendCursorUpdate({
+        userId: currentUser.id,
+        userColor: generateUserColor(currentUser.id),
+        position: { x: 0, y: 0 },
+        isActive: false,
+      });
+
+      if (mouseMoveTimeoutRef.current) {
+        clearTimeout(mouseMoveTimeoutRef.current);
+      }
+    }
+  }, [currentUser, permissions, sendCursorUpdate]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -749,32 +819,6 @@ export default function Editor({
     [currentUser, permissions, sendTypingUpdate]
   );
 
-  useEffect(() => {
-    if (!fileData) {
-      setEditorData(rawDocument);
-      return;
-    }
-
-    let initialData = rawDocument;
-
-    if (fileData.document && fileData.document !== '""') {
-      try {
-        const parsedData = JSON.parse(fileData.document);
-        if (
-          parsedData &&
-          Array.isArray(parsedData.blocks) &&
-          parsedData.blocks.length > 0
-        ) {
-          initialData = parsedData;
-        }
-      } catch (parseError) {
-        console.error("Error parsing document:", parseError);
-      }
-    }
-
-    setEditorData(initialData);
-  }, [fileData]);
-
   return (
     <div className="h-full flex relative">
       <div className="flex-1 flex flex-col">
@@ -800,6 +844,7 @@ export default function Editor({
             permissions === "VIEW" ? "opacity-50 pointer-events-none" : ""
           }`}
           onMouseMove={handleEditorMouseMove}
+          onMouseLeave={handleEditorMouseLeave}
         >
           <div
             id="editorjs"
@@ -809,19 +854,22 @@ export default function Editor({
             onClick={handleEditorClick}
           ></div>
 
-          <UserSelections
-            users={selections}
-            containerRef={editorContainerRef}
-            // content={editorData ? JSON.stringify(editorData) : ""}
-          />
+          {editorContainerRef.current && (
+            <>
+              <UserSelections
+                users={selections}
+                containerRef={editorContainerRef}
+              />
 
-          <UserCursorEditor
-            cursors={typingCursors}
-            containerRef={editorContainerRef}
-          />
+              <UserCursorEditor
+                cursors={typingCursors}
+                containerRef={editorContainerRef}
+              />
+            </>
+          )}
         </div>
 
-        {selection && permissions === "EDIT" && (
+        {selection && selection.text && permissions === "EDIT" && (
           <div className="absolute bg-white border rounded-lg shadow-lg p-3 z-10">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm text-gray-600">Add comment to:</span>

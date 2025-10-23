@@ -16,6 +16,7 @@ interface Cursor {
     y: number;
   };
   isTyping: boolean;
+  eventId: string;
 }
 
 interface UserCursorEditorProps {
@@ -45,7 +46,7 @@ export const UserCursorEditor: React.FC<UserCursorEditorProps> = ({
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-50">
       {validCursors.map((cursor) => (
         <div
-          key={cursor.userId}
+          key={`cursor-${cursor.eventId || cursor.userId}`}
           className="absolute pointer-events-none transition-all duration-100 ease-out"
           style={{
             left: `${cursor.position.x}px`,

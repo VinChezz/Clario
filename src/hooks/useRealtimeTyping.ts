@@ -1,78 +1,96 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSocket } from "./useSocket";
 
-interface TypingCursor {
-  userId: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    image: string;
-  };
-  userColor: string;
-  position: {
-    x: number;
-    y: number;
-  };
-  isTyping: boolean;
-}
-
 export const useRealtimeTyping = (fileId: string, currentUser: any) => {
-  const { emitEvent, subscribe } = useSocket(fileId, currentUser);
-  const [typingCursors, setTypingCursors] = useState<TypingCursor[]>([]);
+  const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
+  const [typingCursors, setTypingCursors] = useState<any[]>([]);
 
   const sendTypingUpdate = useCallback(
-    (cursorData: Omit<TypingCursor, "user">) => {
-      console.log("📤 Sending typing update:", cursorData);
-      emitEvent("typing_update", {
-        typing: cursorData,
-      });
+    (typingData: any) => {
+      if (isConnected && currentUser) {
+        if (!typingData || typeof typingData.isTyping === "undefined") {
+          console.error("❌ Invalid typing data:", typingData);
+          return;
+        }
+
+        emitEvent("typing_update", {
+          typing: {
+            userId: currentUser.id,
+            userColor:
+              typingData.userColor || generateUserColor(currentUser.id),
+            position: typingData.position || { x: 0, y: 0 },
+            isTyping: Boolean(typingData.isTyping),
+          },
+        });
+      }
     },
-    [emitEvent]
+    [emitEvent, isConnected, currentUser]
   );
 
   const subscribeToTypingUpdates = useCallback(() => {
-    return subscribe("typing_update", (data: any) => {
-      console.log("📨 Received raw typing data:", data);
+    console.log("📡 SUBSCRIBING to typing_update");
 
-      // ВРЕМЕННЫЙ FALLBACK - если нет user данных, создаем базовые
-      const processedData: TypingCursor = {
-        userId: data.userId,
-        user: data.user || {
-          id: data.userId,
-          name: `User-${data.userId.slice(0, 4)}`,
-          email: "",
-          image: "",
-        },
-        userColor: data.userColor,
+    return subscribe("typing_update", (data: any) => {
+      console.log("⌨️ RECEIVED typing_update:", {
+        from: data.user?.name,
         position: data.position,
         isTyping: data.isTyping,
-      };
+      });
 
-      console.log("📨 Processed typing data:", processedData);
+      if (data.user?.id === currentUser?.id) {
+        console.log("🔄 Ignoring own typing update");
+        return;
+      }
 
       setTypingCursors((prev) => {
-        const existing = prev.find((c) => c.userId === processedData.userId);
-        if (existing) {
-          return prev.map((c) =>
-            c.userId === processedData.userId ? processedData : c
-          );
-        } else {
-          return [...prev, processedData];
+        const filtered = prev.filter(
+          (cursor) => cursor.user?.id !== data.user?.id
+        );
+
+        if (!data.isTyping) {
+          return filtered;
         }
+
+        return [...filtered, data];
       });
     });
-  }, [subscribe]);
+  }, [subscribe, currentUser]);
 
-  const removeTypingCursor = useCallback((userId: string) => {
-    console.log("🗑️ Removing typing cursor:", userId);
-    setTypingCursors((prev) => prev.filter((c) => c.userId !== userId));
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTypingCursors((prev) => {
+        const now = Date.now();
+        return prev.filter((cursor) => {
+          return true;
+        });
+      });
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   return {
     typingCursors,
     sendTypingUpdate,
     subscribeToTypingUpdates,
-    removeTypingCursor,
   };
 };
+
+function generateUserColor(userId: string): string {
+  const colors = [
+    "#3B82F6",
+    "#EF4444",
+    "#10B981",
+    "#F59E0B",
+    "#8B5CF6",
+    "#EC4899",
+    "#06B6D4",
+    "#84CC16",
+    "#F97316",
+    "#6366F1",
+  ];
+  const index =
+    userId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
+    colors.length;
+  return colors[index];
+}
