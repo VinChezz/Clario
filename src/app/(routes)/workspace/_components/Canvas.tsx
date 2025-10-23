@@ -16,6 +16,8 @@ import { useRealtimeCanvasCursor } from "@/hooks/useRealtimeCanvasCursor";
 import { useRealtimeCanvasContent } from "@/hooks/useRealtimeCanvasContent";
 import { useSocket } from "@/hooks/useSocket";
 import { CanvasCursorOverlay } from "./collaboration/UserCursorCanvas";
+import { useRealtimePresence } from "@/hooks/useRealtimePresence";
+import { useLightweightPresence } from "@/hooks/useLightweightPresence";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
@@ -43,18 +45,48 @@ export default function Canvas({
   >("selection");
   const [isInitialized, setIsInitialized] = useState(false);
 
-  const [socketStatus, setSocketStatus] = useState<string>("disconnected");
-
   const excalidrawRef = useRef<any>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const mouseMoveTimeoutRef = useRef<NodeJS.Timeout>(null);
+  const lastMousePresenceUpdate = useRef<number>(0);
+  const hasAppliedInitialData = useRef(false);
+  const lastSentContent = useRef<string>("");
+  const isApplyingRemoteUpdate = useRef(false);
 
   const { activeTeam } = useActiveTeam();
 
-  // SOCKET HOOKS
   const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
-  const { activeUsers, updatePresence, startPresenceUpdates } =
-    usePresence(fileId);
+
+  const {
+    activeUsers: httpActiveUsers,
+    updatePresence,
+    startPresenceUpdates,
+  } = usePresence(fileId);
+  const { activeUsers: wsActiveUsers, updateRealtimePresence } =
+    useRealtimePresence(fileId, currentUser);
+  const { updateLightPresence } = useLightweightPresence(fileId, currentUser);
+
+  const allActiveUsers = [...httpActiveUsers, ...wsActiveUsers].reduce(
+    (acc, user) => {
+      const existingIndex = acc.findIndex(
+        (u: any) => u.user?.id === user.user?.id
+      );
+      if (existingIndex === -1) {
+        acc.push(user);
+      } else {
+        const existingUser = acc[existingIndex];
+        const existingTime = new Date(existingUser.lastActive).getTime();
+        const newTime = new Date(user.lastActive).getTime();
+
+        if (newTime > existingTime) {
+          acc[existingIndex] = user;
+        }
+      }
+      return acc;
+    },
+    [] as any[]
+  );
+
   const { cursors, sendCursorUpdate, subscribeToCursorUpdates } =
     useRealtimeCanvasCursor(fileId, currentUser);
   const {
@@ -77,9 +109,7 @@ export default function Canvas({
     fetchVersions,
     createManualVersion,
     restoreVersion,
-    hasSignificantCanvasChanges,
     lastElementCount,
-    autoVersioning,
     isLoading: versionsLoading,
   } = versionManager;
 
@@ -88,21 +118,15 @@ export default function Canvas({
       try {
         console.log("👤 FETCHING CURRENT USER...");
         const userRes = await fetch("/api/auth/user");
-        console.log("👤 USER RESPONSE STATUS:", userRes.status);
 
         if (!userRes.ok) throw new Error("Failed to fetch user");
 
         const dbUser = await userRes.json();
-        console.log("👤 USER FETCHED:", {
-          name: dbUser.name,
-          id: dbUser.id,
-          hasId: !!dbUser.id,
-        });
+        console.log("👤 USER FETCHED:", dbUser.name);
 
         setCurrentUser(dbUser);
 
         if (!activeTeam || !dbUser) {
-          console.log("👤 SET PERMISSIONS: VIEW (no team or user)");
           setPermissions("VIEW");
           return;
         }
@@ -113,7 +137,6 @@ export default function Canvas({
         );
 
         const newPermissions = isCreator || isEditor ? "EDIT" : "VIEW";
-        console.log("👤 SET PERMISSIONS:", newPermissions);
         setPermissions(newPermissions);
       } catch (err) {
         console.error("❌ Error fetching user:", err);
@@ -125,25 +148,92 @@ export default function Canvas({
   }, [activeTeam]);
 
   useEffect(() => {
+    if (fileData?.whiteboard && !hasAppliedInitialData.current) {
+      try {
+        const data = JSON.parse(fileData.whiteboard);
+        console.log(
+          "📁 Loaded initial whiteboard data:",
+          data.length,
+          "elements"
+        );
+        setWhiteBoardData(data);
+        lastElementCount.current = data.length;
+        hasAppliedInitialData.current = true;
+
+        if (excalidrawRef.current) {
+          excalidrawRef.current.updateScene({
+            elements: data,
+            commitToHistory: false,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to parse whiteboard data:", e);
+      }
+    }
+  }, [fileData]);
+
+  useEffect(() => {
     if (!currentUser || permissions !== "EDIT") return;
 
-    console.log("🔌 Starting fast realtime services...");
+    console.log("🔌 Starting realtime services...");
 
     const unsubscribeContent = subscribeToContentUpdates((content, user) => {
-      console.log("⚡ FAST RECEIVE from:", user?.name);
+      console.log("🎉 RECEIVED content update from:", user?.name, {
+        elements: content?.length || 0,
+      });
 
       if (excalidrawRef.current && content) {
+        const contentString = JSON.stringify(content);
+        if (contentString === lastSentContent.current) {
+          console.log("🔄 Ignoring own content (already sent)");
+          return;
+        }
+
+        console.log("🔄 Applying remote content to canvas");
+        isApplyingRemoteUpdate.current = true;
+
         excalidrawRef.current.updateScene({
           elements: content,
           commitToHistory: false,
         });
 
         setWhiteBoardData(content);
+        lastSentContent.current = contentString;
 
         setTimeout(() => {
           if (excalidrawRef.current) {
             excalidrawRef.current.refresh();
           }
+          isApplyingRemoteUpdate.current = false;
+        }, 0);
+      }
+    });
+
+    const unsubscribeSync = subscribeToContentSync((content) => {
+      console.log(
+        "🔄 RECEIVED canvas_content_sync:",
+        content?.length || 0,
+        "elements"
+      );
+
+      if (excalidrawRef.current && content && content.length > 0) {
+        console.log("🔄 Applying sync content to canvas");
+        isApplyingRemoteUpdate.current = true;
+
+        excalidrawRef.current.updateScene({
+          elements: content,
+          commitToHistory: false,
+        });
+
+        setWhiteBoardData(content);
+        hasAppliedInitialData.current = true;
+        lastSentContent.current = JSON.stringify(content);
+
+        setTimeout(() => {
+          if (excalidrawRef.current) {
+            excalidrawRef.current.refresh();
+          }
+          isApplyingRemoteUpdate.current = false;
         }, 0);
       }
     });
@@ -153,42 +243,16 @@ export default function Canvas({
     return () => {
       console.log("🧹 Cleaning up realtime services");
       unsubscribeContent();
+      unsubscribeSync();
       unsubscribeCursors();
     };
   }, [
     currentUser,
     permissions,
     subscribeToContentUpdates,
+    subscribeToContentSync,
     subscribeToCursorUpdates,
   ]);
-  useEffect(() => {
-    if (remoteContent && excalidrawRef.current && isInitialized) {
-      console.log("🔄 APPLYING REMOTE CONTENT:", {
-        remoteElements: remoteContent.length,
-        remoteContentSample: remoteContent.slice(0, 2),
-        currentElements: excalidrawRef.current.getSceneElements()?.length || 0,
-      });
-
-      try {
-        excalidrawRef.current.updateScene({
-          elements: remoteContent,
-          commitToHistory: false,
-        });
-
-        setWhiteBoardData(remoteContent);
-
-        console.log("✅ Remote content applied successfully");
-
-        setTimeout(() => {
-          if (excalidrawRef.current) {
-            excalidrawRef.current.refresh();
-          }
-        }, 100);
-      } catch (error) {
-        console.error("❌ Error applying remote content:", error);
-      }
-    }
-  }, [remoteContent, isInitialized]);
 
   const generateUserColor = (userId: string): string => {
     const colors = [
@@ -209,28 +273,23 @@ export default function Canvas({
     return colors[index];
   };
 
-  useEffect(() => {
-    console.log("🔌 CANVAS SOCKET STATUS:", {
-      isConnected,
-      currentUser: currentUser?.name,
-      fileId,
-      permissions,
-    });
-
-    setSocketStatus(isConnected ? "connected" : "disconnected");
-
-    if (!isConnected && currentUser) {
-      console.log("🔄 Canvas: Socket disconnected but user exists");
-    }
-  }, [isConnected, currentUser, fileId, permissions]);
-
   const sendContentUpdateThrottled = useCallback(
     throttle((elements: any) => {
-      if (isConnected && currentUser && permissions === "EDIT") {
-        console.log("🚀 FAST SEND:", elements.length);
+      if (
+        isConnected &&
+        currentUser &&
+        permissions === "EDIT" &&
+        !isApplyingRemoteUpdate.current
+      ) {
+        const contentString = JSON.stringify(elements);
+        if (contentString === lastSentContent.current) {
+          return;
+        }
+
+        lastSentContent.current = contentString;
         sendContentUpdate(elements);
       }
-    }, 100),
+    }, 50),
     [isConnected, currentUser, permissions, sendContentUpdate]
   );
 
@@ -263,8 +322,6 @@ export default function Canvas({
         return;
       }
 
-      console.log("🖱️ Sending cursor position:", { x, y });
-
       sendCursorUpdate({
         userId: currentUser.id,
         userColor: generateUserColor(currentUser.id),
@@ -272,6 +329,16 @@ export default function Canvas({
         tool: currentTool,
         isActive: true,
       });
+
+      const now = Date.now();
+      if (now - lastMousePresenceUpdate.current > 5000) {
+        updatePresence({
+          status: "VIEWING",
+          cursor: { x, y },
+        }).catch(console.error);
+        updateLightPresence("VIEWING", { x, y });
+        lastMousePresenceUpdate.current = now;
+      }
 
       if (mouseMoveTimeoutRef.current) {
         clearTimeout(mouseMoveTimeoutRef.current);
@@ -286,8 +353,15 @@ export default function Canvas({
           isActive: false,
         });
       }, 1000);
-    }, 100),
-    [currentUser, permissions, sendCursorUpdate, currentTool]
+    }, 20),
+    [
+      currentUser,
+      permissions,
+      sendCursorUpdate,
+      currentTool,
+      updatePresence,
+      updateLightPresence,
+    ]
   );
 
   const handleCanvasMouseLeave = useCallback(() => {
@@ -305,19 +379,6 @@ export default function Canvas({
       }
     }
   }, [currentUser, permissions, sendCursorUpdate, currentTool]);
-
-  useEffect(() => {
-    if (fileData?.whiteboard) {
-      try {
-        const data = JSON.parse(fileData.whiteboard);
-        setWhiteBoardData(data);
-        lastElementCount.current = data.length;
-        console.log("📁 Loaded whiteboard data:", data.length, "elements");
-      } catch (e) {
-        console.error("Failed to parse whiteboard data:", e);
-      }
-    }
-  }, [fileData]);
 
   const handleManualSave = useCallback(async () => {
     if (permissions !== "EDIT") {
@@ -345,65 +406,12 @@ export default function Canvas({
       }
 
       console.log("✅ Whiteboard saved successfully!");
-
-      if (autoVersioning) {
-        try {
-          await createManualVersion({
-            name: `Whiteboard manual save ${new Date().toLocaleString()}`,
-            description: "Manually created whiteboard version",
-            content: JSON.stringify(whiteBoardData),
-            type: "whiteboard",
-          });
-          toast.success("Whiteboard saved with new version!");
-        } catch (versionError) {
-          console.error("⚠️ Version creation failed:", versionError);
-          toast.success("Whiteboard saved! (Version creation failed)");
-        }
-      } else {
-        toast.success("Whiteboard saved!");
-      }
-
       lastElementCount.current = whiteBoardData.length;
     } catch (error) {
       console.error("❌ Error saving whiteboard:", error);
       toast.error("Failed to save whiteboard");
     }
-  }, [
-    fileId,
-    permissions,
-    whiteBoardData,
-    createManualVersion,
-    autoVersioning,
-  ]);
-
-  const checkAndCreateAutoVersion = useCallback(
-    (elements: any) => {
-      if (!autoVersioning) return;
-
-      try {
-        if (!elements || elements.length === 0) return;
-
-        const currentElementCount = elements.length;
-
-        if (hasSignificantCanvasChanges(elements, lastElementCount.current)) {
-          console.log(`🎯 Major canvas change detected, creating auto-version`);
-
-          createManualVersion({
-            name: `Whiteboard auto-save ${new Date().toLocaleString()}`,
-            description:
-              "Automatically created whiteboard version after major changes",
-            content: JSON.stringify(elements),
-            type: "whiteboard",
-          });
-
-          lastElementCount.current = currentElementCount;
-        }
-      } catch (error) {
-        console.error("❌ Failed to create auto-version:", error);
-      }
-    },
-    [createManualVersion, autoVersioning, hasSignificantCanvasChanges]
-  );
+  }, [fileId, permissions, whiteBoardData]);
 
   useEffect(() => {
     if (onSaveTrigger && permissions === "EDIT") {
@@ -421,59 +429,31 @@ export default function Canvas({
     async (version: any) => {
       try {
         console.log("🔄 Restoring whiteboard version:", version.id);
-
         await restoreVersion(version.id, "whiteboard");
-
         toast.success(`Version ${version.version} restored successfully!`);
         setShowVersionHistory(false);
       } catch (error) {
         console.error("❌ Failed to restore version:", error);
-
-        if (error instanceof Error) {
-          if (error.message.includes("404")) {
-            toast.error("Version or file not found");
-          } else if (
-            error.message.includes("401") ||
-            error.message.includes("403")
-          ) {
-            toast.error("Access denied");
-          } else if (error.message.includes("400")) {
-            toast.error("Invalid version data");
-          } else {
-            toast.error(`Restore failed: ${error.message}`);
-          }
-        } else {
-          toast.error("Failed to restore version");
-        }
+        toast.error("Failed to restore version");
       }
     },
     [restoreVersion]
   );
 
-  useEffect(() => {
-    console.log("🔍 Canvas Debug Info:", {
-      currentUser: currentUser?.name,
-      permissions,
-      cursorsCount: cursors.length,
-      currentTool,
-      whiteboardElements: whiteBoardData.length,
-      isConnected,
-      isInitialized,
-    });
-  }, [
-    currentUser,
-    permissions,
-    cursors,
-    currentTool,
-    whiteBoardData,
-    isConnected,
-    isInitialized,
-  ]);
-
   const sendImmediateUpdate = useCallback(
     (elements: any) => {
       if (isConnected && currentUser && permissions === "EDIT") {
-        console.log("⚡ IMMEDIATE SEND");
+        const contentString = JSON.stringify(elements);
+        if (contentString === lastSentContent.current) {
+          return;
+        }
+
+        console.log("⚡📤 SENDING CONTENT immediately:", {
+          elements: elements.length,
+          user: currentUser.name,
+        });
+
+        lastSentContent.current = contentString;
         sendContentUpdate(elements);
       }
     },
@@ -483,87 +463,44 @@ export default function Canvas({
   const onChange = useCallback(
     (elements: any, appState: any) => {
       if (permissions === "EDIT") {
-        console.log("✏️ CANVAS ONCHANGE:", {
-          elements: elements?.length || 0,
-          tool: appState?.activeTool?.type,
-        });
-
         setWhiteBoardData(elements);
 
-        const isMajorChange =
-          appState?.activeTool?.type !== "selection" &&
-          appState?.activeTool?.type !== "hand";
+        updateLightPresence("EDITING");
 
-        if (isMajorChange) {
-          sendImmediateUpdate(elements);
-        } else {
-          sendContentUpdateThrottled(elements);
-        }
-
-        updatePresence({
-          status: "EDITING",
-          cursor: { position: 0 },
-        });
-
-        if (elements && elements.length > 0 && autoVersioning) {
-          checkAndCreateAutoVersion(elements);
-        }
+        sendContentUpdateThrottled(elements);
       }
     },
-    [permissions, updatePresence, autoVersioning, checkAndCreateAutoVersion]
-  );
-
-  useEffect(() => {
-    if (
-      isConnected &&
-      isInitialized &&
-      whiteBoardData &&
-      whiteBoardData.length > 0
-    ) {
-      console.log("🚀 Sending initial content after connection");
-
-      const timer = setTimeout(() => {
-        sendContentUpdate(whiteBoardData);
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isConnected, isInitialized, whiteBoardData, sendContentUpdate]);
-
-  const handleCanvasAction = useCallback(
-    (action: string) => {
-      if (excalidrawRef.current && permissions === "EDIT") {
-        const elements = excalidrawRef.current.getSceneElements();
-        sendImmediateUpdate(elements);
-      }
-    },
-    [permissions, sendImmediateUpdate]
+    [permissions, sendContentUpdateThrottled]
   );
 
   const handleExcalidrawReady = useCallback(
     (api: any) => {
-      console.log("🎉 Excalidraw ready - fast init");
+      console.log("🎉 Excalidraw ready");
       excalidrawRef.current = api;
       setIsInitialized(true);
 
       const currentElements = api.getSceneElements();
-      const shouldApplyData =
-        (!currentElements || currentElements.length === 0) &&
-        whiteBoardData &&
-        whiteBoardData.length > 0;
+      console.log("📋 INITIAL CANVAS STATE:", {
+        currentElements: currentElements?.length || 0,
+        whiteBoardData: whiteBoardData.length,
+        hasAppliedInitialData: hasAppliedInitialData.current,
+      });
 
-      if (shouldApplyData) {
+      if (
+        !hasAppliedInitialData.current &&
+        whiteBoardData &&
+        whiteBoardData.length > 0
+      ) {
+        console.log("🔄 Applying initial whiteboard data to canvas");
         api.updateScene({
           elements: whiteBoardData,
           commitToHistory: false,
         });
-
-        if (isConnected) {
-          sendImmediateUpdate(whiteBoardData);
-        }
+        hasAppliedInitialData.current = true;
+        lastSentContent.current = JSON.stringify(whiteBoardData);
       }
     },
-    [whiteBoardData, isConnected, sendImmediateUpdate]
+    [whiteBoardData]
   );
 
   return (
@@ -578,7 +515,7 @@ export default function Canvas({
             <EditorCanvasHeader
               permissions={permissions}
               fileType="whiteboard"
-              activeUsers={activeUsers}
+              activeUsers={allActiveUsers}
               versions={versions}
               versionsLoading={versionsLoading}
               onToggleVersionHistory={() =>
@@ -596,10 +533,22 @@ export default function Canvas({
               <Excalidraw
                 excalidrawAPI={handleExcalidrawReady}
                 theme="light"
-                initialData={{ elements: whiteBoardData }}
+                initialData={{ elements: [] }}
                 onChange={onChange}
-                onPointerDown={() => handleCanvasAction("pointerDown")}
-                onPointerUp={() => handleCanvasAction("pointerUp")}
+                onPointerDown={() => {
+                  if (excalidrawRef.current) {
+                    const elements = excalidrawRef.current.getSceneElements();
+                    sendImmediateUpdate(elements);
+                  }
+                }}
+                onPointerUp={() => {
+                  setTimeout(() => {
+                    if (excalidrawRef.current) {
+                      const elements = excalidrawRef.current.getSceneElements();
+                      sendImmediateUpdate(elements);
+                    }
+                  }, 100);
+                }}
                 viewModeEnabled={permissions === "VIEW"}
                 UIOptions={{
                   canvasActions: {
@@ -629,7 +578,6 @@ export default function Canvas({
                 </WelcomeScreen>
               </Excalidraw>
 
-              {/* Overlay с курсорами */}
               <CanvasCursorOverlay
                 cursors={cursors}
                 containerRef={canvasContainerRef}

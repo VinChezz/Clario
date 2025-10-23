@@ -1,40 +1,49 @@
 import { useState, useCallback, useRef } from "react";
+import { throttle } from "lodash";
 import { useSocket } from "./useSocket";
 
 export const useRealtimeCanvasContent = (fileId: string, currentUser: any) => {
   const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
   const [remoteContent, setRemoteContent] = useState<any>(null);
-  const lastSentContent = useRef<any>(null);
-  const pendingUpdate = useRef<any>(null);
+  const lastSentContent = useRef<string>("");
 
-  const sendContentUpdate = useCallback(
-    (content: any, immediate: boolean = false) => {
+  const sendContentUpdateThrottled = useCallback(
+    throttle((content: any) => {
       if (!isConnected || !currentUser) return false;
 
       const contentString = JSON.stringify(content);
-      if (contentString === JSON.stringify(lastSentContent.current)) {
+      if (contentString === lastSentContent.current) {
         return false;
       }
 
-      console.log(`🎯 ${immediate ? "FAST" : "NORMAL"} SEND:`, {
+      console.log("🚀📤 THROTTLED SEND:", {
         elements: content?.length || 0,
         user: currentUser.name,
       });
 
-      lastSentContent.current = content;
+      lastSentContent.current = contentString;
+      emitEvent("canvas_content_update", { content });
+      return true;
+    }, 100),
+    [emitEvent, isConnected, currentUser]
+  );
 
-      if (immediate) {
-        emitEvent("canvas_content_update", { content });
-      } else {
-        if (pendingUpdate.current) {
-          clearTimeout(pendingUpdate.current);
-        }
-        pendingUpdate.current = setTimeout(() => {
-          emitEvent("canvas_content_update", { content });
-          pendingUpdate.current = null;
-        }, 30);
+  const sendContentUpdateImmediate = useCallback(
+    (content: any) => {
+      if (!isConnected || !currentUser) return false;
+
+      const contentString = JSON.stringify(content);
+      if (contentString === lastSentContent.current) {
+        return false;
       }
 
+      console.log("⚡📤 IMMEDIATE SEND:", {
+        elements: content?.length || 0,
+        user: currentUser.name,
+      });
+
+      lastSentContent.current = contentString;
+      emitEvent("canvas_content_update", { content });
       return true;
     },
     [emitEvent, isConnected, currentUser]
@@ -52,7 +61,6 @@ export const useRealtimeCanvasContent = (fileId: string, currentUser: any) => {
             elements: data.content?.length || 0,
           });
 
-          // Не обрабатываем свои же обновления
           if (data.user?.id === currentUser?.id) {
             console.log("🔄 Ignoring own content");
             return;
@@ -79,19 +87,11 @@ export const useRealtimeCanvasContent = (fileId: string, currentUser: any) => {
     [subscribe]
   );
 
-  const forceSendContent = useCallback(
-    (content: any) => {
-      lastSentContent.current = null;
-      return sendContentUpdate(content);
-    },
-    [sendContentUpdate]
-  );
-
   return {
     remoteContent,
-    sendContentUpdate,
+    sendContentUpdate: sendContentUpdateThrottled,
+    sendContentUpdateImmediate,
     subscribeToContentUpdates,
     subscribeToContentSync,
-    forceSendContent,
   };
 };

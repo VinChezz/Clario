@@ -52,8 +52,6 @@ export const useRealtimeCanvasCursor = (fileId: string, currentUser: any) => {
         },
       };
 
-      console.log("🎯 Sending canvas cursor update:", fullCursorData);
-
       emitEvent("canvas_cursor_update", {
         cursor: fullCursorData,
       });
@@ -62,13 +60,9 @@ export const useRealtimeCanvasCursor = (fileId: string, currentUser: any) => {
   );
 
   const subscribeToCursorUpdates = useCallback(() => {
-    console.log("📡 Subscribing to canvas cursor updates");
-
     const unsubscribe = subscribe(
       "canvas_cursor_update",
       (data: CanvasCursorData) => {
-        console.log("📨 Received canvas cursor update:", data);
-
         setCursors((prev) => {
           const existingIndex = prev.findIndex((c) => c.userId === data.userId);
 
