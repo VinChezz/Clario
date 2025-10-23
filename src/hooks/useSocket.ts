@@ -1,129 +1,138 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 
-declare global {
-  interface Window {
-    debugSocket?: Socket;
-  }
-}
-
 export const useSocket = (fileId: string, currentUser: any) => {
-  const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [isError, setIsError] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
+  const reconnectAttempts = useRef(0);
+  const maxReconnectAttempts = 5;
 
-  console.log("🔌 [DEBUG] useSocket called", {
-    hasUser: !!currentUser,
-    userId: currentUser?.id,
-    fileId,
-  });
-
-  useEffect(() => {
-    console.log("🔌 [DEBUG] useEffect running", {
-      currentUser: currentUser?.name,
-      currentUserId: currentUser?.id,
-    });
-
-    if (!currentUser?.id) {
-      console.log("⏳ [DEBUG] No user ID, skipping socket creation");
+  const connectSocket = useCallback(() => {
+    if (!fileId || !currentUser?.id) {
+      console.log("❌ Cannot connect: missing fileId or user");
       return;
     }
 
-    if (socketRef.current?.connected) {
-      console.log("ℹ️ [DEBUG] Socket already connected");
-      return;
+    // Закрываем существующее соединение
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
     }
 
-    console.log("🚀 [DEBUG] Creating new socket connection");
+    console.log("🔌 Connecting to Socket.IO...");
 
     try {
-      const socket = io("http://localhost:4000", {
-        autoConnect: true,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 500,
-        timeout: 10000,
-        transports: ["websocket"],
+      const socketUrl =
+        process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
+
+      const newSocket = io(socketUrl, {
+        transports: ["websocket", "polling"], // ✅ Добавляем оба транспорта
+        upgrade: true,
         forceNew: true,
+        timeout: 10000,
         auth: {
           userId: currentUser.id,
         },
         query: {
+          fileId,
           userId: currentUser.id,
-          fileId: fileId,
         },
       });
 
-      socketRef.current = socket;
-
-      window.debugSocket = socket;
-
-      const onConnect = () => {
-        console.log("✅✅✅ [DEBUG] SOCKET CONNECTED! ID:", socket.id);
+      newSocket.on("connect", () => {
+        console.log("✅ Socket.IO connected successfully");
         setIsConnected(true);
-        setReconnectAttempts(0);
+        setIsError(false);
+        reconnectAttempts.current = 0;
 
-        console.log("📤 [DEBUG] Emitting join_room");
-        socket.emit("join_room", { fileId });
-      };
+        // Присоединяемся к комнате после подключения
+        newSocket.emit("join_room", { fileId });
+      });
 
-      const onDisconnect = (reason: string) => {
-        console.log("❌ [DEBUG] Disconnected:", reason);
+      newSocket.on("disconnect", (reason) => {
+        console.log("❌ Socket.IO disconnected:", reason);
         setIsConnected(false);
-      };
 
-      const onConnectError = (error: Error) => {
-        console.error("💥 [DEBUG] Connect Error:", error);
-        console.error("💥 Error details:", error.message);
+        if (reason === "io server disconnect") {
+          // Сервер отключил нас, пытаемся переподключиться
+          newSocket.connect();
+        }
+      });
+
+      newSocket.on("connect_error", (error) => {
+        console.error("💥 Socket.IO connection error:", error.message);
         setIsConnected(false);
-        setReconnectAttempts((prev) => prev + 1);
-      };
+        setIsError(true);
 
-      socket.on("connect", onConnect);
-      socket.on("disconnect", onDisconnect);
-      socket.on("connect_error", onConnectError);
-
-      const statusTimer = setTimeout(() => {
-        console.log("⏰ [DEBUG] Socket status after 5s:", {
-          connected: socket.connected,
-          id: socket.id,
-          disconnected: socket.disconnected,
-        });
-
-        if (!socket.connected) {
-          console.log("⚠️ [DEBUG] Socket still not connected after 5s");
+        reconnectAttempts.current += 1;
+        if (reconnectAttempts.current <= maxReconnectAttempts) {
+          console.log(
+            `🔄 Reconnection attempt ${reconnectAttempts.current}/${maxReconnectAttempts}`
+          );
+          setTimeout(() => {
+            connectSocket();
+          }, 2000 * reconnectAttempts.current); // Экспоненциальная задержка
+        } else {
+          console.error("🚨 Max reconnection attempts reached");
         }
-      }, 5000);
+      });
 
-      return () => {
-        console.log("🧹 [DEBUG] Cleaning up socket");
-        clearTimeout(statusTimer);
-        socket.off("connect", onConnect);
-        socket.off("disconnect", onDisconnect);
-        socket.off("connect_error", onConnectError);
+      newSocket.on("reconnect", (attemptNumber) => {
+        console.log(`✅ Socket.IO reconnected after ${attemptNumber} attempts`);
+        setIsConnected(true);
+        setIsError(false);
+      });
 
-        if (socket.connected) {
-          socket.disconnect();
-        }
-      };
+      newSocket.on("reconnect_attempt", (attemptNumber) => {
+        console.log(`🔄 Socket.IO reconnection attempt ${attemptNumber}`);
+      });
+
+      newSocket.on("reconnect_error", (error) => {
+        console.error("💥 Socket.IO reconnection error:", error);
+      });
+
+      newSocket.on("reconnect_failed", () => {
+        console.error("🚨 Socket.IO reconnection failed");
+        setIsError(true);
+      });
+
+      socketRef.current = newSocket;
+      setSocket(newSocket);
     } catch (error) {
-      console.error("💥 [DEBUG] Error creating socket:", error);
+      console.error("💥 Error creating Socket.IO connection:", error);
+      setIsError(true);
     }
   }, [fileId, currentUser]);
 
+  useEffect(() => {
+    connectSocket();
+
+    return () => {
+      console.log("🧹 Cleaning up Socket.IO connection");
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      setIsConnected(false);
+    };
+  }, [connectSocket]);
+
   const emitEvent = useCallback(
     (event: string, data: any) => {
-      console.log(`📤 [DEBUG] Emit attempt: ${event}`, {
-        isConnected,
-        socketExists: !!socketRef.current,
-        socketConnected: socketRef.current?.connected,
-      });
-
-      if (socketRef.current?.connected) {
-        console.log(`✅ [DEBUG] Emitting: ${event}`, data);
-        socketRef.current.emit(event, { fileId, ...data });
+      if (socketRef.current && isConnected) {
+        try {
+          console.log(`📤 Emitting ${event}:`, data);
+          socketRef.current.emit(event, {
+            ...data,
+            fileId, // Всегда добавляем fileId
+          });
+        } catch (error) {
+          console.error(`💥 Error emitting ${event}:`, error);
+        }
       } else {
-        console.warn(`⚠️ [DEBUG] Cannot emit ${event} - not connected`);
+        console.warn(`⚠️ Cannot emit ${event}: socket not connected`);
       }
     },
     [fileId, isConnected]
@@ -131,26 +140,44 @@ export const useSocket = (fileId: string, currentUser: any) => {
 
   const subscribe = useCallback(
     (event: string, callback: (data: any) => void) => {
-      console.log(`📡 [DEBUG] Subscribing to: ${event}`);
-
-      if (socketRef.current) {
-        socketRef.current.on(event, callback);
-        return () => {
-          socketRef.current?.off(event, callback);
-        };
+      if (!socketRef.current) {
+        console.warn(`⚠️ Cannot subscribe to ${event}: socket not initialized`);
+        return () => {};
       }
 
-      console.warn(`⚠️ [DEBUG] Cannot subscribe to ${event} - no socket`);
-      return () => {};
+      console.log(`📡 Subscribing to ${event}`);
+      socketRef.current.on(event, callback);
+
+      return () => {
+        console.log(`🧹 Unsubscribing from ${event}`);
+        socketRef.current?.off(event, callback);
+      };
     },
     []
   );
 
+  const disconnect = useCallback(() => {
+    if (socketRef.current) {
+      console.log("🔌 Manually disconnecting Socket.IO");
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setIsConnected(false);
+    }
+  }, []);
+
+  const reconnect = useCallback(() => {
+    console.log("🔄 Manually reconnecting Socket.IO");
+    reconnectAttempts.current = 0;
+    connectSocket();
+  }, [connectSocket]);
+
   return {
+    socket: socketRef.current,
+    isConnected,
+    isError,
     emitEvent,
     subscribe,
-    isConnected,
-    reconnectAttempts,
-    socket: socketRef.current,
+    disconnect,
+    reconnect,
   };
 };
