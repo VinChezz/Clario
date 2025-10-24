@@ -15,7 +15,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
       return;
     }
 
-    // Закрываем существующее соединение
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -28,7 +27,7 @@ export const useSocket = (fileId: string, currentUser: any) => {
         process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
 
       const newSocket = io(socketUrl, {
-        transports: ["websocket", "polling"], // ✅ Добавляем оба транспорта
+        transports: ["websocket", "polling"],
         upgrade: true,
         forceNew: true,
         timeout: 10000,
@@ -47,7 +46,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
         setIsError(false);
         reconnectAttempts.current = 0;
 
-        // Присоединяемся к комнате после подключения
         newSocket.emit("join_room", { fileId });
       });
 
@@ -56,7 +54,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
         setIsConnected(false);
 
         if (reason === "io server disconnect") {
-          // Сервер отключил нас, пытаемся переподключиться
           newSocket.connect();
         }
       });
@@ -73,7 +70,7 @@ export const useSocket = (fileId: string, currentUser: any) => {
           );
           setTimeout(() => {
             connectSocket();
-          }, 2000 * reconnectAttempts.current); // Экспоненциальная задержка
+          }, 2000 * reconnectAttempts.current);
         } else {
           console.error("🚨 Max reconnection attempts reached");
         }
