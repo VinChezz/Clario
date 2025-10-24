@@ -81,6 +81,8 @@ export default function Editor({
   const isApplyingRemoteContent = useRef(false);
   const lastMousePresenceUpdate = useRef<number>(0);
   const mouseMoveTimeoutRef = useRef<NodeJS.Timeout>(null);
+  const isApplyingRemoteUpdate = useRef(false);
+  const lastSentContent = useRef<string>("");
 
   const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
   const { typingCursors, sendTypingUpdate, subscribeToTypingUpdates } =
@@ -233,7 +235,11 @@ export default function Editor({
       });
 
       if (editorRef.current && content && isInitialized.current) {
-        console.log("🔄 EDITOR: Applying sync content");
+        const contentString = JSON.stringify(content);
+        if (contentString === lastSentContent.current) {
+          console.log("🔄 Ignoring own content (already sent)");
+          return;
+        }
         isApplyingRemoteContent.current = true;
 
         editorRef.current
@@ -296,6 +302,26 @@ export default function Editor({
       console.error("❌ Error sending content update:", error);
     }
   }, [sendContentUpdateImmediate, currentUser, permissions]);
+
+  const sendContentUpdateThrottled = useCallback(
+    throttle((elements: any) => {
+      if (
+        isConnected &&
+        currentUser &&
+        permissions === "EDIT" &&
+        !isApplyingRemoteUpdate.current
+      ) {
+        const contentString = JSON.stringify(elements);
+        if (contentString === lastSentContent.current) {
+          return;
+        }
+
+        lastSentContent.current = contentString;
+        sendContentUpdate(elements);
+      }
+    }, 50),
+    [isConnected, currentUser, permissions, sendContentUpdate]
+  );
 
   const checkAndCreateAutoVersion = useCallback(
     async (content: string) => {
@@ -654,17 +680,12 @@ export default function Editor({
             ) {
               try {
                 const outputData = await api.saver.save();
-                console.log("⌨️ EDITOR: Content changed", {
-                  blocks: outputData.blocks?.length,
-                });
 
-                await sendContentToOthers();
+                await sendContentUpdateImmediate(outputData);
 
-                updatePresence({
-                  status: "EDITING",
-                  cursor: { position: 0 },
-                }).catch(console.error);
                 updateLightPresence("EDITING");
+
+                sendContentUpdateThrottled(outputData);
 
                 if (autoVersioning) {
                   const contentString = JSON.stringify(outputData);
@@ -710,7 +731,7 @@ export default function Editor({
     editorData,
     currentUser,
     permissions,
-    sendContentToOthers,
+    sendContentUpdateThrottled,
     updatePresence,
     checkAndCreateAutoVersion,
     autoVersioning,

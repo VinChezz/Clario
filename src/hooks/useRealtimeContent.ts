@@ -33,7 +33,7 @@ export const useRealtimeContent = (fileId: string, currentUser: any) => {
         },
       });
       return true;
-    }, 100),
+    }, 30),
     [emitEvent, isConnected, currentUser, fileId]
   );
 
