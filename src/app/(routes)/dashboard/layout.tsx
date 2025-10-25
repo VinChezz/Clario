@@ -17,7 +17,6 @@ function DashboardLayout({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // 💡 Проверяем query-параметр ?skipTeamCheck=true
   const skipTeamCheck = searchParams.get("skipTeamCheck") === "true";
 
   useEffect(() => {

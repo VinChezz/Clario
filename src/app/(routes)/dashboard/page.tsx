@@ -9,7 +9,6 @@ import Header from "./_components/Header";
 import { HeaderProps } from "@/types/header";
 import { TextProps } from "@/types/common";
 import FileList from "./_components/FileList";
-import Loader from "@/app/_loaders/loader";
 
 export default function Dashboard({
   variant = "light",
@@ -32,8 +31,6 @@ export default function Dashboard({
   }, [user, isLoading]);
 
   const isLight = variant === "light";
-
-  if (!dbUser) return <Loader />;
 
   return (
     <div className="p-8">
