@@ -64,6 +64,7 @@ export async function PATCH(
       data: {
         ...(status && { status }),
         ...(content && { content }),
+        updatedAt: new Date(), // 👈 Добавляем обновление времени
       },
       include: {
         author: {
@@ -119,10 +120,12 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Находим комментарий
     const comment = await prisma.comment.findFirst({
       where: { id: commentId },
-      include: { file: true },
+      include: {
+        file: true,
+        replies: true,
+      },
     });
 
     if (!comment) {

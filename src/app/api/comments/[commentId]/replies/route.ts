@@ -17,6 +17,8 @@ export async function POST(
     const { commentId } = await params;
     const { content, mentions } = await request.json();
 
+    console.log("🔄 API: Creating reply for comment:", commentId);
+
     if (!content) {
       return NextResponse.json(
         { error: "Content is required" },
@@ -34,16 +36,25 @@ export async function POST(
 
     const comment = await prisma.comment.findFirst({
       where: { id: commentId },
-      include: { file: true },
+      include: {
+        file: {
+          select: { id: true },
+        },
+        author: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+      },
     });
 
     if (!comment) {
       return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     }
 
+    console.log("📁 Found comment with fileId:", comment.file.id);
+
     const fileAccess = await prisma.file.findFirst({
       where: {
-        id: comment.fileId,
+        id: comment.file.id,
         OR: [
           { createdById: dbUser.id },
           {
@@ -89,9 +100,19 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(reply, { status: 200 });
+    const replyWithFileId = {
+      ...reply,
+      fileId: comment.file.id,
+    };
+
+    console.log(
+      "✅ API: Reply created successfully with fileId:",
+      comment.file.id
+    );
+
+    return NextResponse.json(replyWithFileId, { status: 200 });
   } catch (error) {
-    console.error("Error creating reply:", error);
+    console.error("❌ API: Error creating reply:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

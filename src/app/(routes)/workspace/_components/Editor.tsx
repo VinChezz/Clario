@@ -103,7 +103,16 @@ export default function Editor({
     resetLastSentContent,
   } = useRealtimeContent(fileId, currentUser);
 
-  const { comments, createComment, fetchComments } = useComments(fileId);
+  const {
+    comments,
+    isLoading,
+    createComment,
+    createReply,
+    updateComment,
+    deleteComment,
+    deleteReply,
+    fetchComments,
+  } = useComments(fileId, currentUser);
   const { activeUsers, updatePresence, startPresenceUpdates } =
     usePresence(fileId);
   const { updateLightPresence } = useLightweightPresence(fileId, currentUser);
@@ -582,23 +591,75 @@ export default function Editor({
   );
 
   const handleAddComment = useCallback(
-    async (commentText: string) => {
-      if (!selection || permissions !== "EDIT") return;
-
-      try {
-        await createComment({
-          content: commentText,
-          type: "QUESTION",
-          selection: selection,
-        });
+    (content: string, type = "QUESTION") => {
+      createComment({
+        content,
+        type: type,
+        selection: selection,
+      }).then(() => {
         setSelection(null);
-        toast.success("Comment added");
-      } catch (error) {
-        console.error("Failed to add comment:", error);
-        toast.error("Failed to add comment");
+      });
+    },
+    [createComment, selection]
+  );
+
+  const handleReplyComment = useCallback(
+    (commentId: string, content: string) => {
+      createReply(commentId, content);
+    },
+    [createReply]
+  );
+
+  const handleUpdateComment = useCallback(
+    (commentId: string, content: string) => {
+      console.log("✏️ Updating comment:", commentId, content);
+      updateComment(commentId, { content })
+        .then((updatedComment) => {
+          console.log("✅ Comment updated successfully:", updatedComment);
+        })
+        .catch((error) => {
+          console.error("❌ Failed to update comment:", error);
+        });
+    },
+    [updateComment]
+  );
+
+  const handleResolveComment = useCallback(
+    (commentId: string) => {
+      console.log("🔄 Resolving comment:", commentId);
+      const comment = comments.find((c) => c.id === commentId);
+      if (comment) {
+        const newStatus = comment.status === "OPEN" ? "RESOLVED" : "OPEN";
+        console.log("📝 Updating status:", {
+          from: comment.status,
+          to: newStatus,
+        });
+        updateComment(commentId, { status: newStatus })
+          .then((updatedComment) => {
+            console.log("✅ Comment updated:", updatedComment);
+          })
+          .catch((error) => {
+            console.error("❌ Failed to update comment:", error);
+          });
+      } else {
+        console.error("❌ Comment not found:", commentId);
       }
     },
-    [selection, permissions, createComment]
+    [comments, updateComment]
+  );
+
+  const handleDeleteComment = useCallback(
+    (commentId: string) => {
+      deleteComment(commentId);
+    },
+    [deleteComment]
+  );
+
+  const handleDeleteReply = useCallback(
+    (commentId: string, replyId: string) => {
+      deleteReply(commentId, replyId);
+    },
+    [deleteReply]
   );
 
   useEffect(() => {
@@ -913,10 +974,14 @@ export default function Editor({
           <CommentThread
             comments={comments}
             onAddComment={handleAddComment}
-            onReplyComment={() => {}}
-            onResolveComment={() => {}}
+            onReplyComment={handleReplyComment}
+            onResolveComment={handleResolveComment}
+            onDeleteComment={handleDeleteComment}
+            onDeleteReply={handleDeleteReply}
+            onUpdateComment={handleUpdateComment}
             fileId={fileId}
             permissions={permissions}
+            currentUser={currentUser}
           />
         </div>
       )}

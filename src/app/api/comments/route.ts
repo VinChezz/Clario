@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(comments, { status: 200 });
