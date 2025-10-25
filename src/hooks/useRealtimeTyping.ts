@@ -5,6 +5,12 @@ export const useRealtimeTyping = (fileId: string, currentUser: any) => {
   const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
   const [typingCursors, setTypingCursors] = useState<any[]>([]);
 
+  useEffect(() => {
+    if (!isConnected) {
+      setTypingCursors([]);
+    }
+  }, [isConnected]);
+
   const sendTypingUpdate = useCallback(
     (typingData: any) => {
       if (isConnected && currentUser) {
@@ -20,6 +26,7 @@ export const useRealtimeTyping = (fileId: string, currentUser: any) => {
               typingData.userColor || generateUserColor(currentUser.id),
             position: typingData.position || { x: 0, y: 0 },
             isTyping: Boolean(typingData.isTyping),
+            lastActive: Date.now(), // Добавляем временную метку
           },
         });
       }
@@ -51,20 +58,22 @@ export const useRealtimeTyping = (fileId: string, currentUser: any) => {
           return filtered;
         }
 
-        return [...filtered, data];
+        return [...filtered, { ...data, lastActive: Date.now() }];
       });
     });
   }, [subscribe, currentUser]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTypingCursors((prev) => {
-        const now = Date.now();
-        return prev.filter((cursor) => {
-          return true;
-        });
-      });
-    }, 10000);
+      const now = Date.now();
+      const INACTIVE_THRESHOLD = 1100;
+
+      setTypingCursors((prev) =>
+        prev.filter(
+          (cursor) => now - (cursor.lastActive || 0) < INACTIVE_THRESHOLD
+        )
+      );
+    }, 100);
 
     return () => clearInterval(interval);
   }, []);

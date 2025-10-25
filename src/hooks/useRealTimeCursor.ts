@@ -23,12 +23,16 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
   const [cursors, setCursors] = useState<CursorData[]>([]);
 
   useEffect(() => {
-    if (!isConnected) setCursors([]);
+    if (!isConnected) {
+      setCursors([]);
+    }
   }, [isConnected]);
 
   const sendCursorUpdate = useCallback(
     (cursorData: Omit<CursorData, "user">) => {
-      if (!isConnected || !currentUser) return;
+      if (!isConnected || !currentUser) {
+        return;
+      }
 
       const fullCursorData = {
         ...cursorData,
@@ -52,7 +56,11 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
       (data: CursorData) => {
         setCursors((prev) => {
           const existingIndex = prev.findIndex((c) => c.userId === data.userId);
-          const newCursor = { ...data, lastActive: Date.now() };
+          const newCursor = {
+            ...data,
+            lastActive: Date.now(),
+            isActive: true,
+          };
 
           if (existingIndex >= 0) {
             const newList = [...prev];
@@ -68,6 +76,7 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
     const unsubscribeUserLeft = subscribe(
       "user_left",
       (data: { userId: string }) => {
+        console.log("🗑️ User left, removing cursor:", data.userId);
         setCursors((prev) => prev.filter((c) => c.userId !== data.userId));
       }
     );
@@ -80,15 +89,29 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCursors((prev) =>
-        prev.filter((c) => Date.now() - (c.lastActive ?? 0) < 3000)
-      );
+      const now = Date.now();
+      const INACTIVE_THRESHOLD = 3000;
+
+      setCursors((prev) => {
+        const activeCursors = prev.filter(
+          (cursor) => now - (cursor.lastActive || 0) < INACTIVE_THRESHOLD
+        );
+
+        if (activeCursors.length !== prev.length) {
+          console.log(
+            `🕒 Cleaned ${prev.length - activeCursors.length} inactive cursors`
+          );
+        }
+
+        return activeCursors;
+      });
     }, 3000);
 
     return () => clearInterval(interval);
   }, []);
 
   const removeCursor = useCallback((userId: string) => {
+    console.log("🗑️ Removing cursor:", userId);
     setCursors((prev) => prev.filter((c) => c.userId !== userId));
   }, []);
 

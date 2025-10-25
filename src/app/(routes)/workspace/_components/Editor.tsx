@@ -819,6 +819,7 @@ export default function Editor({
         position: { x, y },
         isTyping: true,
         isActive: true,
+        lastActive: Date.now(),
       });
 
       const now = Date.now();
@@ -842,8 +843,8 @@ export default function Editor({
           position: { x, y },
           isActive: false,
         });
-      }, 1000);
-    }, 100),
+      }, 100);
+    }, 20),
     [currentUser, permissions, sendCursorUpdate, sendTypingUpdate]
   );
 
