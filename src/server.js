@@ -438,6 +438,95 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("join_comments_room", (data) => {
+    const roomName = `comments:${data.fileId}`;
+    socket.join(roomName);
+    console.log(`📥 User ${socket.id} joined ${roomName}`);
+  });
+
+  socket.on("leave_comments_room", (data) => {
+    const roomName = `comments:${data.fileId}`;
+    socket.leave(roomName);
+    console.log(`📤 User ${socket.id} left ${roomName}`);
+  });
+
+  socket.on("comment:create", (comment) => {
+    const roomName = `comments:${comment.fileId}`;
+    console.log(`💬 Broadcasting comment:create to ${roomName}`);
+
+    io.to(roomName).emit("comment:create", comment);
+  });
+
+  socket.on("comment:update", (comment) => {
+    const roomName = `comments:${comment.fileId}`;
+    console.log(`✏️ Broadcasting comment:update to ${roomName}`);
+
+    io.to(roomName).emit("comment:update", comment);
+  });
+
+  socket.on("comment:delete", (data) => {
+    const roomName = `comments:${data.fileId}`;
+    console.log(`🗑️ Broadcasting comment:delete to ${roomName}`);
+
+    io.to(roomName).emit("comment:delete", data);
+  });
+
+  socket.on("comment:resolve", (data) => {
+    const roomName = `comments:${data.fileId}`;
+    io.to(roomName).emit("comment:resolve", data);
+  });
+
+  socket.on("reply:create", (data) => {
+    console.log("📨 SERVER: Received reply:create event", {
+      commentId: data.commentId,
+      replyId: data.reply?.id,
+      fileId: data.fileId,
+      createdByUserId: data.createdByUserId,
+    });
+
+    const fileId = data.fileId;
+    if (fileId) {
+      const roomName = `comments:${fileId}`;
+
+      const room = io.sockets.adapter.rooms.get(roomName);
+      const roomSize = room ? room.size : 0;
+
+      console.log(`💬 SERVER: Broadcasting reply:create to ${roomName}`, {
+        roomSize,
+        excludeSender: data.createdByUserId,
+      });
+
+      const broadcastData = {
+        commentId: data.commentId,
+        reply: data.reply,
+        fileId: fileId,
+        createdByUserId: data.createdByUserId,
+      };
+
+      if (data.createdByUserId) {
+        socket.to(roomName).emit("reply:create", broadcastData);
+        console.log("📤 SERVER: Emitting to room (excluding creator)");
+      } else {
+        io.to(roomName).emit("reply:create", broadcastData);
+        console.log("📤 SERVER: Emitting to room (all users)");
+      }
+
+      console.log("✅ SERVER: Successfully broadcasted reply:create");
+    } else {
+      console.error("❌ SERVER: No fileId in reply:create event", data);
+    }
+  });
+
+  socket.on("reply:delete", (data) => {
+    const fileId = data.fileId;
+    if (fileId) {
+      const roomName = `comments:${fileId}`;
+      console.log(`🗑️ Broadcasting reply:delete to ${roomName}`);
+
+      io.to(roomName).emit("reply:delete", data);
+    }
+  });
+
   socket.on("disconnect", (reason) => {
     console.log(
       "❌ User disconnected:",
