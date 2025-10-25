@@ -28,8 +28,8 @@ export const CanvasCursorOverlay: React.FC<CanvasCursorOverlayProps> = ({
   containerRef,
 }) => {
   const [visibleCursors, setVisibleCursors] = useState<CanvasCursor[]>([]);
+  const [hoveredCursor, setHoveredCursor] = useState<string | null>(null);
 
-  // Фильтруем и обновляем курсоры с задержкой для плавности
   useEffect(() => {
     const activeCursors = cursors.filter(
       (cursor) =>
@@ -64,6 +64,8 @@ export const CanvasCursorOverlay: React.FC<CanvasCursorOverlayProps> = ({
             opacity: cursor.isActive ? 1 : 0,
             transition: "opacity 0.2s ease-in-out",
           }}
+          onMouseEnter={() => setHoveredCursor(cursor.userId)}
+          onMouseLeave={() => setHoveredCursor(null)}
         >
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -87,8 +89,11 @@ export const CanvasCursorOverlay: React.FC<CanvasCursorOverlayProps> = ({
             </div>
 
             <div
-              className="px-2 py-1 text-xs text-white rounded font-medium whitespace-nowrap shadow-md backdrop-blur-sm"
-              style={{ backgroundColor: cursor.userColor }}
+              className="px-2 py-1 text-xs text-white rounded-md font-medium whitespace-nowrap shadow-lg backdrop-blur-sm transition-all duration-200"
+              style={{
+                backgroundColor: cursor.userColor,
+                opacity: hoveredCursor === cursor.userId ? 1 : 0.8,
+              }}
             >
               {cursor.user.name}
             </div>
