@@ -90,10 +90,11 @@ export default function CreateTeam() {
 
   return (
     <div className="px-6 md:px-16 my-16">
-      <div className="relative flex items-start justify-start">
-        <Image src={"/logo-1.png"} alt={"logo"} width={150} height={150} />
-        <div className="mt-1 ml-2 text-5xl text-black font-bold">Clario</div>
-        <div className="relative flex justify-end-safe w-full mt-2">
+      <div className="relative flex items-center justify-start">
+        {" "}
+        <Image src={"/logo-1.png"} alt={"logo"} width={120} height={120} />
+        <div className="ml-2 text-5xl text-black font-bold">Clario</div>
+        <div className="relative flex justify-end-safe w-full">
           <Button
             size={"lg"}
             variant={"outline"}
