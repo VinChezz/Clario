@@ -55,6 +55,13 @@ export function useVersionManager({
       const response = await fetch(`/api/files/${fileId}/versions`);
 
       if (!response.ok) {
+        // Если API не существует, просто возвращаем пустой массив
+        if (response.status === 404) {
+          console.warn("Versions API not found, returning empty array");
+          setVersions([]);
+          return;
+        }
+
         const errorText = await response.text();
         console.error(
           `❌ Failed to fetch versions: ${response.status}`,
@@ -68,7 +75,8 @@ export function useVersionManager({
       setVersions(data);
     } catch (error) {
       console.error("Error fetching versions:", error);
-      throw error;
+      // Не выбрасываем ошибку, чтобы не ломать UI
+      setVersions([]);
     } finally {
       setIsLoading(false);
     }
@@ -88,11 +96,17 @@ export function useVersionManager({
           throw new Error("Content cannot be empty");
         }
 
-        try {
-          JSON.parse(content);
-        } catch (parseError) {
-          console.error("❌ Invalid JSON content:", parseError);
-          throw new Error("Content must be valid JSON");
+        // Проверяем JSON только для whiteboard
+        if (type === "whiteboard") {
+          try {
+            JSON.parse(content);
+          } catch (parseError) {
+            console.error(
+              "❌ Invalid JSON content for whiteboard:",
+              parseError
+            );
+            throw new Error("Whiteboard content must be valid JSON");
+          }
         }
 
         const response = await fetch(`/api/files/${fileId}/versions`, {
@@ -106,6 +120,12 @@ export function useVersionManager({
         const responseText = await response.text();
 
         if (!response.ok) {
+          // Если API не существует, просто логируем и продолжаем
+          if (response.status === 404) {
+            console.warn("Versions API not found, skipping version creation");
+            return null;
+          }
+
           console.error(
             `❌ Failed to create version: ${response.status}`,
             responseText
@@ -131,7 +151,8 @@ export function useVersionManager({
         return newVersion;
       } catch (error) {
         console.error(`❌ Error creating ${type} version:`, error);
-        throw error;
+        // Не выбрасываем ошибку, чтобы не прерывать работу canvas
+        return null;
       }
     },
     [fileId]
@@ -139,9 +160,11 @@ export function useVersionManager({
 
   const createAutoVersion = useCallback(
     (options: CreateVersionOptions) => {
+      if (!autoVersioning) return;
+
       const now = Date.now();
       const timeSinceLastVersion = now - lastVersionTime.current;
-      const minTimeBetweenAutoVersions = 2 * 60 * 1000;
+      const minTimeBetweenAutoVersions = 2 * 60 * 1000; // 2 минуты
 
       if (timeSinceLastVersion < minTimeBetweenAutoVersions) {
         console.log("⏰ Too soon since last version, skipping auto-version");
@@ -156,9 +179,9 @@ export function useVersionManager({
         createVersion(options).catch((error) => {
           console.error("❌ Auto-version creation failed:", error);
         });
-      }, 30000);
+      }, 30000); // 30 секунд задержка
     },
-    [createVersion]
+    [createVersion, autoVersioning]
   );
 
   const createManualVersion = useCallback(
@@ -185,6 +208,17 @@ export function useVersionManager({
         const responseText = await response.text();
 
         if (!response.ok) {
+          // Если API не существует, используем локальные данные
+          if (response.status === 404) {
+            console.warn("Restore API not found, using local version data");
+            const localVersion = versions.find((v) => v.id === versionId);
+            if (localVersion && onVersionRestore) {
+              onVersionRestore(localVersion.content, type);
+              return { version: localVersion };
+            }
+            throw new Error("Version not found locally");
+          }
+
           console.error(
             `❌ Failed to restore: ${response.status}`,
             responseText
@@ -217,7 +251,7 @@ export function useVersionManager({
         throw error;
       }
     },
-    [fileId, onVersionRestore]
+    [fileId, onVersionRestore, versions]
   );
 
   const hasSignificantChanges = useCallback(
@@ -277,21 +311,16 @@ export function useVersionManager({
     versions,
     isLoading,
     showVersionHistory,
-
     setShowVersionHistory,
-
     fetchVersions,
     createVersion,
     createAutoVersion,
     createManualVersion,
     restoreVersion,
-
     hasSignificantChanges,
     hasSignificantCanvasChanges,
-
     lastContent,
     lastElementCount,
-
     autoVersioning,
   };
 }

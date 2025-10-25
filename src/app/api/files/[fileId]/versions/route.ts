@@ -4,24 +4,51 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ fileId: string }> }
+  { params }: { params: Promise<{ fileId: string }> } // ДОБАВЬТЕ Promise<>
 ) {
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    console.log("🔐 Kinde user:", user);
-
-    if (!user || !user.id || !user.email) {
+    if (!user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { fileId } = await params;
-    console.log("📋 Fetching versions for file:", fileId);
+    const { fileId } = await params; // ДОБАВЬТЕ AWAIT И ДЕСТРУКТУРИЗАЦИЮ
 
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Проверяем доступ к файлу
+    const file = await prisma.file.findFirst({
+      where: {
+        id: fileId,
+        OR: [
+          { createdById: dbUser.id },
+          {
+            team: {
+              members: {
+                some: { userId: dbUser.id },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    if (!file) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
+    // Получаем версии
     const versions = await prisma.documentVersion.findMany({
       where: {
-        fileId,
+        fileId: fileId,
       },
       include: {
         author: {
@@ -38,10 +65,9 @@ export async function GET(
       },
     });
 
-    console.log(`✅ Found ${versions.length} versions`);
     return NextResponse.json(versions);
   } catch (error) {
-    console.error("❌ Error fetching versions:", error);
+    console.error("Error fetching versions:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -51,30 +77,20 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ fileId: string }> }
+  { params }: { params: Promise<{ fileId: string }> } // ДОБАВЬТЕ Promise<>
 ) {
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    console.log("🔐 Kinde user for version creation:", user);
-
-    if (!user || !user.id || !user.email) {
+    if (!user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { fileId } = await params;
-    const body = await request.json();
-    const { name, description, content } = body;
-
-    console.log("🆕 Creating version for file:", fileId, {
-      name,
-      description,
-      contentLength: content?.length,
-    });
+    const { fileId } = await params; // ДОБАВЬТЕ AWAIT И ДЕСТРУКТУРИЗАЦИЮ
+    const { name, description, content } = await request.json();
 
     if (!content) {
-      console.log("❌ Missing content");
       return NextResponse.json(
         { error: "Content is required" },
         { status: 400 }
@@ -86,83 +102,69 @@ export async function POST(
     });
 
     if (!dbUser) {
-      console.log("❌ User not found in database:", user.email);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log("👤 Found user in database:", dbUser.id);
-
-    // Отримуємо файл та блокуємо для оновлення
-    const file = await prisma.file.findUnique({
-      where: { id: fileId },
+    // Проверяем доступ к файлу
+    const file = await prisma.file.findFirst({
+      where: {
+        id: fileId,
+        OR: [
+          { createdById: dbUser.id },
+          {
+            team: {
+              members: {
+                some: { userId: dbUser.id },
+              },
+            },
+          },
+        ],
+      },
     });
 
     if (!file) {
-      console.log("❌ File not found:", fileId);
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    console.log(
-      "📄 Found file:",
-      file.fileName,
-      "current version:",
-      file.currentVersion
-    );
-
-    // Атомарно оновлюємо версію файлу та створюємо нову версію
-    const result = await prisma.$transaction(async (tx) => {
-      // Оновлюємо версію файлу
-      const updatedFile = await tx.file.update({
-        where: { id: fileId },
-        data: {
-          currentVersion: file.currentVersion + 1,
-          version: file.version + 1,
-        },
-      });
-
-      console.log("✅ File version updated to:", updatedFile.currentVersion);
-
-      // Створюємо нову версію документа
-      const newVersion = await tx.documentVersion.create({
-        data: {
-          version: updatedFile.currentVersion,
-          name: name || `Version ${updatedFile.currentVersion}`,
-          description: description || "Automatically created version",
-          content: content,
-          fileId,
-          authorId: dbUser.id,
-        },
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              image: true,
-            },
-          },
-        },
-      });
-
-      console.log("✅ Version created in database:", newVersion.id);
-      return newVersion;
+    // Получаем последнюю версию
+    const lastVersion = await prisma.documentVersion.findFirst({
+      where: { fileId },
+      orderBy: { version: "desc" },
     });
 
-    return NextResponse.json(result);
+    const newVersionNumber = (lastVersion?.version || 0) + 1;
+
+    // Создаем новую версию
+    const newVersion = await prisma.documentVersion.create({
+      data: {
+        version: newVersionNumber,
+        name: name || `Version ${newVersionNumber}`,
+        description: description || "",
+        content: content,
+        fileId: fileId,
+        authorId: dbUser.id,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(newVersion);
   } catch (error) {
-    console.error("❌ Error creating version:", error);
+    console.error("Error creating version:", error);
 
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-
-      // Обробка помилок Prisma
-      if (error.message.includes("P2002")) {
-        return NextResponse.json(
-          { error: "Version already exists, please try again" },
-          { status: 409 }
-        );
-      }
+    if (error instanceof Error && "code" in error && error.code === "P2002") {
+      return NextResponse.json(
+        { error: "Version already exists. Please try again." },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(
