@@ -8,7 +8,7 @@ interface LogoLoaderProps {
   loadingTime?: number;
 }
 
-export default function LogoEraserLoader({
+export default function LogoClarioLoader({
   onLoadingComplete,
   loadingTime = 4000,
 }: LogoLoaderProps) {

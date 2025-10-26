@@ -5,8 +5,8 @@ import WorkspaceHeader from "../_components/WorkspaceHeader";
 import { FILE } from "@/shared/types/file.interface";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
-import EraserLoader from "@/app/_loaders/ErasorLoader";
 import { toast } from "sonner";
+import LogoClarioLoader from "@/app/_loaders/ClarioLoader";
 
 const Editor = dynamic(() => import("../_components/Editor"), {
   loading: () => <div>Loading Editor...</div>,
@@ -148,7 +148,7 @@ export default function WorkspacePage() {
     fetchFileData();
   }, [fileId]);
 
-  if (!fileId || isLoading) return <EraserLoader />;
+  if (!fileId || isLoading) return <LogoClarioLoader />;
 
   if (error)
     return (
