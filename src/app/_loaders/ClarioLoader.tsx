@@ -1,15 +1,17 @@
 "use client";
+
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface EraserLoaderProps {
+interface LogoLoaderProps {
   onLoadingComplete?: () => void;
   loadingTime?: number;
 }
-export default function EraserLoader({
+
+export default function LogoEraserLoader({
   onLoadingComplete,
   loadingTime = 4000,
-}: EraserLoaderProps) {
+}: LogoLoaderProps) {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -26,9 +28,7 @@ export default function EraserLoader({
         const newProgress = prev + 100 / (loadingTime / 100);
         if (newProgress >= 100) {
           clearInterval(interval);
-          setTimeout(() => {
-            onLoadingComplete?.();
-          }, 500);
+          setTimeout(() => onLoadingComplete?.(), 500);
           return 100;
         }
         return newProgress;
@@ -53,23 +53,18 @@ export default function EraserLoader({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Фоновые элементы */}
-      <div className="absolute inset-0">
-        {/* Большие круги */}
+      <div className="absolute inset-0 pointer-events-none -z-20">
         <motion.div
-          className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-indigo-600/10 blur-3xl"
-          animate={{ scale: [1, 1.2, 1] }}
-          transition={{ duration: 8, repeat: Infinity }}
+          className="absolute -left-20 -top-20 w-[520px] h-[520px] rounded-full bg-indigo-600/8 blur-3xl"
+          animate={{ scale: [1, 1.12, 1] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-slate-200/5 blur-3xl"
-          animate={{ scale: [1.2, 1, 1.2] }}
-          transition={{ duration: 10, repeat: Infinity }}
+          className="absolute -right-20 -bottom-16 w-[420px] h-[420px] rounded-full bg-slate-200/6 blur-3xl"
+          animate={{ scale: [1.1, 0.95, 1.1] }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
-
-      {/* Плавающие частицы */}
-      <FloatingParticles />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -77,7 +72,6 @@ export default function EraserLoader({
         transition={{ duration: 0.7, type: "spring" }}
         className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-indigo-400/20 max-w-md w-full relative z-10"
       >
-        {/* Логотип и заголовок */}
         <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -101,7 +95,6 @@ export default function EraserLoader({
           </p>
         </motion.div>
 
-        {/* Анимированный ластик */}
         <div className="flex justify-center mb-8">
           <motion.div
             className="relative"
@@ -115,31 +108,85 @@ export default function EraserLoader({
               ease: "easeInOut",
             }}
           >
-            {/* Ластик */}
-            <motion.div
-              className="w-20 h-10 bg-gradient-to-r from-indigo-400 via-indigo-500 to-indigo-600 rounded-xl shadow-2xl relative z-10 border border-slate-200/20"
+            <motion.svg
+              width="80"
+              height="56"
+              viewBox="0 0 200 140"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="relative z-10"
               whileHover={{ scale: 1.05, rotate: 2 }}
               whileTap={{ scale: 0.95 }}
             >
-              {/* Полоски на ластике */}
-              <div className="absolute inset-0 flex items-center justify-between px-3">
-                {[...Array(4)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="w-1.5 h-6 bg-white/40 rounded-full"
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.3, type: "spring" }}
-                  />
-                ))}
-              </div>
+              <defs>
+                <linearGradient id="dropGrad" x1="0" x2="1">
+                  <stop offset="0%" stopColor="#78E6FF" />
+                  <stop offset="100%" stopColor="#1E60FF" />
+                </linearGradient>
+                <linearGradient id="innerGrad" x1="0" x2="1">
+                  <stop offset="0%" stopColor="#4FC3FF" />
+                  <stop offset="100%" stopColor="#0D47A1" />
+                </linearGradient>
+              </defs>
 
-              {/* Блики */}
-              <div className="absolute top-1 left-2 w-3 h-1 bg-white/30 rounded-full blur-sm" />
-              <div className="absolute bottom-1 right-2 w-2 h-1 bg-white/20 rounded-full blur-sm" />
-            </motion.div>
+              <motion.path
+                d="M100 6 C120 32 162 66 162 102 C162 128 132 142 100 136 C68 142 38 128 38 102 C38 66 80 32 100 6 Z"
+                fill="url(#dropGrad)"
+                stroke="rgba(255,255,255,0.06)"
+                strokeWidth="2"
+                initial={{ translateY: 0 }}
+                animate={{ translateY: [0, -6, 0] }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
 
-            {/* След от ластика */}
+              <motion.path
+                d="M102 46 C118 62 142 78 142 104 C142 122 120 132 102 130 C86 132 72 124 72 110 C72 96 86 72 102 46 Z"
+                fill="url(#innerGrad)"
+                initial={{ translateY: 0 }}
+                animate={{ translateY: [0, -8, 0] }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+
+              <motion.path
+                d="M82 36 C94 54 118 68 116 96"
+                stroke="#FFFFFF"
+                strokeWidth="16"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: [0, 1, 0.9] }}
+                transition={{
+                  duration: 2.6,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                opacity={0.95}
+              />
+
+              <motion.path
+                d="M128 14 C140 28 150 44 146 66"
+                stroke="rgba(255,255,255,0.9)"
+                strokeWidth="6"
+                strokeLinecap="round"
+                initial={{ opacity: 0.6, translateX: -3 }}
+                animate={{ opacity: [0.6, 1, 0.6], translateX: [-3, 0, -3] }}
+                transition={{
+                  duration: 2.6,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+            </motion.svg>
+
             <motion.div
               className="absolute -bottom-3 left-3 right-3 h-2 bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent rounded-full blur-sm"
               animate={{
@@ -155,7 +202,6 @@ export default function EraserLoader({
           </motion.div>
         </div>
 
-        {/* Прогресс бар */}
         <div className="mb-6">
           <div className="flex justify-between text-sm mb-3">
             <span className="text-slate-200 font-medium">Progress</span>
@@ -175,13 +221,11 @@ export default function EraserLoader({
               animate={{ width: `${progress}%` }}
               transition={{ type: "spring", stiffness: 40, damping: 15 }}
             >
-              {/* Блик на прогресс баре */}
               <div className="absolute top-0 right-0 bottom-0 w-4 bg-gradient-to-r from-transparent to-white/30 rounded-r-full" />
             </motion.div>
           </div>
         </div>
 
-        {/* Текущий статус */}
         <AnimatePresence mode="wait">
           <motion.p
             key={currentStep}
@@ -195,7 +239,6 @@ export default function EraserLoader({
           </motion.p>
         </AnimatePresence>
 
-        {/* Декоративные элементы вокруг карточки */}
         <div className="absolute -inset-4 -z-10">
           <motion.div
             className="absolute top-0 left-0 w-20 h-20 bg-indigo-400/10 rounded-full blur-xl"
@@ -218,45 +261,3 @@ export default function EraserLoader({
     </div>
   );
 }
-
-// Компонент плавающих частиц
-const FloatingParticles = () => {
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    delay: Math.random() * 3,
-    duration: 4 + Math.random() * 3,
-    size: Math.random() * 3 + 1,
-  }));
-
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {particles.map((particle) => (
-        <motion.div
-          key={particle.id}
-          className="absolute rounded-full"
-          style={{
-            left: `${particle.x}%`,
-            top: `${particle.y}%`,
-            width: `${particle.size}px`,
-            height: `${particle.size}px`,
-            background: `rgba(99, 102, 241, ${0.2 + Math.random() * 0.3})`,
-          }}
-          animate={{
-            y: [0, -40, 0],
-            x: [0, Math.random() * 30 - 15, 0],
-            opacity: [0, 0.8, 0],
-            scale: [0, 1, 0],
-          }}
-          transition={{
-            duration: particle.duration,
-            delay: particle.delay,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      ))}
-    </div>
-  );
-};
