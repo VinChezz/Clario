@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
           members: {
             create: {
               userId: dbUser.id,
-              role: "EDIT",
+              role: "ADMIN",
             },
           },
         },
