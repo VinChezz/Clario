@@ -1,4 +1,3 @@
-// app/api/teams/invite/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from "@/lib/prisma";
@@ -38,7 +37,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Находим пользователя в базе
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email as string },
     });
@@ -50,12 +48,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Проверяем права доступа
     const teamMembership = await prisma.teamMember.findFirst({
       where: {
         teamId,
         userId: dbUser.id,
-        OR: [{ role: "EDIT" }, { team: { createdById: dbUser.id } }],
+        OR: [{ role: "ADMIN" }, { team: { createdById: dbUser.id } }],
       },
       include: { team: true },
     });
@@ -123,7 +120,6 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          // Проверяем существующий инвайт
           const existingInvite = await prisma.invite.findFirst({
             where: {
               teamId,
