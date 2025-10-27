@@ -25,12 +25,56 @@ export async function PATCH(
       );
     }
 
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+
+    if (!user || !user.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const existingFile = await prisma.file.findUnique({
       where: { id: fileId },
+      include: {
+        team: {
+          include: {
+            members: {
+              where: {
+                userId: dbUser.id,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!existingFile) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
+    const userMembership = existingFile.team.members[0];
+    const isTeamCreator = existingFile.team.createdById === dbUser.id;
+
+    const canEdit =
+      userMembership?.role === "ADMIN" ||
+      userMembership?.role === "EDIT" ||
+      isTeamCreator;
+
+    if (!canEdit) {
+      return NextResponse.json(
+        {
+          error:
+            "Insufficient permissions. Only EDIT and ADMIN roles can edit files.",
+        },
+        { status: 403 }
+      );
     }
 
     const updateData: UpdateBody = {};

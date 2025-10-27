@@ -53,19 +53,42 @@ export async function POST(request: Request) {
             members: {
               some: {
                 userId: dbUser.id,
-                role: { in: ["EDIT"] },
+                role: { in: ["ADMIN", "EDIT"] },
               },
             },
           },
         ],
       },
+      include: {
+        members: {
+          where: {
+            userId: dbUser.id,
+          },
+        },
+      },
     });
 
     if (!teamAccess) {
       return NextResponse.json(
-        { error: "Team not found or access denied" },
-        { status: 404 }
+        {
+          error:
+            "Team not found or insufficient permissions. Only ADMIN and EDIT roles can create files.",
+        },
+        { status: 403 }
       );
+    }
+
+    if (teamAccess.createdById !== dbUser.id) {
+      const userMembership = teamAccess.members[0];
+      if (!userMembership || !["ADMIN", "EDIT"].includes(userMembership.role)) {
+        return NextResponse.json(
+          {
+            error:
+              "Insufficient permissions. Only ADMIN and EDIT roles can create files.",
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const file = await prisma.file.create({
@@ -125,6 +148,7 @@ export async function GET(request: Request) {
             members: {
               some: {
                 userId: dbUser.id,
+                role: { in: ["VIEW", "EDIT", "ADMIN"] },
               },
             },
           },
