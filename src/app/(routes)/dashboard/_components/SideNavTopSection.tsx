@@ -29,7 +29,7 @@ export interface TeamMember {
   id: string;
   userId: string;
   teamId: string;
-  role: "VIEW" | "EDIT";
+  role: "ADMIN" | "VIEW" | "EDIT";
   joinedAt: string;
   user: {
     id: string;
