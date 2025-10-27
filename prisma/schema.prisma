@@ -244,6 +244,7 @@ model TeamMember {
 }
 
 enum Role {
+  ADMIN
   VIEW
   EDIT
 }
