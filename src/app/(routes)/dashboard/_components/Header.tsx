@@ -1,7 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
-import { Search, Send, MoreHorizontal, Edit, Eye, Trash2 } from "lucide-react";
+import {
+  Search,
+  Send,
+  MoreHorizontal,
+  Edit,
+  Eye,
+  Trash2,
+  Crown,
+} from "lucide-react";
 import Image from "next/image";
 import React, { useState, useEffect } from "react";
 import {
@@ -55,19 +63,20 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
   );
   const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
 
+  const canInvite = currentUserMember?.role === "ADMIN";
+  const canManageRoles = currentUserMember?.role === "ADMIN";
+  const canRemoveMembers = currentUserMember?.role === "ADMIN";
+  const canEditFiles = ["ADMIN", "EDIT"].includes(
+    currentUserMember?.role || ""
+  );
+
   console.log("🔍 Header - Debug permissions:", {
     activeTeamId: activeTeam?.id,
-    activeTeamName: activeTeam?.name,
-    kindeUserId: user?.id,
-    dbUserId: dbUser?.id,
-    teamCreatorId: activeTeam?.createdById,
-    isCurrentUserCreator: isCurrentUserCreator,
-    currentUserMember: currentUserMember,
     currentUserRole: currentUserMember?.role,
-    teamMembersCount: teamMembers.length,
-    disabledCondition:
-      !activeTeam ||
-      (currentUserMember?.role !== "EDIT" && !isCurrentUserCreator),
+    canInvite,
+    canManageRoles,
+    canRemoveMembers,
+    canEditFiles,
   });
 
   const displayedMembers = teamMembers.slice(0, 3);
@@ -75,8 +84,13 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
 
   const updateMemberRole = async (
     memberId: string,
-    newRole: "VIEW" | "EDIT"
+    newRole: "VIEW" | "EDIT" | "ADMIN"
   ) => {
+    if (newRole === "ADMIN" && !isCurrentUserCreator) {
+      toast.error("Only team creator can assign ADMIN role");
+      return;
+    }
+
     setTeamMembers((prevMembers) =>
       prevMembers.map((member) =>
         member.id === memberId ? { ...member, role: newRole } : member
@@ -107,49 +121,21 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
         const error = await response.json();
         setTeamMembers((prevMembers) =>
           prevMembers.map((member) =>
-            member.id === memberId
-              ? { ...member, role: member.role === "EDIT" ? "VIEW" : "EDIT" }
-              : member
+            member.id === memberId ? { ...member, role: member.role } : member
           )
         );
-
-        if (activeTeam) {
-          setActiveTeam({
-            ...activeTeam,
-            members: (activeTeam.members || []).map((member) =>
-              member.id === memberId
-                ? { ...member, role: member.role === "EDIT" ? "VIEW" : "EDIT" }
-                : member
-            ),
-          });
-        }
-
         toast.error(error.error || "Failed to update role");
         return;
       }
 
-      toast.success(`Member permissions updated to ${newRole}`);
+      toast.success(`Member role updated to ${newRole}`);
       onTeamUpdate?.();
     } catch (error) {
       setTeamMembers((prevMembers) =>
         prevMembers.map((member) =>
-          member.id === memberId
-            ? { ...member, role: member.role === "EDIT" ? "VIEW" : "EDIT" }
-            : member
+          member.id === memberId ? { ...member, role: member.role } : member
         )
       );
-
-      if (activeTeam) {
-        setActiveTeam({
-          ...activeTeam,
-          members: (activeTeam.members || []).map((member) =>
-            member.id === memberId
-              ? { ...member, role: member.role === "EDIT" ? "VIEW" : "EDIT" }
-              : member
-          ),
-        });
-      }
-
       toast.error("Failed to update role");
     }
   };
@@ -189,7 +175,6 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
       if (!response.ok) {
         if (memberToRemove) {
           setTeamMembers((prevMembers) => [...prevMembers, memberToRemove]);
-
           if (activeTeam) {
             setActiveTeam({
               ...activeTeam,
@@ -197,7 +182,6 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
             });
           }
         }
-
         const error = await response.json();
         toast.error(error.error || "Failed to remove member");
         return;
@@ -208,7 +192,6 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
     } catch (error) {
       if (memberToRemove) {
         setTeamMembers((prevMembers) => [...prevMembers, memberToRemove]);
-
         if (activeTeam) {
           setActiveTeam({
             ...activeTeam,
@@ -216,18 +199,51 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
           });
         }
       }
-
       toast.error("Failed to remove member");
     }
   };
 
-  const getRoleText = (role: "VIEW" | "EDIT") => {
-    return role === "EDIT" ? "Edit" : "View";
+  const getRoleText = (role: "VIEW" | "EDIT" | "ADMIN") => {
+    switch (role) {
+      case "ADMIN":
+        return "Admin";
+      case "EDIT":
+        return "Edit";
+      case "VIEW":
+        return "View";
+      default:
+        return "View";
+    }
+  };
+
+  const getRoleBadgeVariant = (role: "VIEW" | "EDIT" | "ADMIN") => {
+    switch (role) {
+      case "ADMIN":
+        return "admin";
+      case "EDIT":
+        return "edit";
+      case "VIEW":
+        return "view";
+      default:
+        return "view";
+    }
+  };
+
+  const getRoleIcon = (role: "VIEW" | "EDIT" | "ADMIN") => {
+    switch (role) {
+      case "ADMIN":
+        return "A";
+      case "EDIT":
+        return "E";
+      case "VIEW":
+        return "V";
+      default:
+        return "V";
+    }
   };
 
   return (
     <div className="flex justify-between w-full gap-2 items-center">
-      {/* Team Members Display */}
       {activeTeam && teamMembers.length > 0 && (
         <Popover>
           <PopoverTrigger asChild>
@@ -243,10 +259,18 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
                       className="rounded-full border-2 border-white"
                     />
                     <Badge
-                      variant="secondary"
-                      className="absolute -bottom-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-xs"
+                      className={`
+                        absolute -bottom-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] font-semibold rounded-full
+                        ${
+                          member.role === "ADMIN"
+                            ? "bg-red-200 border border-red-200/50 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(255,0,0,0.15)] hover:bg-red-300"
+                            : member.role === "EDIT"
+                            ? "bg-indigo-600/30 border border-indigo-600/20 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(99,102,241,0.25)] hover:bg-indigo-700/40"
+                            : "bg-blue-700/30 border border-blue-300/30 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(59,130,246,0.15)] hover:bg-blue-900/40"
+                        }
+                      `}
                     >
-                      {member.role === "EDIT" ? "E" : "V"}
+                      {getRoleIcon(member.role)}
                     </Badge>
                   </div>
                 ))}
@@ -295,6 +319,7 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
                             variant="outline"
                             className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200"
                           >
+                            <Crown className="h-3 w-3 mr-1" />
                             Owner
                           </Badge>
                         )}
@@ -307,16 +332,14 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
 
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                     <Badge
-                      variant={member.role === "EDIT" ? "default" : "secondary"}
+                      variant={getRoleBadgeVariant(member.role)}
                       className="min-w-[85px] justify-center text-xs py-1"
                     >
                       {getRoleText(member.role)}
                     </Badge>
 
-                    {/* Dropdown меню для управления правами */}
-                    {(isCurrentUserCreator ||
-                      currentUserMember?.role === "EDIT") &&
-                      member.userId !== user?.id && (
+                    {currentUserMember?.role === "ADMIN" &&
+                      member.userId !== dbUser?.id && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -371,10 +394,7 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
               <Button
                 className="w-full gap-2 text-sm h-9 hover:bg-blue-700 bg-blue-600"
                 onClick={() => setIsInviteModalOpen(true)}
-                disabled={
-                  !activeTeam ||
-                  (currentUserMember?.role !== "EDIT" && !isCurrentUserCreator)
-                }
+                disabled={!activeTeam || !canInvite}
               >
                 <Send className="h-4 w-4" />
                 Invite Team Members
@@ -395,10 +415,7 @@ export default function Header({ onTeamUpdate }: HeaderProps) {
         <Button
           className="gap-2 flex text-sm h-8 hover:bg-blue-700 bg-blue-600"
           onClick={() => setIsInviteModalOpen(true)}
-          disabled={
-            !activeTeam ||
-            (currentUserMember?.role !== "EDIT" && !isCurrentUserCreator)
-          }
+          disabled={!activeTeam || !canInvite}
         >
           <Send className="h-4 w-4" />
           Invite
