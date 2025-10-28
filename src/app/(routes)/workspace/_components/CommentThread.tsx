@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,6 +33,40 @@ interface CommentThreadProps {
   currentUser?: any;
 }
 
+const CommentTypeSelector = ({
+  selectedType,
+  onTypeChange,
+}: {
+  selectedType: string;
+  onTypeChange: (type: "QUESTION" | "SUGGESTION" | "ISSUE" | "PRAISE") => void;
+}) => {
+  const types = [
+    { value: "QUESTION" as const, label: "❓ Question", color: "purple" },
+    { value: "SUGGESTION" as const, label: "💡 Suggestion", color: "blue" },
+    { value: "ISSUE" as const, label: "🐛 Issue", color: "red" },
+    { value: "PRAISE" as const, label: "🎉 Praise", color: "green" },
+  ];
+
+  return (
+    <div className="flex gap-2 mb-3 flex-wrap">
+      {types.map((type) => (
+        <button
+          key={type.value}
+          type="button"
+          onClick={() => onTypeChange(type.value)}
+          className={`px-3 py-1 text-sm rounded-full border transition-colors duration-200 ${
+            selectedType === type.value
+              ? `bg-${type.color}-100 text-${type.color}-800 border-${type.color}-300 font-medium`
+              : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
+          }`}
+        >
+          {type.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
 export function CommentThread({
   comments,
   onAddComment,
@@ -54,6 +88,32 @@ export function CommentThread({
   const [editingComment, setEditingComment] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Вспомогательные функции для проверки редактирования (перемещаем вверх)
+  const isCommentEdited = (comment: any) => {
+    if (!comment.updatedAt || !comment.createdAt) return false;
+    const createdAt = new Date(comment.createdAt).getTime();
+    const updatedAt = new Date(comment.updatedAt).getTime();
+
+    return updatedAt - createdAt > 5000 || comment.edited === true;
+  };
+
+  const isReplyEdited = (reply: any) => {
+    if (!reply.updatedAt || !reply.createdAt) return false;
+    const createdAt = new Date(reply.createdAt).getTime();
+    const updatedAt = new Date(reply.updatedAt).getTime();
+
+    return updatedAt - createdAt > 5000 || reply.edited === true;
+  };
+
+  const handleTypeChange = useCallback(
+    (type: "QUESTION" | "SUGGESTION" | "ISSUE" | "PRAISE") => {
+      setCommentType(type);
+    },
+    []
+  );
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -61,34 +121,57 @@ export function CommentThread({
       textareaRef.current.style.height =
         textareaRef.current.scrollHeight + "px";
     }
+    if (replyTextareaRef.current) {
+      replyTextareaRef.current.style.height = "auto";
+      replyTextareaRef.current.style.height =
+        replyTextareaRef.current.scrollHeight + "px";
+    }
+    if (editTextareaRef.current) {
+      editTextareaRef.current.style.height = "auto";
+      editTextareaRef.current.style.height =
+        editTextareaRef.current.scrollHeight + "px";
+    }
   }, [newComment, replyContent, editContent]);
 
-  const EditedIndicator = ({ updatedAt }: { updatedAt: string }) => (
-    <div className="mt-1 flex items-center gap-1 text-xs text-gray-500 italic">
-      ✏️ Edited{" "}
-      <span className="text-gray-400">
-        ({new Date(updatedAt).toLocaleString()})
-      </span>
-    </div>
-  );
+  // Фокусируемся на textarea при открытии reply или edit
+  useEffect(() => {
+    if (replyingTo && replyTextareaRef.current) {
+      replyTextareaRef.current.focus();
+    }
+  }, [replyingTo]);
 
-  const ResolvedIndicator = ({
-    resolvedAt,
-    resolvedBy,
-  }: {
-    resolvedAt: string;
-    resolvedBy: string;
-  }) => (
-    <div className="mt-1 flex items-center gap-1 text-xs text-green-600 font-medium">
-      ✅ Resolved by {resolvedBy}{" "}
-      <span className="text-gray-400">
-        ({new Date(resolvedAt).toLocaleString()})
-      </span>
-    </div>
-  );
+  useEffect(() => {
+    if (editingComment && editTextareaRef.current) {
+      editTextareaRef.current.focus();
+    }
+  }, [editingComment]);
 
-  const handleSubmitComment = (e: React.FormEvent) => {
-    e.preventDefault();
+  const canAddComment = permissions === "EDIT" || permissions === "ADMIN";
+  const canReply = permissions === "EDIT" || permissions === "ADMIN";
+  const canResolve = permissions === "EDIT" || permissions === "ADMIN";
+
+  const canEditComment = (comment: any) => {
+    const isAuthor = currentUser && comment.author.id === currentUser.id;
+    return (permissions === "EDIT" && isAuthor) || permissions === "ADMIN";
+  };
+
+  const canDeleteComment = (comment: any) => {
+    const isAuthor = currentUser && comment.author.id === currentUser.id;
+    return (permissions === "EDIT" && isAuthor) || permissions === "ADMIN";
+  };
+
+  const canDeleteReply = (reply: any) => {
+    const isAuthor = currentUser && reply.author.id === currentUser.id;
+    return (permissions === "EDIT" && isAuthor) || permissions === "ADMIN";
+  };
+
+  // Исправленная функция - разделяем на две версии
+  const handleSubmitComment = (e?: React.FormEvent) => {
+    // Если есть событие (из формы), предотвращаем дефолтное поведение
+    if (e) {
+      e.preventDefault();
+    }
+
     if (!newComment.trim()) return;
 
     onAddComment(newComment, commentType);
@@ -104,6 +187,13 @@ export function CommentThread({
     setReplyingTo(null);
   };
 
+  const handleSaveEdit = () => {
+    if (editingComment && onUpdateComment) {
+      onUpdateComment(editingComment, editContent);
+      cancelEditing();
+    }
+  };
+
   const startEditing = (comment: any) => {
     setEditingComment(comment.id);
     setEditContent(comment.content);
@@ -112,6 +202,45 @@ export function CommentThread({
   const cancelEditing = () => {
     setEditingComment(null);
     setEditContent("");
+  };
+
+  // Обработчики для клавиши Enter
+  const handleKeyDown = (
+    e: React.KeyboardEvent,
+    action: () => void,
+    shiftAction?: () => void
+  ) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      action();
+    } else if (e.key === "Enter" && e.shiftKey && shiftAction) {
+      e.preventDefault();
+      shiftAction();
+    }
+  };
+
+  const handleNewCommentKeyDown = (e: React.KeyboardEvent) => {
+    handleKeyDown(
+      e,
+      () => handleSubmitComment(), // Без события
+      () => setNewComment((prev) => prev + "\n")
+    );
+  };
+
+  const handleReplyKeyDown = (e: React.KeyboardEvent, commentId: string) => {
+    handleKeyDown(
+      e,
+      () => handleSubmitReply(commentId),
+      () => setReplyContent((prev) => prev + "\n")
+    );
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    handleKeyDown(
+      e,
+      () => handleSaveEdit(),
+      () => setEditContent((prev) => prev + "\n")
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -157,71 +286,6 @@ export function CommentThread({
     }
   };
 
-  const isCommentEdited = (comment: any) => {
-    if (!comment.updatedAt || !comment.createdAt) return false;
-    const createdAt = new Date(comment.createdAt).getTime();
-    const updatedAt = new Date(comment.updatedAt).getTime();
-
-    return updatedAt - createdAt > 2000 || comment.edited === true;
-  };
-
-  const CommentTypeSelector = ({
-    selectedType,
-    onTypeChange,
-  }: {
-    selectedType: string;
-    onTypeChange: (
-      type: "QUESTION" | "SUGGESTION" | "ISSUE" | "PRAISE"
-    ) => void;
-  }) => (
-    <div className="flex gap-2 mb-3 flex-wrap">
-      <button
-        type="button"
-        onClick={() => onTypeChange("QUESTION")}
-        className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-          selectedType === "QUESTION"
-            ? "bg-purple-100 text-purple-800 border-purple-300 font-medium"
-            : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
-        }`}
-      >
-        ❓ Question
-      </button>
-      <button
-        type="button"
-        onClick={() => onTypeChange("SUGGESTION")}
-        className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-          selectedType === "SUGGESTION"
-            ? "bg-blue-100 text-blue-800 border-blue-300 font-medium"
-            : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
-        }`}
-      >
-        💡 Suggestion
-      </button>
-      <button
-        type="button"
-        onClick={() => onTypeChange("ISSUE")}
-        className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-          selectedType === "ISSUE"
-            ? "bg-red-100 text-red-800 border-red-300 font-medium"
-            : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
-        }`}
-      >
-        🐛 Issue
-      </button>
-      <button
-        type="button"
-        onClick={() => onTypeChange("PRAISE")}
-        className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-          selectedType === "PRAISE"
-            ? "bg-green-100 text-green-800 border-green-300 font-medium"
-            : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
-        }`}
-      >
-        🎉 Praise
-      </button>
-    </div>
-  );
-
   return (
     <div className="h-full flex flex-col bg-white">
       <div className="p-4 border-b bg-gradient-to-r from-gray-50 to-white">
@@ -237,6 +301,22 @@ export function CommentThread({
               Collaborate with your team
             </p>
           </div>
+          <Badge
+            variant="outline"
+            className={
+              permissions === "ADMIN"
+                ? "bg-red-200 border border-red-200/50 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(255,0,0,0.15)] hover:bg-red-300"
+                : permissions === "EDIT"
+                ? "bg-indigo-800/30 border border-indigo-200/30 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(99,102,241,0.25)] hover:bg-indigo-700/40"
+                : "bg-blue-700/30 border border-blue-300/30 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(59,130,246,0.15)] hover:bg-blue-900/40"
+            }
+          >
+            {permissions === "ADMIN"
+              ? "Administrator"
+              : permissions === "EDIT"
+              ? "Editor"
+              : "Viewer"}
+          </Badge>
         </div>
       </div>
 
@@ -246,18 +326,15 @@ export function CommentThread({
             <div className="text-6xl mb-4">💬</div>
             <p className="font-medium text-lg mb-2">No comments yet</p>
             <p className="text-sm text-gray-600 max-w-xs mx-auto">
-              Start a conversation by adding the first comment to this document
+              {canAddComment
+                ? "Start a conversation by adding the first comment to this document"
+                : "You don't have permission to add comments"}
             </p>
           </div>
         ) : (
           comments.map((comment) => {
             const isCommentAuthor =
               currentUser && comment.author.id === currentUser.id;
-            const canReply = permissions === "EDIT";
-            const canResolve = permissions === "EDIT";
-            const canEdit = permissions === "EDIT" && isCommentAuthor;
-            const canDelete = permissions === "EDIT" && isCommentAuthor;
-
             const isEdited = isCommentEdited(comment);
 
             return (
@@ -312,7 +389,9 @@ export function CommentThread({
                     </div>
                   </div>
 
-                  {(canEdit || canResolve || canDelete) && (
+                  {(canEditComment(comment) ||
+                    canResolve ||
+                    canDeleteComment(comment)) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -324,7 +403,7 @@ export function CommentThread({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        {canEdit && (
+                        {canEditComment(comment) && (
                           <DropdownMenuItem
                             onClick={() => startEditing(comment)}
                           >
@@ -340,7 +419,7 @@ export function CommentThread({
                             {comment.status === "OPEN" ? "Resolve" : "Reopen"}
                           </DropdownMenuItem>
                         )}
-                        {canDelete && (
+                        {canDeleteComment(comment) && (
                           <DropdownMenuItem
                             onClick={() => onDeleteComment(comment.id)}
                             className="text-red-600"
@@ -368,23 +447,16 @@ export function CommentThread({
                 {editingComment === comment.id ? (
                   <div className="mb-3">
                     <textarea
-                      ref={textareaRef}
+                      ref={editTextareaRef}
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
+                      onKeyDown={handleEditKeyDown}
                       className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       rows={3}
                       placeholder="Edit your comment..."
                     />
                     <div className="flex gap-2 mt-2">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          if (editingComment && onUpdateComment) {
-                            onUpdateComment(editingComment, editContent);
-                            cancelEditing();
-                          }
-                        }}
-                      >
+                      <Button size="sm" onClick={handleSaveEdit}>
                         <Send className="h-4 w-4 mr-1" />
                         Save
                       </Button>
@@ -399,25 +471,32 @@ export function CommentThread({
                   </div>
                 ) : (
                   <div className="mb-3">
-                    <p className="text-gray-800 leading-relaxed">
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
                       {comment.content}
                     </p>
 
-                    {/* Статус комментария */}
-                    {comment.status === "RESOLVED" && comment.resolvedBy ? (
-                      <div className="mt-1 flex items-center gap-1 text-xs text-green-600 font-medium">
-                        ✅ Resolved by {comment.resolvedBy.name || "Unknown"}{" "}
-                        <span className="text-gray-400">
-                          (
-                          {comment.resolvedAt
-                            ? new Date(comment.resolvedAt).toLocaleString()
-                            : "unknown date"}
-                          )
-                        </span>
+                    {comment.status === "RESOLVED" && comment.resolvedBy && (
+                      <div className="mt-3 flex items-center gap-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 shadow-sm">
+                        <Avatar className="h-6 w-6 border border-white shadow-sm">
+                          <AvatarImage src={comment.resolvedBy.image} />
+                          <AvatarFallback className="bg-green-100 text-green-700 text-xs">
+                            {comment.resolvedBy.name?.[0]?.toUpperCase() || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-green-800">
+                            Resolved by {comment.resolvedBy.name}
+                          </span>
+                          {comment.resolvedAt && (
+                            <span className="text-xs text-green-600">
+                              on {new Date(comment.resolvedAt).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                        <CheckCircle className="ml-auto h-5 w-5 text-green-500" />
                       </div>
-                    ) : null}
+                    )}
 
-                    {/* Показать Edited только если OPEN */}
                     {comment.status === "OPEN" &&
                     isEdited &&
                     editingComment !== comment.id ? (
@@ -432,28 +511,6 @@ export function CommentThread({
                         </span>
                       </div>
                     ) : null}
-                  </div>
-                )}
-
-                {comment.status === "RESOLVED" && comment.resolvedBy && (
-                  <div className="mt-3 flex items-center gap-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 shadow-sm">
-                    <Avatar className="h-6 w-6 border border-white shadow-sm">
-                      <AvatarImage src={comment.resolvedBy.image} />
-                      <AvatarFallback className="bg-green-100 text-green-700 text-xs">
-                        {comment.resolvedBy.name?.[0]?.toUpperCase() || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-green-800">
-                        Resolved by {comment.resolvedBy.name}
-                      </span>
-                      {comment.resolvedAt && (
-                        <span className="text-xs text-green-600">
-                          on {new Date(comment.resolvedAt).toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                    <CheckCircle className="ml-auto h-5 w-5 text-green-500" />
                   </div>
                 )}
 
@@ -497,9 +554,10 @@ export function CommentThread({
                 {replyingTo === comment.id && (
                   <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <textarea
-                      ref={textareaRef}
+                      ref={replyTextareaRef}
                       value={replyContent}
                       onChange={(e) => setReplyContent(e.target.value)}
+                      onKeyDown={(e) => handleReplyKeyDown(e, comment.id)}
                       className="w-full p-2 border border-gray-300 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       rows={2}
                       placeholder="Write your reply..."
@@ -535,6 +593,7 @@ export function CommentThread({
                     {comment.replies.map((reply: any) => {
                       const isReplyAuthor =
                         currentUser && reply.author.id === currentUser.id;
+                      const isReplyEditedValue = isReplyEdited(reply);
 
                       return (
                         <div
@@ -548,7 +607,7 @@ export function CommentThread({
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <span className="text-sm font-medium text-gray-900">
                                 {reply.author.name}
                                 {isReplyAuthor && (
@@ -557,13 +616,28 @@ export function CommentThread({
                                   </span>
                                 )}
                               </span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(reply.createdAt).toLocaleString()}
+                              </span>
                             </div>
-                            <p className="text-sm text-gray-700 leading-relaxed">
+                            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                               {reply.content}
                             </p>
+                            {isReplyEditedValue && (
+                              <div className="mt-1 flex items-center gap-1 text-xs text-gray-500 italic">
+                                ✏️ Edited{" "}
+                                <span className="text-gray-400">
+                                  (
+                                  {reply.updatedAt
+                                    ? new Date(reply.updatedAt).toLocaleString()
+                                    : "unknown date"}
+                                  )
+                                </span>
+                              </div>
+                            )}
                           </div>
 
-                          {isReplyAuthor && permissions === "EDIT" && (
+                          {canDeleteReply(reply) && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -587,12 +661,12 @@ export function CommentThread({
         )}
       </div>
 
-      {permissions === "EDIT" && (
+      {canAddComment && (
         <div className="p-4 border-t bg-gray-50">
           <form onSubmit={handleSubmitComment} className="space-y-3">
             <CommentTypeSelector
               selectedType={commentType}
-              onTypeChange={setCommentType}
+              onTypeChange={handleTypeChange}
             />
 
             <div className="relative">
@@ -600,6 +674,7 @@ export function CommentThread({
                 ref={textareaRef}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={handleNewCommentKeyDown}
                 placeholder="Add a comment to this document..."
                 className="w-full p-3 pr-12 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={3}
@@ -614,6 +689,12 @@ export function CommentThread({
               </Button>
             </div>
           </form>
+        </div>
+      )}
+
+      {!canAddComment && permissions === "VIEW" && (
+        <div className="p-4 border-t bg-gray-50 text-center text-gray-500 text-sm">
+          <p>You have view-only permissions and cannot add comments</p>
         </div>
       )}
     </div>
