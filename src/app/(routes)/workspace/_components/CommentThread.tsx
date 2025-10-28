@@ -29,7 +29,7 @@ interface CommentThreadProps {
   onDeleteReply?: (commentId: string, replyId: string) => void;
   onUpdateComment?: (commentId: string, content: string) => void;
   fileId: string;
-  permissions: "VIEW" | "EDIT";
+  permissions: "ADMIN" | "VIEW" | "EDIT";
   currentUser?: any;
 }
 
