@@ -1,26 +1,40 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Link, Save, Share } from "lucide-react";
+import { Link, Maximize2, Save, Share, Split } from "lucide-react";
 import Image from "next/image";
 import React from "react";
 import { FILE } from "@/shared/types/file.interface";
 import { redirect } from "next/navigation";
-import ShareButton from "./share-button/ShareButton";
+import ShareButton from "./ShareButton";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { useEffect, useState } from "react";
+import { ActiveComponent, WindowMode } from "@/types/window.interface";
+import { WindowControlsPopover } from "../window-controls/WindowControlsPopover";
 
 interface WorkspaceHeaderProps {
   file?: FILE;
   onSave: () => void;
+  windowMode: WindowMode;
+  activeComponent: ActiveComponent;
+  onWindowModeChange?: (mode: WindowMode) => void;
+  onActiveComponentChange?: (component: ActiveComponent) => void;
+  currentComponent: "editor" | "canvas";
 }
 
 export default function WorkspaceHeader({
   file,
   onSave,
+  windowMode,
+  activeComponent,
+  onWindowModeChange,
+  onActiveComponentChange,
+  currentComponent,
 }: WorkspaceHeaderProps) {
   const { activeTeam } = useActiveTeam();
-  const [permissions, setPermissions] = useState<"VIEW" | "EDIT">("VIEW");
+  const [permissions, setPermissions] = useState<"ADMIN" | "VIEW" | "EDIT">(
+    "VIEW"
+  );
 
   useEffect(() => {
     const determinePermissions = async () => {
@@ -35,17 +49,10 @@ export default function WorkspaceHeader({
         }
 
         const isCreator = activeTeam.createdById === dbUser.id;
-
         const isEditor = activeTeam.members?.some(
           (member: any) => member.userId === dbUser.id && member.role === "EDIT"
         );
         setPermissions(isCreator || isEditor ? "EDIT" : "VIEW");
-
-        console.log("🔐 WorkspaceHeader Permissions:", {
-          isCreator,
-          isEditor,
-          permissions: isCreator || isEditor ? "EDIT" : "VIEW",
-        });
       } catch (err) {
         console.error("Error determining permissions:", err);
         setPermissions("VIEW");
@@ -54,7 +61,7 @@ export default function WorkspaceHeader({
     determinePermissions();
   }, [activeTeam]);
 
-  const canEdit = permissions === "EDIT";
+  const canEdit = permissions === "ADMIN" || permissions === "EDIT";
 
   const handleSave = () => {
     if (!canEdit) {
@@ -63,6 +70,8 @@ export default function WorkspaceHeader({
     }
     onSave();
   };
+
+  const hasWindowControls = onWindowModeChange && onActiveComponentChange;
 
   return (
     <div className="p-3 border-b flex justify-between items-center">
@@ -94,6 +103,18 @@ export default function WorkspaceHeader({
           fileName={file?.fileName || "Untitled"}
           permissions={permissions}
         />
+
+        {hasWindowControls && (
+          <div className="border-r pr-4 mr-2">
+            <WindowControlsPopover
+              windowMode={windowMode}
+              activeComponent={activeComponent}
+              onWindowModeChange={onWindowModeChange}
+              onActiveComponentChange={onActiveComponentChange}
+              currentComponent={currentComponent}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

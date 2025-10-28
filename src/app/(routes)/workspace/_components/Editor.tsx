@@ -20,6 +20,7 @@ import { throttle } from "lodash";
 import { UserCursorEditor } from "./collaboration/UserCursorEditor";
 import { useRealtimeCursor } from "@/hooks/useRealTimeCursor";
 import { useLightweightPresence } from "@/hooks/useLightweightPresence";
+import { ActiveComponent, WindowMode } from "@/types/window.interface";
 
 const rawDocument = {
   time: Date.now(),
@@ -58,6 +59,12 @@ interface EditorProps {
   onSaveTrigger: number;
   onSaveSuccess?: () => void;
   onVersionRestore?: (content: string, type: "document" | "whiteboard") => void;
+  windowMode: WindowMode;
+  activeComponent: ActiveComponent;
+  onWindowModeChange: (mode: WindowMode) => void;
+  onActiveComponentChange: (component: ActiveComponent) => void;
+  currentComponent: "editor" | "canvas";
+  isFullscreen?: boolean;
 }
 
 export default function Editor({
@@ -66,10 +73,18 @@ export default function Editor({
   onSaveTrigger,
   onSaveSuccess,
   onVersionRestore,
+  isFullscreen,
+  activeComponent,
+  currentComponent,
+  onActiveComponentChange,
+  onWindowModeChange,
+  windowMode,
 }: EditorProps) {
   const [editorData, setEditorData] = useState<any>(null);
   const { activeTeam } = useActiveTeam();
-  const [permissions, setPermissions] = useState<"VIEW" | "EDIT">("VIEW");
+  const [permissions, setPermissions] = useState<"ADMIN" | "VIEW" | "EDIT">(
+    "VIEW"
+  );
   const [selection, setSelection] = useState<any>(null);
   const [showCommentSidebar, setShowCommentSidebar] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -149,11 +164,19 @@ export default function Editor({
         }
 
         const isCreator = activeTeam.createdById === dbUser.id;
-        const isEditor = activeTeam.members?.some(
-          (member: any) => member.userId === dbUser.id && member.role === "EDIT"
+        const userMembership = activeTeam.members?.find(
+          (member: any) => member.userId === dbUser.id
         );
 
-        setPermissions(isCreator || isEditor ? "EDIT" : "VIEW");
+        let userRole: "ADMIN" | "VIEW" | "EDIT" = "VIEW";
+
+        if (isCreator) {
+          userRole = "ADMIN";
+        } else if (userMembership) {
+          userRole = userMembership.role as "ADMIN" | "VIEW" | "EDIT";
+        }
+
+        setPermissions(userRole);
       } catch (err) {
         console.error("Error:", err);
         setPermissions("VIEW");
@@ -207,8 +230,8 @@ export default function Editor({
   }, [fileData, resetLastSentContent]);
 
   useEffect(() => {
-    if (!currentUser || permissions !== "EDIT") return;
-
+    if (!currentUser || (permissions !== "EDIT" && permissions !== "ADMIN"))
+      return;
     console.log("🔌 Starting realtime services for Editor...");
 
     fetchComments();
@@ -315,10 +338,8 @@ export default function Editor({
   const sendContentUpdateThrottled = useCallback(
     throttle((elements: any) => {
       if (
-        isConnected &&
-        currentUser &&
-        permissions === "EDIT" &&
-        !isApplyingRemoteUpdate.current
+        (isConnected && currentUser && permissions === "EDIT") ||
+        (permissions === "ADMIN" && !isApplyingRemoteUpdate.current)
       ) {
         const contentString = JSON.stringify(elements);
         if (contentString === lastSentContent.current) {
@@ -507,7 +528,7 @@ export default function Editor({
     ) {
       setSelection(null);
 
-      if (permissions === "EDIT") {
+      if (permissions === "EDIT" || permissions === "ADMIN") {
         sendSelectionUpdate({
           userId: currentUser.id,
           userColor: generateUserColor(currentUser.id),
@@ -538,7 +559,7 @@ export default function Editor({
 
         setSelection(newSelection);
 
-        if (permissions === "EDIT") {
+        if (permissions === "EDIT" || permissions === "ADMIN") {
           console.log("📤 Sending selection:", {
             text: selectedText,
             length: selectedText.length,
@@ -554,7 +575,7 @@ export default function Editor({
     } else {
       setSelection(null);
 
-      if (permissions === "EDIT") {
+      if (permissions === "EDIT" || permissions === "ADMIN") {
         sendSelectionUpdate({
           userId: currentUser.id,
           userColor: generateUserColor(currentUser.id),
@@ -574,7 +595,10 @@ export default function Editor({
       if (!selection || selection.toString().trim() === "") {
         setSelection(null);
 
-        if (permissions === "EDIT" && currentUser) {
+        if (
+          permissions === "EDIT" ||
+          (permissions === "ADMIN" && currentUser)
+        ) {
           sendSelectionUpdate({
             userId: currentUser.id,
             userColor: generateUserColor(currentUser.id),
@@ -735,9 +759,8 @@ export default function Editor({
             console.log("⌨️ EDITOR: onChange triggered", event);
 
             if (
-              isMounted &&
-              permissions === "EDIT" &&
-              !isApplyingRemoteContent.current
+              (isMounted && permissions === "EDIT") ||
+              (permissions === "ADMIN" && !isApplyingRemoteContent.current)
             ) {
               try {
                 const outputData = await api.saver.save();
@@ -800,7 +823,8 @@ export default function Editor({
 
   const handleEditorMouseMove = useCallback(
     throttle((event: React.MouseEvent) => {
-      if (!currentUser || permissions !== "EDIT") return;
+      if (!currentUser || (permissions !== "EDIT" && permissions !== "ADMIN"))
+        return;
 
       const editorElement = document.getElementById("editorjs");
       if (!editorElement) return;
@@ -849,7 +873,7 @@ export default function Editor({
   );
 
   const handleEditorMouseLeave = useCallback(() => {
-    if (currentUser && permissions === "EDIT") {
+    if (currentUser && (permissions === "EDIT" || permissions === "ADMIN")) {
       sendCursorUpdate({
         userId: currentUser.id,
         userColor: generateUserColor(currentUser.id),
@@ -865,7 +889,8 @@ export default function Editor({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
-      if (!currentUser || permissions !== "EDIT") return;
+      if (!currentUser || !(permissions === "EDIT" || permissions === "ADMIN"))
+        return;
 
       const editorElement = document.getElementById("editorjs");
       let position = { x: 0, y: 0 };
@@ -919,19 +944,22 @@ export default function Editor({
           }
           showCommentSidebar={showCommentSidebar}
           fetchVersions={fetchVersions}
+          windowMode={windowMode}
+          activeComponent={activeComponent}
         />
 
         <div
           ref={editorContainerRef}
-          className={`relative flex-1 min-h-[500px] bg-white ${
-            permissions === "VIEW" ? "opacity-50 pointer-events-none" : ""
+          className={`relative flex-1 min-h-[300px] bg-white
+            ${permissions === "VIEW" ? "opacity-50 pointer-events-none" : ""} ${
+            isFullscreen ? "!min-h-0" : ""
           }`}
           onMouseMove={handleEditorMouseMove}
           onMouseLeave={handleEditorMouseLeave}
         >
           <div
             id="editorjs"
-            className="h-full p-4"
+            className="h-full ml-12 mt-6 mr-6"
             onMouseUp={handleTextSelection}
             onKeyDown={handleKeyDown}
             onClick={handleEditorClick}
