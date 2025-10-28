@@ -18,6 +18,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { CanvasCursorOverlay } from "./collaboration/UserCursorCanvas";
 import { useRealtimePresence } from "@/hooks/useRealtimePresence";
 import { useLightweightPresence } from "@/hooks/useLightweightPresence";
+import { ActiveComponent, WindowMode } from "@/types/window.interface";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
@@ -29,6 +30,12 @@ interface CanvasProps {
   fileId: string;
   fileData: FILE | null;
   onVersionRestore?: (content: string, type: "document" | "whiteboard") => void;
+  windowMode: WindowMode;
+  activeComponent: ActiveComponent;
+  onWindowModeChange: (mode: WindowMode) => void;
+  onActiveComponentChange: (component: ActiveComponent) => void;
+  currentComponent: "editor" | "canvas";
+  isFullscreen?: boolean;
 }
 
 export default function Canvas({
@@ -36,9 +43,17 @@ export default function Canvas({
   fileId,
   fileData,
   onVersionRestore,
+  activeComponent,
+  currentComponent,
+  onActiveComponentChange,
+  onWindowModeChange,
+  windowMode,
+  isFullscreen,
 }: CanvasProps) {
   const [whiteBoardData, setWhiteBoardData] = useState<any>([]);
-  const [permissions, setPermissions] = useState<"VIEW" | "EDIT">("VIEW");
+  const [permissions, setPermissions] = useState<"ADMIN" | "VIEW" | "EDIT">(
+    "VIEW"
+  );
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentTool, setCurrentTool] = useState<
     "selection" | "rectangle" | "ellipse" | "arrow" | "line" | "text" | "hand"
@@ -113,17 +128,15 @@ export default function Canvas({
     isLoading: versionsLoading,
   } = versionManager;
 
+  // Helper для проверки прав редактирования
+  const canEdit = permissions === "EDIT" || permissions === "ADMIN";
+
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
-        console.log("👤 FETCHING CURRENT USER...");
         const userRes = await fetch("/api/auth/user");
-
         if (!userRes.ok) throw new Error("Failed to fetch user");
-
         const dbUser = await userRes.json();
-        console.log("👤 USER FETCHED:", dbUser.name);
-
         setCurrentUser(dbUser);
 
         if (!activeTeam || !dbUser) {
@@ -132,14 +145,21 @@ export default function Canvas({
         }
 
         const isCreator = activeTeam.createdById === dbUser.id;
-        const isEditor = activeTeam.members?.some(
-          (member: any) => member.userId === dbUser.id && member.role === "EDIT"
+        const userMembership = activeTeam.members?.find(
+          (member: any) => member.userId === dbUser.id
         );
 
-        const newPermissions = isCreator || isEditor ? "EDIT" : "VIEW";
-        setPermissions(newPermissions);
+        let userRole: "ADMIN" | "VIEW" | "EDIT" = "VIEW";
+
+        if (isCreator) {
+          userRole = "ADMIN";
+        } else if (userMembership) {
+          userRole = userMembership.role as "ADMIN" | "VIEW" | "EDIT";
+        }
+
+        setPermissions(userRole);
       } catch (err) {
-        console.error("❌ Error fetching user:", err);
+        console.error("Error:", err);
         setPermissions("VIEW");
       }
     };
@@ -173,7 +193,7 @@ export default function Canvas({
   }, [fileData]);
 
   useEffect(() => {
-    if (!currentUser || permissions !== "EDIT") return;
+    if (!currentUser || !canEdit) return;
 
     console.log("🔌 Starting realtime services...");
 
@@ -248,7 +268,7 @@ export default function Canvas({
     };
   }, [
     currentUser,
-    permissions,
+    canEdit,
     subscribeToContentUpdates,
     subscribeToContentSync,
     subscribeToCursorUpdates,
@@ -278,7 +298,7 @@ export default function Canvas({
       if (
         isConnected &&
         currentUser &&
-        permissions === "EDIT" &&
+        canEdit &&
         !isApplyingRemoteUpdate.current
       ) {
         const contentString = JSON.stringify(elements);
@@ -290,16 +310,12 @@ export default function Canvas({
         sendContentUpdate(elements);
       }
     }, 50),
-    [isConnected, currentUser, permissions, sendContentUpdate]
+    [isConnected, currentUser, canEdit, sendContentUpdate]
   );
 
   const handleCanvasMouseMove = useCallback(
     throttle((event: React.MouseEvent) => {
-      if (
-        !currentUser ||
-        permissions !== "EDIT" ||
-        !canvasContainerRef.current
-      ) {
+      if (!currentUser || !canEdit || !canvasContainerRef.current) {
         return;
       }
 
@@ -356,7 +372,7 @@ export default function Canvas({
     }, 20),
     [
       currentUser,
-      permissions,
+      canEdit,
       sendCursorUpdate,
       currentTool,
       updatePresence,
@@ -365,7 +381,7 @@ export default function Canvas({
   );
 
   const handleCanvasMouseLeave = useCallback(() => {
-    if (currentUser && permissions === "EDIT") {
+    if (currentUser && canEdit) {
       sendCursorUpdate({
         userId: currentUser.id,
         userColor: generateUserColor(currentUser.id),
@@ -378,10 +394,10 @@ export default function Canvas({
         clearTimeout(mouseMoveTimeoutRef.current);
       }
     }
-  }, [currentUser, permissions, sendCursorUpdate, currentTool]);
+  }, [currentUser, canEdit, sendCursorUpdate, currentTool]);
 
   const handleManualSave = useCallback(async () => {
-    if (permissions !== "EDIT") {
+    if (!canEdit) {
       console.log("❌ No permission to save whiteboard");
       return;
     }
@@ -411,10 +427,10 @@ export default function Canvas({
       console.error("❌ Error saving whiteboard:", error);
       toast.error("Failed to save whiteboard");
     }
-  }, [fileId, permissions, whiteBoardData]);
+  }, [fileId, canEdit, whiteBoardData]);
 
   useEffect(() => {
-    if (onSaveTrigger && permissions === "EDIT") {
+    if (onSaveTrigger && canEdit) {
       handleManualSave();
     }
   }, [onSaveTrigger, handleManualSave]);
@@ -442,7 +458,7 @@ export default function Canvas({
 
   const sendImmediateUpdate = useCallback(
     (elements: any) => {
-      if (isConnected && currentUser && permissions === "EDIT") {
+      if (isConnected && currentUser && canEdit) {
         const contentString = JSON.stringify(elements);
         if (contentString === lastSentContent.current) {
           return;
@@ -457,12 +473,12 @@ export default function Canvas({
         sendContentUpdate(elements);
       }
     },
-    [isConnected, currentUser, permissions, sendContentUpdate]
+    [isConnected, currentUser, canEdit, sendContentUpdate]
   );
 
   const onChange = useCallback(
     (elements: any, appState: any) => {
-      if (permissions === "EDIT") {
+      if (canEdit) {
         setWhiteBoardData(elements);
 
         updateLightPresence("EDITING");
@@ -470,7 +486,7 @@ export default function Canvas({
         sendContentUpdateThrottled(elements);
       }
     },
-    [permissions, sendContentUpdateThrottled]
+    [canEdit, sendContentUpdateThrottled]
   );
 
   const handleExcalidrawReady = useCallback(
@@ -508,7 +524,7 @@ export default function Canvas({
       <div
         className={`flex-1 relative transition-all duration-200 ${
           showVersionHistory ? "border-r border-gray-200" : ""
-        }`}
+        } ${isFullscreen ? "!bg-white" : ""}`}
       >
         {fileData && (
           <div className="w-full h-full flex flex-col">
@@ -522,6 +538,15 @@ export default function Canvas({
                 setShowVersionHistory(!showVersionHistory)
               }
               fetchVersions={fetchVersions}
+              windowMode={windowMode}
+              activeComponent={activeComponent}
+              // windowMode={windowMode}
+              // activeComponent={activeComponent}
+              // onWindowModeChange={onWindowModeChange}
+              // onActiveComponentChange={onActiveComponentChange}
+              // currentComponent={currentComponent}
+              // file={fileData}
+              // onSave={handleManualSave}
             />
 
             <div
@@ -556,10 +581,10 @@ export default function Canvas({
                     loadScene: false,
                     export: false,
                     toggleTheme: false,
-                    changeViewBackgroundColor: permissions === "EDIT",
+                    changeViewBackgroundColor: canEdit,
                   },
                   tools: {
-                    image: permissions === "EDIT",
+                    image: canEdit,
                   },
                 }}
               >
@@ -587,7 +612,7 @@ export default function Canvas({
         )}
       </div>
 
-      {showVersionHistory && (
+      {/* {showVersionHistory && (
         <div className="w-96 bg-white border-l border-gray-200 shadow-lg flex flex-col">
           <div className="flex-1 overflow-y-auto">
             <VersionHistory
@@ -598,7 +623,7 @@ export default function Canvas({
             />
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

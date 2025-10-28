@@ -34,7 +34,7 @@ interface ShareInfo {
 interface ShareButtonProps {
   fileId: string;
   fileName: string;
-  permissions: "VIEW" | "EDIT";
+  permissions: "ADMIN" | "VIEW" | "EDIT";
   children?: React.ReactNode;
 }
 

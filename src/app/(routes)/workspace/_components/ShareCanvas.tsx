@@ -53,7 +53,6 @@ export default function ShareCanvas({
     }
   }, [fileData]);
 
-  // ВАЖНО: Сохранение при onSaveTrigger (из WorkspaceHeader)
   useEffect(() => {
     if (onSaveTrigger > 0 && permissions === "EDIT") {
       console.log("🔄 Save triggered for whiteboard");
