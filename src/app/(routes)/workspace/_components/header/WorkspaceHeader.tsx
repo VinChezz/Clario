@@ -6,11 +6,11 @@ import Image from "next/image";
 import React from "react";
 import { FILE } from "@/shared/types/file.interface";
 import { redirect } from "next/navigation";
-import ShareButton from "./ShareButton";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { useEffect, useState } from "react";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import { WindowControlsPopover } from "../window-controls/WindowControlsPopover";
+import ShareButton from "../share-button/ShareButton";
 
 interface WorkspaceHeaderProps {
   file?: FILE;
