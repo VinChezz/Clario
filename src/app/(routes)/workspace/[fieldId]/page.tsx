@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import WorkspaceHeader from "../_components/share-button/WorkspaceHeader";
 import { FILE } from "@/shared/types/file.interface";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import LogoClarioLoader from "@/app/_loaders/ClarioLoader";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import dynamic from "next/dynamic";
+import WorkspaceHeader from "../_components/header/WorkspaceHeader";
 
 const Editor = dynamic(() => import("../_components/Editor"), {
   loading: () => <div>Loading Editor...</div>,
