@@ -12,6 +12,7 @@ import {
   MoreVertical,
   Edit,
   Trash2,
+  MessageCircleMore,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ import {
 
 interface CommentThreadProps {
   comments: any[];
+  onClose: () => void; // Добавлено onClose в интерфейс
   onAddComment: (content: string, type?: string) => void;
   onReplyComment: (commentId: string, content: string) => void;
   onResolveComment: (commentId: string) => void;
@@ -69,6 +71,7 @@ const CommentTypeSelector = ({
 
 export function CommentThread({
   comments,
+  onClose, // Получаем onClose из пропсов
   onAddComment,
   onReplyComment,
   onResolveComment,
@@ -91,7 +94,6 @@ export function CommentThread({
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Вспомогательные функции для проверки редактирования (перемещаем вверх)
   const isCommentEdited = (comment: any) => {
     if (!comment.updatedAt || !comment.createdAt) return false;
     const createdAt = new Date(comment.createdAt).getTime();
@@ -133,7 +135,6 @@ export function CommentThread({
     }
   }, [newComment, replyContent, editContent]);
 
-  // Фокусируемся на textarea при открытии reply или edit
   useEffect(() => {
     if (replyingTo && replyTextareaRef.current) {
       replyTextareaRef.current.focus();
@@ -165,9 +166,7 @@ export function CommentThread({
     return (permissions === "EDIT" && isAuthor) || permissions === "ADMIN";
   };
 
-  // Исправленная функция - разделяем на две версии
   const handleSubmitComment = (e?: React.FormEvent) => {
-    // Если есть событие (из формы), предотвращаем дефолтное поведение
     if (e) {
       e.preventDefault();
     }
@@ -204,7 +203,6 @@ export function CommentThread({
     setEditContent("");
   };
 
-  // Обработчики для клавиши Enter
   const handleKeyDown = (
     e: React.KeyboardEvent,
     action: () => void,
@@ -222,7 +220,7 @@ export function CommentThread({
   const handleNewCommentKeyDown = (e: React.KeyboardEvent) => {
     handleKeyDown(
       e,
-      () => handleSubmitComment(), // Без события
+      () => handleSubmitComment(),
       () => setNewComment((prev) => prev + "\n")
     );
   };
@@ -267,7 +265,7 @@ export function CommentThread({
       case "PRAISE":
         return "🎉";
       default:
-        return "💬";
+        return <MessageCircleMore className="w-4 h-4" />;
     }
   };
 
@@ -289,41 +287,55 @@ export function CommentThread({
   return (
     <div className="h-full flex flex-col bg-white">
       <div className="p-4 border-b bg-gradient-to-r from-gray-50 to-white">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           <div>
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              💬 Comments
-              <Badge variant="secondary" className="bg-blue-500 text-white">
-                {comments.length}
+            <div className="flex items-center gap-3 mb-1">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <MessageCircleMore className="w-6 h-6" />
+                Comments
+                {comments.length > 0 && (
+                  <Badge variant="secondary" className="bg-blue-500 text-white">
+                    {comments.length}
+                  </Badge>
+                )}
+              </h3>
+              <Badge
+                variant="outline"
+                className={
+                  permissions === "ADMIN"
+                    ? "bg-red-200 border border-red-200/50 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(255,0,0,0.15)] hover:bg-red-300"
+                    : permissions === "EDIT"
+                    ? "bg-indigo-800/30 border border-indigo-200/30 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(99,102,241,0.25)] hover:bg-indigo-700/40"
+                    : "bg-blue-700/30 border border-blue-300/30 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(59,130,246,0.15)] hover:bg-blue-900/40"
+                }
+              >
+                {permissions === "ADMIN"
+                  ? "Admin"
+                  : permissions === "EDIT"
+                  ? "Editor"
+                  : "Viewer"}
               </Badge>
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Collaborate with your team
-            </p>
+            </div>
+            <p className="text-sm text-gray-600">Collaborate with your team</p>
           </div>
-          <Badge
-            variant="outline"
-            className={
-              permissions === "ADMIN"
-                ? "bg-red-200 border border-red-200/50 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(255,0,0,0.15)] hover:bg-red-300"
-                : permissions === "EDIT"
-                ? "bg-indigo-800/30 border border-indigo-200/30 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(99,102,241,0.25)] hover:bg-indigo-700/40"
-                : "bg-blue-700/30 border border-blue-300/30 text-white font-semibold backdrop-blur-md shadow-[inset_0_0_10px_rgba(59,130,246,0.15)] hover:bg-blue-900/40"
-            }
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-8 w-8 p-0 hover:bg-gray-100"
           >
-            {permissions === "ADMIN"
-              ? "Administrator"
-              : permissions === "EDIT"
-              ? "Editor"
-              : "Viewer"}
-          </Badge>
+            ✕
+          </Button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {comments.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">
-            <div className="text-6xl mb-4">💬</div>
+          <div className="text-center text-gray-500 py-24">
+            <div className="flex justify-center mb-4 text-6xl">
+              <MessageCircleMore className="w-32 h-32" />
+            </div>
             <p className="font-medium text-lg mb-2">No comments yet</p>
             <p className="text-sm text-gray-600 max-w-xs mx-auto">
               {canAddComment

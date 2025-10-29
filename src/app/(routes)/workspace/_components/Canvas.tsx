@@ -8,6 +8,7 @@ import { FILE } from "@/shared/types/file.interface";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { usePresence } from "@/hooks/usePresence";
 import { useVersionManager } from "@/hooks/useVersionManager";
+import { useComments } from "@/hooks/useComments";
 import { VersionHistory } from "./VersionHistory";
 import { toast } from "sonner";
 import { EditorCanvasHeader } from "./header/EditorCanvasHeader";
@@ -19,6 +20,7 @@ import { CanvasCursorOverlay } from "./collaboration/UserCursorCanvas";
 import { useRealtimePresence } from "@/hooks/useRealtimePresence";
 import { useLightweightPresence } from "@/hooks/useLightweightPresence";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
+import { CommentThread } from "./CommentThread";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
@@ -59,6 +61,10 @@ export default function Canvas({
     "selection" | "rectangle" | "ellipse" | "arrow" | "line" | "text" | "hand"
   >("selection");
   const [isInitialized, setIsInitialized] = useState(false);
+  const [selection, setSelection] = useState<any>(null);
+
+  const [showCommentSidebar, setShowCommentSidebar] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   const excalidrawRef = useRef<any>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -119,8 +125,6 @@ export default function Canvas({
 
   const {
     versions,
-    showVersionHistory,
-    setShowVersionHistory,
     fetchVersions,
     createManualVersion,
     restoreVersion,
@@ -128,7 +132,17 @@ export default function Canvas({
     isLoading: versionsLoading,
   } = versionManager;
 
-  // Helper для проверки прав редактирования
+  const {
+    comments,
+    isLoading,
+    createComment,
+    createReply,
+    updateComment,
+    deleteComment,
+    deleteReply,
+    fetchComments,
+  } = useComments(fileId, currentUser);
+
   const canEdit = permissions === "EDIT" || permissions === "ADMIN";
 
   useEffect(() => {
@@ -193,9 +207,13 @@ export default function Canvas({
   }, [fileData]);
 
   useEffect(() => {
-    if (!currentUser || !canEdit) return;
+    if (!currentUser) return;
 
     console.log("🔌 Starting realtime services...");
+
+    fetchComments();
+
+    // if (!canEdit) return;
 
     const unsubscribeContent = subscribeToContentUpdates((content, user) => {
       console.log("🎉 RECEIVED content update from:", user?.name, {
@@ -272,6 +290,7 @@ export default function Canvas({
     subscribeToContentUpdates,
     subscribeToContentSync,
     subscribeToCursorUpdates,
+    fetchComments,
   ]);
 
   const generateUserColor = (userId: string): string => {
@@ -519,11 +538,101 @@ export default function Canvas({
     [whiteBoardData]
   );
 
+  const handleAddComment = useCallback(
+    (content: string, type = "QUESTION") => {
+      createComment({
+        content,
+        type: type,
+        selection: selection,
+      }).then(() => {
+        setSelection(null);
+      });
+    },
+    [createComment, selection]
+  );
+
+  const handleReplyComment = useCallback(
+    (commentId: string, content: string) => {
+      createReply(commentId, content);
+    },
+    [createReply]
+  );
+
+  const handleUpdateComment = useCallback(
+    (commentId: string, content: string) => {
+      console.log("✏️ Updating comment:", commentId, content);
+      updateComment(commentId, { content })
+        .then((updatedComment) => {
+          console.log("✅ Comment updated successfully:", updatedComment);
+        })
+        .catch((error) => {
+          console.error("❌ Failed to update comment:", error);
+        });
+    },
+    [updateComment]
+  );
+
+  const handleResolveComment = useCallback(
+    (commentId: string) => {
+      console.log("🔄 Resolving comment:", commentId);
+      const comment = comments.find((c) => c.id === commentId);
+      if (comment) {
+        const newStatus = comment.status === "OPEN" ? "RESOLVED" : "OPEN";
+        console.log("📝 Updating status:", {
+          from: comment.status,
+          to: newStatus,
+        });
+        updateComment(commentId, { status: newStatus })
+          .then((updatedComment) => {
+            console.log("✅ Comment updated:", updatedComment);
+          })
+          .catch((error) => {
+            console.error("❌ Failed to update comment:", error);
+          });
+      } else {
+        console.error("❌ Comment not found:", commentId);
+      }
+    },
+    [comments, updateComment]
+  );
+
+  const handleDeleteComment = useCallback(
+    (commentId: string) => {
+      deleteComment(commentId);
+    },
+    [deleteComment]
+  );
+
+  const handleDeleteReply = useCallback(
+    (commentId: string, replyId: string) => {
+      deleteReply(commentId, replyId);
+    },
+    [deleteReply]
+  );
+
+  const handleToggleComments = useCallback(() => {
+    setShowCommentSidebar(!showCommentSidebar);
+    if (!showCommentSidebar) {
+      setShowVersionHistory(false);
+    }
+  }, [showCommentSidebar]);
+
+  const handleToggleVersionHistory = useCallback(() => {
+    setShowVersionHistory(!showVersionHistory);
+    if (!showVersionHistory) {
+      setShowCommentSidebar(false);
+    }
+  }, [showVersionHistory]);
+
+  const showCommentsButton =
+    windowMode === "fullscreen" && currentComponent === "canvas";
   return (
     <div className="flex h-full w-full bg-gray-100 overflow-hidden">
       <div
         className={`flex-1 relative transition-all duration-200 ${
-          showVersionHistory ? "border-r border-gray-200" : ""
+          showVersionHistory || showCommentSidebar
+            ? "border-r border-gray-200"
+            : ""
         } ${isFullscreen ? "!bg-white" : ""}`}
       >
         {fileData && (
@@ -534,19 +643,15 @@ export default function Canvas({
               activeUsers={allActiveUsers}
               versions={versions}
               versionsLoading={versionsLoading}
-              onToggleVersionHistory={() =>
-                setShowVersionHistory(!showVersionHistory)
+              onToggleVersionHistory={handleToggleVersionHistory}
+              onToggleCommentSidebar={
+                showCommentsButton ? handleToggleComments : undefined
               }
+              showCommentSidebar={showCommentSidebar}
               fetchVersions={fetchVersions}
               windowMode={windowMode}
               activeComponent={activeComponent}
-              // windowMode={windowMode}
-              // activeComponent={activeComponent}
-              // onWindowModeChange={onWindowModeChange}
-              // onActiveComponentChange={onActiveComponentChange}
-              // currentComponent={currentComponent}
-              // file={fileData}
-              // onSave={handleManualSave}
+              commentsCount={comments.length}
             />
 
             <div
@@ -612,7 +717,27 @@ export default function Canvas({
         )}
       </div>
 
-      {/* {showVersionHistory && (
+      {showCommentSidebar && (
+        <div className="w-96 bg-white border-l border-gray-200 shadow-lg flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <CommentThread
+              comments={comments}
+              onAddComment={handleAddComment}
+              onReplyComment={handleReplyComment}
+              onResolveComment={handleResolveComment}
+              onDeleteComment={handleDeleteComment}
+              onDeleteReply={handleDeleteReply}
+              onUpdateComment={handleUpdateComment}
+              fileId={fileId}
+              permissions={permissions}
+              currentUser={currentUser}
+              onClose={() => setShowCommentSidebar(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {showVersionHistory && (
         <div className="w-96 bg-white border-l border-gray-200 shadow-lg flex flex-col">
           <div className="flex-1 overflow-y-auto">
             <VersionHistory
@@ -623,7 +748,7 @@ export default function Canvas({
             />
           </div>
         </div>
-      )} */}
+      )}
     </div>
   );
 }
