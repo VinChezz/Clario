@@ -150,6 +150,8 @@ export default function Editor({
     isLoading: versionsLoading,
   } = versionManager;
 
+  const canEdit = permissions === "EDIT" || permissions === "ADMIN";
+
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
@@ -230,12 +232,13 @@ export default function Editor({
   }, [fileData, resetLastSentContent]);
 
   useEffect(() => {
-    if (!currentUser || (permissions !== "EDIT" && permissions !== "ADMIN"))
-      return;
+    if (!currentUser) return;
     console.log("🔌 Starting realtime services for Editor...");
 
     fetchComments();
     const cleanup = startPresenceUpdates();
+
+    if (!canEdit) return;
 
     const unsubscribeContent = subscribeToContentUpdates((content, user) => {
       console.log("🎯 EDITOR: Processing content update from:", user?.name, {
@@ -311,29 +314,6 @@ export default function Editor({
     subscribeToSelectionUpdates,
     subscribeToTypingUpdates,
   ]);
-
-  const sendContentToOthers = useCallback(async () => {
-    if (!editorRef.current || !currentUser || permissions !== "EDIT") {
-      console.log("❌ Cannot send: editor not ready or no permissions");
-      return;
-    }
-
-    if (isApplyingRemoteContent.current) {
-      console.log("🔄 Skipping send - applying remote content");
-      return;
-    }
-
-    try {
-      const outputData = await editorRef.current.save();
-      console.log("🚀 EDITOR: Sending content to others", {
-        blocks: outputData.blocks?.length,
-      });
-
-      sendContentUpdateImmediate(outputData);
-    } catch (error) {
-      console.error("❌ Error sending content update:", error);
-    }
-  }, [sendContentUpdateImmediate, currentUser, permissions]);
 
   const sendContentUpdateThrottled = useCallback(
     throttle((elements: any) => {
@@ -1011,6 +991,7 @@ export default function Editor({
             fileId={fileId}
             permissions={permissions}
             currentUser={currentUser}
+            onClose={() => setShowCommentSidebar(false)}
           />
         </div>
       )}

@@ -213,7 +213,7 @@ export default function Canvas({
 
     fetchComments();
 
-    // if (!canEdit) return;
+    if (!canEdit) return;
 
     const unsubscribeContent = subscribeToContentUpdates((content, user) => {
       console.log("🎉 RECEIVED content update from:", user?.name, {
