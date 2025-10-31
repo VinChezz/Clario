@@ -136,8 +136,10 @@ export default function ShareButton({
           disabled={!canShare}
         >
           {children || <Link className="h-4 w-4" />}
-          Share
-          {!canShare && <span className="text-xs">(No permission)</span>}
+          <span className="hidden sm:inline">Share</span>
+          {!canShare && (
+            <span className="hidden sm:inline text-xs">(No permission)</span>
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

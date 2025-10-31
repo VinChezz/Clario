@@ -7,6 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useEffect, useState } from "react";
 
 interface PresenceIndicatorProps {
@@ -16,6 +17,7 @@ interface PresenceIndicatorProps {
 export function PresenceIndicator({ activeUsers }: PresenceIndicatorProps) {
   const [users, setUsers] = useState<any[]>([]);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -116,26 +118,41 @@ export function PresenceIndicator({ activeUsers }: PresenceIndicatorProps) {
     return `${hoursAgo} hours ago`;
   };
 
+  const avatarSize = isMobile ? "h-7 w-7" : "h-6 w-6";
+  const statusDotSize = isMobile
+    ? "h-3 w-3 -bottom-0.5 -right-0.5"
+    : "h-2.5 w-2.5 -bottom-0.5 -right-0.5";
+  const moreUsersSize = isMobile ? "h-7 w-7 text-xs" : "h-6 w-6 text-[10px]";
+
   return (
     <TooltipProvider>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500">{users.length} online</span>
+        {/* Только для десктопа показываем количество и слово "online" */}
+        {!isMobile && (
+          <span className="text-xs text-gray-500">{users.length} online</span>
+        )}
 
         <div className="flex -space-x-2">
-          {users.slice(0, 4).map((user) => (
+          {users.slice(0, isMobile ? 3 : 4).map((user) => (
             <Tooltip
               key={user.uniqueId || `${user.user.id}-${user.lastActive}`}
             >
               <TooltipTrigger asChild>
                 <div className="relative">
-                  <Avatar className="h-6 w-6 border-2 border-white shadow-sm">
+                  <Avatar
+                    className={`${avatarSize} border-2 border-white shadow-sm`}
+                  >
                     <AvatarImage src={user.user?.image} alt={user.user?.name} />
-                    <AvatarFallback className="text-[10px] bg-gray-200">
+                    <AvatarFallback
+                      className={`${
+                        isMobile ? "text-xs" : "text-[10px]"
+                      } bg-gray-200`}
+                    >
                       {user.user?.name?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div
-                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${getStatusColor(
+                    className={`absolute ${statusDotSize} rounded-full border-2 border-white ${getStatusColor(
                       user.status,
                       user.lastActive
                     )}`}
@@ -158,18 +175,22 @@ export function PresenceIndicator({ activeUsers }: PresenceIndicatorProps) {
             </Tooltip>
           ))}
 
-          {users.length > 4 && (
+          {users.length > (isMobile ? 3 : 4) && (
             <Tooltip key="more-users-tooltip">
               <TooltipTrigger asChild>
-                <div className="h-6 w-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px] font-medium border-2 border-white shadow-sm">
-                  +{users.length - 4}
+                <div
+                  className={`${moreUsersSize} bg-gray-200 rounded-full flex items-center justify-center font-medium border-2 border-white shadow-sm`}
+                >
+                  +{users.length - (isMobile ? 3 : 4)}
                 </div>
               </TooltipTrigger>
               <TooltipContent>
                 <div className="space-y-2">
-                  <p className="font-medium">{users.length - 4} more users</p>
+                  <p className="font-medium">
+                    {users.length - (isMobile ? 3 : 4)} more users
+                  </p>
                   <div className="space-y-1">
-                    {users.slice(4).map((user) => (
+                    {users.slice(isMobile ? 3 : 4).map((user) => (
                       <div
                         key={
                           user.uniqueId || `${user.user.id}-${user.lastActive}`
