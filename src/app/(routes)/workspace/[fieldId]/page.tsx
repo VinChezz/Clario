@@ -8,6 +8,7 @@ import LogoClarioLoader from "@/app/_loaders/ClarioLoader";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import dynamic from "next/dynamic";
 import WorkspaceHeader from "../_components/header/WorkspaceHeader";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const Editor = dynamic(() => import("../_components/Editor"), {
   loading: () => <div>Loading Editor...</div>,
@@ -20,6 +21,7 @@ const Canvas = dynamic(() => import("../_components/Canvas"), {
 });
 
 export default function WorkspacePage() {
+  const isMobile = useIsMobile();
   const params = useParams();
   const fileId = params.fieldId as string;
 
@@ -28,25 +30,47 @@ export default function WorkspacePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [windowMode, setWindowMode] = useState<WindowMode>("split");
-  const [activeComponent, setActiveComponent] =
-    useState<ActiveComponent>("editor");
+  const [windowMode, setWindowMode] = useState<WindowMode>(
+    isMobile ? "fullscreen" : "fullscreen"
+  );
+  const [activeComponent, setActiveComponent] = useState<ActiveComponent>(
+    isMobile ? "editor" : "editor"
+  );
 
   const [dividerPercent, setDividerPercent] = useState<number>(50);
   const [isDragging, setIsDragging] = useState(false);
   const splitRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
 
+  useEffect(() => {
+    if (isMobile) {
+      setWindowMode("fullscreen");
+      setActiveComponent("editor");
+    } else {
+      setWindowMode("split");
+      setActiveComponent("editor");
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (windowMode === "split" && activeComponent !== "both") {
+      setActiveComponent("both");
+    }
+  }, [windowMode, activeComponent]);
+
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
     draggingRef.current = true;
     setIsDragging(true);
     document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
+    // УБИРАЕМ userSelect: 'none' - это основная проблема!
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    draggingRef.current = false;
+    document.body.style.cursor = "default";
+    // УБИРАЕМ сброс userSelect - это ломает скролл!
     window.dispatchEvent(new Event("resize"));
     setTimeout(() => window.dispatchEvent(new Event("resize")), 50);
   };
@@ -58,8 +82,7 @@ export default function WorkspacePage() {
     const rect = container.getBoundingClientRect();
     const px = e.clientX - rect.left;
     let percent = (px / rect.width) * 100;
-    if (percent < 10) percent = 10;
-    if (percent > 90) percent = 90;
+    percent = Math.max(10, Math.min(90, percent));
     setDividerPercent(percent);
   }, []);
 
@@ -74,18 +97,14 @@ export default function WorkspacePage() {
     return () => {
       window.removeEventListener("mousemove", onMouseMoveWindow);
       window.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "default";
-      document.body.style.userSelect = "";
     };
-  }, [isDragging, onMouseMoveWindow, handleMouseUp]);
+  }, [isDragging, onMouseMoveWindow]);
 
   const refreshFileData = useCallback(async () => {
     if (!fileId) return;
-
     try {
       const res = await fetch(`/api/files/${fileId}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
       const data = await res.json();
       setFileData(data);
     } catch (err) {
@@ -104,9 +123,7 @@ export default function WorkspacePage() {
 
         const res = await fetch(`/api/files/${fileId}`, {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updateData),
         });
 
@@ -144,6 +161,7 @@ export default function WorkspacePage() {
 
   const handleWindowModeChange = useCallback((mode: WindowMode) => {
     setWindowMode(mode);
+    if (mode === "split") setActiveComponent("both");
   }, []);
 
   const handleActiveComponentChange = useCallback(
@@ -156,14 +174,11 @@ export default function WorkspacePage() {
   useEffect(() => {
     const fetchFileData = async () => {
       if (!fileId) return;
-
       setIsLoading(true);
       setError(null);
-
       try {
         const res = await fetch(`/api/files/${fileId}`, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
         const data = await res.json();
         setFileData(data);
       } catch (err) {
@@ -173,7 +188,6 @@ export default function WorkspacePage() {
         setIsLoading(false);
       }
     };
-
     fetchFileData();
   }, [fileId]);
 
@@ -201,11 +215,8 @@ export default function WorkspacePage() {
       </div>
     );
 
-  const currentComponent =
-    windowMode === "fullscreen" ? activeComponent : "editor";
-
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       <WorkspaceHeader
         file={fileData}
         onSave={() => setTriggerSave((prev) => prev + 1)}
@@ -213,7 +224,7 @@ export default function WorkspacePage() {
         activeComponent={activeComponent}
         onWindowModeChange={handleWindowModeChange}
         onActiveComponentChange={handleActiveComponentChange}
-        currentComponent={currentComponent}
+        currentComponent={activeComponent}
       />
 
       {windowMode === "split" ? (
@@ -222,18 +233,17 @@ export default function WorkspacePage() {
           className="flex flex-1 relative overflow-hidden min-w-0"
         >
           <div
-            className="min-w-0 overflow-hidden box-border"
+            className="flex-1 min-w-0 overflow-hidden"
             style={{ flexBasis: `${dividerPercent}%` }}
           >
             <Editor
-              key={`editor-${fileData.document}-${fileData.whiteboard}`}
               onSaveTrigger={triggerSave}
               fileId={fileId}
               fileData={fileData}
               onSaveSuccess={handleSaveSuccess}
               onVersionRestore={handleVersionRestore}
-              windowMode={windowMode}
-              activeComponent={activeComponent}
+              windowMode="split"
+              activeComponent="both"
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
               currentComponent="editor"
@@ -242,25 +252,21 @@ export default function WorkspacePage() {
 
           <div
             onMouseDown={startDrag}
-            className="w-[5px] cursor-col-resize z-20 select-none"
-            style={{
-              background: "var(--tw-bg-opacity, rgb(229 231 235))",
-            }}
+            className="w-[5px] cursor-col-resize z-20 bg-gray-200"
             aria-hidden
-          ></div>
+          />
 
           <div
-            className="min-w-0 overflow-hidden box-border"
+            className="flex-1 min-w-0 overflow-hidden"
             style={{ flexBasis: `${100 - dividerPercent}%` }}
           >
             <Canvas
-              key={`canvas-${fileData.whiteboard}-${fileData.document}`}
               onSaveTrigger={triggerSave}
               fileId={fileId}
               fileData={fileData}
               onVersionRestore={handleVersionRestore}
-              windowMode={windowMode}
-              activeComponent={activeComponent}
+              windowMode="split"
+              activeComponent="both"
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
               currentComponent="canvas"
@@ -271,32 +277,30 @@ export default function WorkspacePage() {
         <div className="flex-1 overflow-hidden">
           {activeComponent === "editor" ? (
             <Editor
-              key={`editor-fullscreen-${fileData.document}`}
               onSaveTrigger={triggerSave}
               fileId={fileId}
               fileData={fileData}
               onSaveSuccess={handleSaveSuccess}
               onVersionRestore={handleVersionRestore}
               windowMode={windowMode}
-              activeComponent={activeComponent}
+              activeComponent="editor"
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
               currentComponent="editor"
-              isFullscreen={true}
+              isFullscreen
             />
           ) : (
             <Canvas
-              key={`canvas-fullscreen-${fileData.whiteboard}`}
               onSaveTrigger={triggerSave}
               fileId={fileId}
               fileData={fileData}
               onVersionRestore={handleVersionRestore}
               windowMode={windowMode}
-              activeComponent={activeComponent}
+              activeComponent="canvas"
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
               currentComponent="canvas"
-              isFullscreen={true}
+              isFullscreen
             />
           )}
         </div>

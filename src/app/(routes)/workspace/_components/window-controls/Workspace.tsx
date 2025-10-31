@@ -4,6 +4,7 @@ import Editor from "../Editor";
 import Canvas from "../Canvas";
 import { WindowMode, ActiveComponent } from "@/types/window.interface";
 import { FILE } from "@/shared/types/file.interface";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface WorkspaceProps {
   fileId: string;
@@ -20,13 +21,22 @@ export default function Workspace({
   onSaveSuccess,
   onVersionRestore,
 }: WorkspaceProps) {
-  const [windowMode, setWindowMode] = useState<WindowMode>("split");
-  const [activeComponent, setActiveComponent] =
-    useState<ActiveComponent>("editor");
+  const isMobile = useIsMobile();
 
-  const handleWindowModeChange = useCallback((mode: WindowMode) => {
-    setWindowMode(mode);
-  }, []);
+  const [windowMode, setWindowMode] = useState<WindowMode>(
+    isMobile ? "fullscreen" : "split"
+  );
+  const [activeComponent, setActiveComponent] = useState<ActiveComponent>(
+    isMobile ? "editor" : "editor"
+  );
+
+  const handleWindowModeChange = useCallback(
+    (mode: WindowMode) => {
+      if (isMobile && mode === "split") return;
+      setWindowMode(mode);
+    },
+    [isMobile]
+  );
 
   const handleActiveComponentChange = useCallback(
     (component: ActiveComponent) => {

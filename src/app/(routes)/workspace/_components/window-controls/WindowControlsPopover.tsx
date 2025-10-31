@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const SplitViewIcon = () => (
   <svg
@@ -56,12 +57,23 @@ export function WindowControlsPopover({
   activeComponent: ActiveComponent;
   onWindowModeChange?: (mode: WindowMode) => void;
   onActiveComponentChange?: (component: ActiveComponent) => void;
-  currentComponent: "editor" | "canvas";
+  currentComponent: "editor" | "canvas" | "both";
 }) {
   const [open, setOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  const effectiveWindowMode = isMobile ? "fullscreen" : windowMode;
+
+  // 🟦 Автоматически активировать fullscreen canvas на телефонах
+  useEffect(() => {
+    if (isMobile) {
+      onWindowModeChange?.("fullscreen");
+      onActiveComponentChange?.("canvas");
+    }
+  }, [isMobile]);
 
   const handleToggleFullscreen = () => {
-    if (windowMode === "split") {
+    if (effectiveWindowMode === "split") {
       onWindowModeChange?.("fullscreen");
       onActiveComponentChange?.(currentComponent);
     } else {
@@ -77,7 +89,6 @@ export function WindowControlsPopover({
   };
 
   const hasWindowControls = onWindowModeChange && onActiveComponentChange;
-
   if (!hasWindowControls) return null;
 
   return (
@@ -86,33 +97,44 @@ export function WindowControlsPopover({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 w-8 p-0 border-gray-300 hover:bg-gray-50"
+          className="h-8 w-9 p-0 border-gray-300 hover:bg-gray-50"
         >
-          {windowMode === "split" ? <SplitViewIcon /> : <FullscreenIcon />}
+          {effectiveWindowMode === "split" ? (
+            <SplitViewIcon />
+          ) : (
+            <FullscreenIcon />
+          )}
         </Button>
       </PopoverTrigger>
+
       <PopoverContent className="w-48 p-2" align="end">
         <div className="space-y-1">
-          <button
-            onClick={handleToggleFullscreen}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
-              windowMode === "split"
-                ? "bg-blue-50 text-blue-600 border border-blue-200"
-                : "hover:bg-gray-100 text-gray-700"
-            }`}
-          >
-            <div
-              className={`p-1 rounded ${
-                windowMode === "split" ? "bg-blue-100" : "bg-gray-100"
+          {!isMobile && (
+            <button
+              onClick={handleToggleFullscreen}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
+                effectiveWindowMode === "split"
+                  ? "bg-blue-50 text-blue-600 border border-blue-200"
+                  : "hover:bg-gray-100 text-gray-700"
               }`}
             >
-              <SplitViewIcon />
-            </div>
-            <div className="flex flex-col items-start">
-              <span className="font-medium">Split View</span>
-              <span className="text-xs text-gray-500">Both panels visible</span>
-            </div>
-          </button>
+              <div
+                className={`p-1 rounded ${
+                  effectiveWindowMode === "split"
+                    ? "bg-blue-100"
+                    : "bg-gray-100"
+                }`}
+              >
+                <SplitViewIcon />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="font-medium">Split View</span>
+                <span className="text-xs text-gray-500">
+                  Both panels visible
+                </span>
+              </div>
+            </button>
+          )}
 
           <div className="space-y-1">
             <button
@@ -122,14 +144,16 @@ export function WindowControlsPopover({
                 setOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
-                windowMode === "fullscreen" && activeComponent === "editor"
+                effectiveWindowMode === "fullscreen" &&
+                activeComponent === "editor"
                   ? "bg-blue-50 text-blue-600 border border-blue-200"
                   : "hover:bg-gray-100 text-gray-700"
               }`}
             >
               <div
                 className={`p-1 rounded ${
-                  windowMode === "fullscreen" && activeComponent === "editor"
+                  effectiveWindowMode === "fullscreen" &&
+                  activeComponent === "editor"
                     ? "bg-blue-100"
                     : "bg-gray-100"
                 }`}
@@ -149,14 +173,16 @@ export function WindowControlsPopover({
                 setOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
-                windowMode === "fullscreen" && activeComponent === "canvas"
+                effectiveWindowMode === "fullscreen" &&
+                activeComponent === "canvas"
                   ? "bg-blue-50 text-blue-600 border border-blue-200"
                   : "hover:bg-gray-100 text-gray-700"
               }`}
             >
               <div
                 className={`p-1 rounded ${
-                  windowMode === "fullscreen" && activeComponent === "canvas"
+                  effectiveWindowMode === "fullscreen" &&
+                  activeComponent === "canvas"
                     ? "bg-blue-100"
                     : "bg-gray-100"
                 }`}
@@ -184,7 +210,7 @@ export function WindowControlsPopover({
             </button>
           </div>
 
-          {windowMode === "fullscreen" && (
+          {effectiveWindowMode === "fullscreen" && (
             <button
               onClick={handleSwitchComponent}
               className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-gray-100 text-gray-700 transition-colors"

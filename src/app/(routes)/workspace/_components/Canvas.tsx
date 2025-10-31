@@ -21,6 +21,7 @@ import { useRealtimePresence } from "@/hooks/useRealtimePresence";
 import { useLightweightPresence } from "@/hooks/useLightweightPresence";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import { CommentThread } from "./CommentThread";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
@@ -73,6 +74,7 @@ export default function Canvas({
   const hasAppliedInitialData = useRef(false);
   const lastSentContent = useRef<string>("");
   const isApplyingRemoteUpdate = useRef(false);
+  const isMobile = useIsMobile();
 
   const { activeTeam } = useActiveTeam();
 
@@ -633,7 +635,7 @@ export default function Canvas({
           showVersionHistory || showCommentSidebar
             ? "border-r border-gray-200"
             : ""
-        } ${isFullscreen ? "!bg-white" : ""}`}
+        } ${isFullscreen ? "bg-white" : ""}`}
       >
         {fileData && (
           <div className="w-full h-full flex flex-col">
@@ -718,7 +720,11 @@ export default function Canvas({
       </div>
 
       {showCommentSidebar && (
-        <div className="w-96 bg-white border-l border-gray-200 shadow-lg flex flex-col">
+        <div
+          className={`${
+            isMobile ? "fixed inset-0 z-50" : "w-96"
+          } bg-white border-l border-gray-200 shadow-lg flex flex-col`}
+        >
           <div className="flex-1 overflow-y-auto">
             <CommentThread
               comments={comments}
@@ -738,15 +744,17 @@ export default function Canvas({
       )}
 
       {showVersionHistory && (
-        <div className="w-96 bg-white border-l border-gray-200 shadow-lg flex flex-col">
-          <div className="flex-1 overflow-y-auto">
-            <VersionHistory
-              versions={versions}
-              onRestoreVersion={handleRestoreVersion}
-              onClose={() => setShowVersionHistory(false)}
-              isLoading={versionsLoading}
-            />
-          </div>
+        <div
+          className={`${
+            isMobile ? "fixed inset-0 z-50" : "w-96"
+          } bg-white border-l border-gray-200 shadow-lg flex flex-col`}
+        >
+          <VersionHistory
+            versions={versions}
+            onRestoreVersion={handleRestoreVersion}
+            onClose={() => setShowVersionHistory(false)}
+            isLoading={versionsLoading}
+          />
         </div>
       )}
     </div>

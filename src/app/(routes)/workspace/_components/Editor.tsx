@@ -21,6 +21,7 @@ import { UserCursorEditor } from "./collaboration/UserCursorEditor";
 import { useRealtimeCursor } from "@/hooks/useRealTimeCursor";
 import { useLightweightPresence } from "@/hooks/useLightweightPresence";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const rawDocument = {
   time: Date.now(),
@@ -63,7 +64,7 @@ interface EditorProps {
   activeComponent: ActiveComponent;
   onWindowModeChange: (mode: WindowMode) => void;
   onActiveComponentChange: (component: ActiveComponent) => void;
-  currentComponent: "editor" | "canvas";
+  currentComponent: "editor" | "canvas" | "both";
   isFullscreen?: boolean;
 }
 
@@ -98,6 +99,7 @@ export default function Editor({
   const mouseMoveTimeoutRef = useRef<NodeJS.Timeout>(null);
   const isApplyingRemoteUpdate = useRef(false);
   const lastSentContent = useRef<string>("");
+  const isMobile = useIsMobile();
 
   const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
   const { typingCursors, sendTypingUpdate, subscribeToTypingUpdates } =
@@ -932,14 +934,14 @@ export default function Editor({
           ref={editorContainerRef}
           className={`relative flex-1 min-h-[300px] bg-white
             ${permissions === "VIEW" ? "opacity-50 pointer-events-none" : ""} ${
-            isFullscreen ? "!min-h-0" : ""
+            isFullscreen ? "min-h-0!" : ""
           }`}
           onMouseMove={handleEditorMouseMove}
           onMouseLeave={handleEditorMouseLeave}
         >
           <div
             id="editorjs"
-            className="h-full ml-12 mt-6 mr-6"
+            className="h-full ml-4 sm:ml-12 mt-4 sm:mt-6 mr-4 sm:mr-6"
             onMouseUp={handleTextSelection}
             onKeyDown={handleKeyDown}
             onClick={handleEditorClick}
@@ -979,7 +981,7 @@ export default function Editor({
       </div>
 
       {showCommentSidebar && (
-        <div className="w-80 border-l bg-gray-50">
+        <div className="w-full sm:w-80 lg:w-96 bg-white border-l border-gray-200 shadow-lg flex flex-col fixed inset-0 sm:relative z-50">
           <CommentThread
             comments={comments}
             onAddComment={handleAddComment}
@@ -997,15 +999,17 @@ export default function Editor({
       )}
 
       {showVersionHistory && (
-        <div className="w-96 bg-white border-l border-gray-200 shadow-lg flex flex-col">
-          <div className="flex-1 overflow-y-auto">
-            <VersionHistory
-              versions={versions}
-              onRestoreVersion={handleRestoreVersion}
-              onClose={() => setShowVersionHistory(false)}
-              isLoading={versionsLoading}
-            />
-          </div>
+        <div
+          className={`${
+            isMobile ? "fixed inset-0 z-50" : "w-96"
+          } bg-white border-l border-gray-200 shadow-lg flex flex-col`}
+        >
+          <VersionHistory
+            versions={versions}
+            onRestoreVersion={handleRestoreVersion}
+            onClose={() => setShowVersionHistory(false)}
+            isLoading={versionsLoading}
+          />
         </div>
       )}
     </div>

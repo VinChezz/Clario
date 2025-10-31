@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import { WindowControlsPopover } from "../window-controls/WindowControlsPopover";
 import ShareButton from "../share-button/ShareButton";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface WorkspaceHeaderProps {
   file?: FILE;
@@ -19,7 +20,7 @@ interface WorkspaceHeaderProps {
   activeComponent: ActiveComponent;
   onWindowModeChange?: (mode: WindowMode) => void;
   onActiveComponentChange?: (component: ActiveComponent) => void;
-  currentComponent: "editor" | "canvas";
+  currentComponent: "editor" | "canvas" | "both";
 }
 
 export default function WorkspaceHeader({
@@ -35,6 +36,7 @@ export default function WorkspaceHeader({
   const [permissions, setPermissions] = useState<"ADMIN" | "VIEW" | "EDIT">(
     "VIEW"
   );
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const determinePermissions = async () => {
@@ -74,29 +76,33 @@ export default function WorkspaceHeader({
   const hasWindowControls = onWindowModeChange && onActiveComponentChange;
 
   return (
-    <div className="p-3 border-b flex justify-between items-center">
-      <div className="flex gap-2 items-center">
+    <div className="p-2 sm:p-3 border-b flex justify-between items-center">
+      <div className="flex gap-1 sm:gap-2 items-center">
         <Image
           src={"/logo-1.png"}
           alt={"logo"}
-          width={50}
-          height={50}
+          width={isMobile ? 40 : 50}
+          height={isMobile ? 40 : 50}
           onClick={() => redirect("/dashboard")}
           className="cursor-pointer"
         />
         {file && (
-          <h2 className="ml-1 text-xl font-semibold">{file.fileName}</h2>
+          <h2 className="ml-1 text-lg sm:text-xl font-semibold truncate max-w-[150px] sm:max-w-none">
+            {file.fileName}
+          </h2>
         )}
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <Button
-          className="h-8 text-[12px] gap-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="h-8 sm:h-8 text-[10px] sm:text-[12px] gap-1 sm:gap-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
           onClick={handleSave}
           disabled={!canEdit}
         >
-          <Save className="h-4 w-4" />
-          Save
-          {!canEdit && <span className="text-xs">(No permission)</span>}
+          <Save className="h-3 w-3 sm:h-4 sm:w-4" />
+          <span className="hidden sm:inline">Save</span>
+          {!canEdit && (
+            <span className="text-xs hidden sm:inline">(No permission)</span>
+          )}
         </Button>
         <ShareButton
           fileId={file?.id || ""}
@@ -105,7 +111,7 @@ export default function WorkspaceHeader({
         />
 
         {hasWindowControls && (
-          <div className="border-r pr-4 mr-2">
+          <div className="border-r pr-2 sm:pr-4 mr-1 sm:mr-2">
             <WindowControlsPopover
               windowMode={windowMode}
               activeComponent={activeComponent}

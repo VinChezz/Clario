@@ -1,5 +1,6 @@
 import { MessageCircleMore } from "lucide-react";
 import { PresenceIndicator } from "../PresenceIndicator";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface EditorCanvasHeaderProps {
   permissions: "ADMIN" | "VIEW" | "EDIT";
@@ -12,7 +13,7 @@ interface EditorCanvasHeaderProps {
   showCommentSidebar?: boolean;
   fetchVersions: () => void;
   windowMode?: "split" | "fullscreen";
-  activeComponent?: "editor" | "canvas";
+  activeComponent?: "editor" | "canvas" | "both";
   commentsCount?: number;
 }
 
@@ -30,6 +31,7 @@ export function EditorCanvasHeader({
   activeComponent = "editor",
   commentsCount = 0,
 }: EditorCanvasHeaderProps) {
+  const isMobile = useIsMobile();
   const fileTypeLabels = {
     document: "Document",
     whiteboard: "Whiteboard",
@@ -49,19 +51,21 @@ export function EditorCanvasHeader({
   const showCommentsButton = onToggleCommentSidebar !== undefined;
 
   return (
-    <div className="flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3 h-16">
+    <div className="flex items-center justify-between bg-white border-b border-gray-200 px-3 sm:px-4 py-2 sm:py-3 h-14 sm:h-16">
       <div className="flex items-center gap-2 text-gray-600 h-full">
-        <span className="flex items-center gap-2 text-sm">
+        <span className="flex items-center gap-2 text-xs sm:text-sm">
           {permissions === "VIEW" ? (
-            <p className="flex items-center gap-1">
+            <p className="flex items-center gap-1 flex-wrap">
               <span>Viewing only •</span>
-              <span className="text-amber-600">no editing permissions</span>
+              <span className="text-amber-600 text-xs">
+                no editing permissions
+              </span>
             </p>
           ) : (
-            <span>
-              Manual save available •{" "}
+            <span className="text-xs sm:text-sm">
+              {isMobile ? "Manual save" : "Manual save available"} •{" "}
               {isFullscreen
-                ? `${fileTypeLabels[fileType]} (${
+                ? `${isMobile ? "" : fileTypeLabels[fileType]} (${
                     activeComponent === "editor"
                       ? "Fullscreen"
                       : "Fullscreen Canvas"
@@ -71,15 +75,16 @@ export function EditorCanvasHeader({
           )}
         </span>
       </div>
-      <div className="flex items-center gap-2 h-full">
+      <div className="flex items-center gap-1 sm:gap-2 h-full">
         {showCommentsButton && (
           <button
             onClick={onToggleCommentSidebar}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:border-gray-400 transition-colors h-10"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:border-gray-400 transition-colors h-8 sm:h-10"
           >
-            <MessageCircleMore className="w-4 h-4" /> Comment
+            <MessageCircleMore className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Comment</span>
             {commentsCount > 0 && (
-              <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full min-w-6 flex justify-center">
+              <span className="bg-blue-500 text-white text-xs px-1.5 sm:px-2 py-0.5 rounded-full min-w-5 sm:min-w-6 flex justify-center">
                 {commentsCount}
               </span>
             )}
@@ -88,11 +93,11 @@ export function EditorCanvasHeader({
         {showVersionsButton && (
           <button
             onClick={handleVersionClick}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-10"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-10"
             disabled={versionsLoading}
           >
             <svg
-              className="w-4 h-4"
+              className="w-3 h-3 sm:w-4 sm:h-4"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -104,21 +109,23 @@ export function EditorCanvasHeader({
                 strokeLinejoin="round"
               />
             </svg>
-            Versions
+            <span className="hidden sm:inline">Versions</span>
             {versions.length > 0 && (
-              <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full min-w-6 flex justify-center">
+              <span className="bg-blue-500 text-white text-xs px-1.5 sm:px-2 py-0.5 rounded-full min-w-5 sm:min-w-6 flex justify-center">
                 {versions.length}
               </span>
             )}
           </button>
         )}
         {(showAllElements || fileType === "whiteboard") && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg shadow-sm h-10">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-medium text-gray-700">Online</span>
+          <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 bg-white border border-gray-300 rounded-lg shadow-sm h-8 sm:h-10">
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></div>
+              <span className="text-xs sm:text-sm font-medium text-gray-700 hidden sm:inline">
+                Online
+              </span>
             </div>
-            <div className="w-px h-4 bg-gray-300"></div>
+            <div className="w-px h-3 sm:h-4 bg-gray-300"></div>
             <div className="flex items-center">
               <PresenceIndicator activeUsers={activeUsers} />
             </div>
