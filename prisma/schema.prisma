@@ -142,15 +142,17 @@ model DocumentVersion {
   name        String?
   description String?
   content     String
+  type        String   @default("document")
   fileId      String
   authorId    String
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  author User @relation(fields: [authorId], references: [id])
-  file   File @relation(fields: [fileId], references: [id])
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  file   File @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
-  @@unique([fileId, version])
-  @@index([fileId])
+  @@unique([fileId, type, version])
+  @@map("document_versions")
 }
 
 model UserPresence {
