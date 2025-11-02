@@ -39,50 +39,53 @@ export function useVersionManager({
   const [isLoading, setIsLoading] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
 
-  const lastVersionTime = useRef<number>(0);
-  const pendingAutoVersion = useRef<NodeJS.Timeout | null>(null);
-  const lastContent = useRef<string>("");
-  const lastElementCount = useRef<number>(0);
+  const lastFetchRef = useRef<number>(0);
 
-  const autoVersioning = fileData?.autoVersioning ?? true;
+  const fetchVersions = useCallback(
+    async (forceRefresh = false) => {
+      if (!fileId) return;
 
-  const fetchVersions = useCallback(async () => {
-    if (!fileId) return;
-
-    setIsLoading(true);
-    try {
-      console.log(`📋 Fetching versions for file: ${fileId}`);
-      const response = await fetch(`/api/files/${fileId}/versions`);
-
-      if (!response.ok) {
-        // Если API не существует, просто возвращаем пустой массив
-        if (response.status === 404) {
-          console.warn("Versions API not found, returning empty array");
-          setVersions([]);
-          return;
-        }
-
-        const errorText = await response.text();
-        console.error(
-          `❌ Failed to fetch versions: ${response.status}`,
-          errorText
-        );
-        throw new Error(`Failed to fetch versions: ${response.status}`);
+      const now = Date.now();
+      if (!forceRefresh && now - lastFetchRef.current < 2000) {
+        console.log("🔄 Using cached versions (request too recent)");
+        return;
       }
 
-      const data = await response.json();
-      console.log(`✅ Versions fetched:`, data.length);
-      setVersions(data);
-    } catch (error) {
-      console.error("Error fetching versions:", error);
-      // Не выбрасываем ошибку, чтобы не ломать UI
-      setVersions([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fileId]);
+      setIsLoading(true);
+      try {
+        console.log(`📋 Fetching versions for file: ${fileId}`, {
+          forceRefresh,
+        });
+        const response = await fetch(`/api/files/${fileId}/versions?t=${now}`);
 
-  const createVersion = useCallback(
+        if (!response.ok) {
+          if (response.status === 404) {
+            console.warn("Versions API not found, returning empty array");
+            setVersions([]);
+            return;
+          }
+          throw new Error(`Failed to fetch versions: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`✅ Versions fetched:`, data.length);
+
+        setVersions(data);
+        lastFetchRef.current = now;
+
+        return data;
+      } catch (error) {
+        console.error("Error fetching versions:", error);
+        setVersions([]);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [fileId]
+  );
+
+  const createManualVersion = useCallback(
     async (options: CreateVersionOptions) => {
       const { name, description, content, type } = options;
 
@@ -90,13 +93,14 @@ export function useVersionManager({
         console.log(`🆕 Creating ${type} version for file: ${fileId}`, {
           name,
           contentLength: content.length,
+          type,
         });
 
         if (!content || content.length === 0) {
+          console.error("❌ Empty content for version");
           throw new Error("Content cannot be empty");
         }
 
-        // Проверяем JSON только для whiteboard
         if (type === "whiteboard") {
           try {
             JSON.parse(content);
@@ -114,86 +118,68 @@ export function useVersionManager({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ name, description, content }),
+          body: JSON.stringify({ name, description, content, type }),
         });
 
-        const responseText = await response.text();
-
         if (!response.ok) {
-          // Если API не существует, просто логируем и продолжаем
           if (response.status === 404) {
-            console.warn("Versions API not found, skipping version creation");
-            return null;
+            console.warn("Versions API not found, creating local version");
+            const localVersion: DocumentVersion = {
+              id: `local-${Date.now()}`,
+              version: versions.length + 1,
+              name: name || `Local ${type} version`,
+              description: description || "Locally created version",
+              content,
+              fileId,
+              authorId: "local-user",
+              createdAt: new Date().toISOString(),
+              author: {
+                id: "local-user",
+                name: "Local User",
+                email: "local@example.com",
+              },
+            };
+
+            setVersions((prev) => [localVersion, ...prev]);
+            console.log(`✅ Local ${type} version created:`, localVersion.id);
+            return localVersion;
           }
 
-          console.error(
-            `❌ Failed to create version: ${response.status}`,
-            responseText
-          );
-
-          let errorMessage = `Failed to create version: ${response.status}`;
-          try {
-            const errorData = JSON.parse(responseText);
-            errorMessage = errorData.error || errorMessage;
-          } catch (e) {
-            errorMessage = responseText || errorMessage;
-          }
-
-          throw new Error(errorMessage);
+          throw new Error(`Failed to create version: ${response.status}`);
         }
 
-        const newVersion = JSON.parse(responseText);
-        console.log(`✅ ${type} version created:`, newVersion.id);
+        const newVersion = await response.json();
+        console.log(`✅ ${type} version created successfully:`, newVersion.id);
 
         setVersions((prev) => [newVersion, ...prev]);
-        lastVersionTime.current = Date.now();
 
         return newVersion;
       } catch (error) {
         console.error(`❌ Error creating ${type} version:`, error);
-        // Не выбрасываем ошибку, чтобы не прерывать работу canvas
-        return null;
+
+        console.warn("Creating fallback local version due to error");
+        const fallbackVersion: DocumentVersion = {
+          id: `fallback-${Date.now()}`,
+          version: versions.length + 1,
+          name: name || `Fallback ${type} version`,
+          description: description || "Fallback version created due to error",
+          content,
+          fileId,
+          authorId: "fallback-user",
+          createdAt: new Date().toISOString(),
+          author: {
+            id: "fallback-user",
+            name: "Fallback User",
+            email: "fallback@example.com",
+          },
+        };
+
+        setVersions((prev) => [fallbackVersion, ...prev]);
+        console.log(`✅ Fallback ${type} version created:`, fallbackVersion.id);
+        return fallbackVersion;
       }
     },
-    [fileId]
-  );
-
-  const createAutoVersion = useCallback(
-    (options: CreateVersionOptions) => {
-      if (!autoVersioning) return;
-
-      const now = Date.now();
-      const timeSinceLastVersion = now - lastVersionTime.current;
-      const minTimeBetweenAutoVersions = 2 * 60 * 1000; // 2 минуты
-
-      if (timeSinceLastVersion < minTimeBetweenAutoVersions) {
-        console.log("⏰ Too soon since last version, skipping auto-version");
-        return;
-      }
-
-      if (pendingAutoVersion.current) {
-        clearTimeout(pendingAutoVersion.current);
-      }
-
-      pendingAutoVersion.current = setTimeout(() => {
-        createVersion(options).catch((error) => {
-          console.error("❌ Auto-version creation failed:", error);
-        });
-      }, 30000); // 30 секунд задержка
-    },
-    [createVersion, autoVersioning]
-  );
-
-  const createManualVersion = useCallback(
-    async (options: CreateVersionOptions) => {
-      if (pendingAutoVersion.current) {
-        clearTimeout(pendingAutoVersion.current);
-        pendingAutoVersion.current = null;
-      }
-
-      return await createVersion(options);
-    },
-    [createVersion]
+    [fileId, versions.length]
   );
 
   const restoreVersion = useCallback(
@@ -201,41 +187,22 @@ export function useVersionManager({
       try {
         console.log(`🔄 Restoring ${type} version: ${versionId}`);
 
+        const localVersion = versions.find((v) => v.id === versionId);
+        if (localVersion && onVersionRestore) {
+          console.log("✅ Using local version for restore");
+          onVersionRestore(localVersion.content, type);
+          return { version: localVersion };
+        }
+
         const response = await fetch(
           `/api/versions/restore?fileId=${fileId}&versionId=${versionId}`
         );
 
-        const responseText = await response.text();
-
         if (!response.ok) {
-          // Если API не существует, используем локальные данные
-          if (response.status === 404) {
-            console.warn("Restore API not found, using local version data");
-            const localVersion = versions.find((v) => v.id === versionId);
-            if (localVersion && onVersionRestore) {
-              onVersionRestore(localVersion.content, type);
-              return { version: localVersion };
-            }
-            throw new Error("Version not found locally");
-          }
-
-          console.error(
-            `❌ Failed to restore: ${response.status}`,
-            responseText
-          );
-
-          let errorMessage = `Failed to restore version: ${response.status}`;
-          try {
-            const errorData = JSON.parse(responseText);
-            errorMessage = errorData.error || errorMessage;
-          } catch (e) {
-            errorMessage = responseText || errorMessage;
-          }
-
-          throw new Error(errorMessage);
+          throw new Error(`Failed to restore version: ${response.status}`);
         }
 
-        const restoreData = JSON.parse(responseText);
+        const restoreData = await response.json();
         console.log(
           `✅ ${type} version data retrieved:`,
           restoreData.version.id
@@ -254,58 +221,10 @@ export function useVersionManager({
     [fileId, onVersionRestore, versions]
   );
 
-  const hasSignificantChanges = useCallback(
-    (newContent: string, oldContent: string): boolean => {
-      if (!oldContent) return true;
-
-      try {
-        const newData = JSON.parse(newContent);
-        const oldData = JSON.parse(oldContent);
-
-        if (newData.blocks && oldData.blocks) {
-          const blockChangeThreshold = 2;
-          const textChangeThreshold = 100;
-
-          if (
-            Math.abs(newData.blocks.length - oldData.blocks.length) >=
-            blockChangeThreshold
-          ) {
-            return true;
-          }
-
-          const newText = newData.blocks
-            .map((block: any) => block.data?.text || "")
-            .join("");
-          const oldText = oldData.blocks
-            .map((block: any) => block.data?.text || "")
-            .join("");
-          const textChange = Math.abs(newText.length - oldText.length);
-
-          return textChange >= textChangeThreshold;
-        }
-
-        return true;
-      } catch {
-        const changeThreshold = 100;
-        return (
-          Math.abs(newContent.length - oldContent.length) >= changeThreshold
-        );
-      }
-    },
-    []
-  );
-
-  const hasSignificantCanvasChanges = useCallback(
-    (elements: any, oldElementCount: number): boolean => {
-      if (oldElementCount === 0) return true;
-
-      const currentElementCount = elements?.length || 0;
-      const elementChange = Math.abs(currentElementCount - oldElementCount);
-
-      return elementChange >= 3;
-    },
-    []
-  );
+  const refreshVersions = useCallback(async () => {
+    console.log("🔄 Manual refresh of versions requested");
+    return await fetchVersions(true);
+  }, [fetchVersions]);
 
   return {
     versions,
@@ -313,14 +232,8 @@ export function useVersionManager({
     showVersionHistory,
     setShowVersionHistory,
     fetchVersions,
-    createVersion,
-    createAutoVersion,
     createManualVersion,
     restoreVersion,
-    hasSignificantChanges,
-    hasSignificantCanvasChanges,
-    lastContent,
-    lastElementCount,
-    autoVersioning,
+    refreshVersions,
   };
 }

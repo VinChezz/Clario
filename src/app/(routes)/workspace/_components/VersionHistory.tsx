@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import {
   Download,
   Eye,
-  Calendar,
   X,
   Search,
   Filter,
@@ -15,15 +14,16 @@ import {
   Copy,
   GitCompare,
   History,
-  Save,
-  Edit,
   Clock,
   Users,
   FileText,
   ChevronUp,
   ChevronDown,
   MoreVertical,
-} from "lucide-react";
+  File,
+  Palette,
+  RefreshCw,
+} from "lucide-react"; // Добавили RefreshCw
 import { useState, useEffect, useMemo } from "react";
 import {
   DropdownMenu,
@@ -45,6 +45,7 @@ export interface Version {
   id: string;
   version: number;
   name?: string;
+  type?: string;
   description?: string;
   createdAt: string;
   author: Author;
@@ -58,12 +59,15 @@ interface VersionHistoryProps {
   onRestoreVersion: (version: Version) => void;
   onClose: () => void;
   isLoading: boolean;
+  onRefreshVersions?: () => Promise<void>; // Добавляем пропс для обновления
 }
 
 export function VersionHistory({
   versions = [],
   onRestoreVersion,
   onClose,
+  isLoading,
+  onRefreshVersions, // Получаем функцию обновления
 }: VersionHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterByAuthor, setFilterByAuthor] = useState("");
@@ -74,52 +78,113 @@ export function VersionHistory({
   } | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [compareTarget, setCompareTarget] = useState<Version | null>(null);
+  const [filterByType, setFilterByType] = useState<
+    "all" | "document" | "whiteboard"
+  >("all");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+
   const isMobile = useIsMobile();
+
+  // Функция для обновления версий
+  const handleRefreshVersions = async () => {
+    if (!onRefreshVersions) {
+      console.warn("⚠️ onRefreshVersions function not provided");
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      console.log("🔄 Manually refreshing versions...");
+      await onRefreshVersions();
+      setLastRefreshTime(new Date());
+      console.log("✅ Versions refreshed successfully");
+    } catch (error) {
+      console.error("❌ Failed to refresh versions:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Автоматическое обновление при открытии
+  useEffect(() => {
+    if (onRefreshVersions && versions.length === 0) {
+      console.log("🔄 Auto-refreshing versions on open");
+      handleRefreshVersions();
+    }
+  }, []); // Только при монтировании
+
+  const currentVersions = useMemo(() => {
+    return filterByType === "all"
+      ? versions
+      : versions.filter((v) => v.type === filterByType);
+  }, [versions, filterByType]);
 
   const stats = useMemo(() => {
     const now = new Date();
     const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
+    const filteredVersions = currentVersions;
+
     return {
-      totalVersions: versions.length,
-      last30Days: versions.filter((v) => new Date(v.createdAt) > last30Days)
-        .length,
-      last7Days: versions.filter((v) => new Date(v.createdAt) > last7Days)
-        .length,
-      uniqueAuthors: new Set(versions.map((v) => v.author.id)).size,
-      totalSize: versions.reduce((sum, v) => sum + (v.content?.length || 0), 0),
+      totalVersions: filteredVersions.length,
+      last30Days: filteredVersions.filter(
+        (v) => new Date(v.createdAt) > last30Days
+      ).length,
+      last7Days: filteredVersions.filter(
+        (v) => new Date(v.createdAt) > last7Days
+      ).length,
+      uniqueAuthors: new Set(filteredVersions.map((v) => v.author.id)).size,
+      totalSize: filteredVersions.reduce(
+        (sum, v) => sum + (v.content?.length || 0),
+        0
+      ),
       avgSize:
-        versions.length > 0
+        filteredVersions.length > 0
           ? Math.round(
-              versions.reduce((sum, v) => sum + (v.content?.length || 0), 0) /
-                versions.length
+              filteredVersions.reduce(
+                (sum, v) => sum + (v.content?.length || 0),
+                0
+              ) / filteredVersions.length
             )
           : 0,
+    };
+  }, [currentVersions]);
+
+  const typeStats = useMemo(() => {
+    const documentVersions = versions.filter((v) => v.type === "document");
+    const whiteboardVersions = versions.filter((v) => v.type === "whiteboard");
+
+    return {
+      document: documentVersions.length,
+      whiteboard: whiteboardVersions.length,
+      all: versions.length,
     };
   }, [versions]);
 
   const uniqueAuthors = useMemo(() => {
-    const authors = versions.reduce((acc: Author[], version) => {
+    const authors = currentVersions.reduce((acc: Author[], version) => {
       if (!acc.find((a) => a.id === version.author.id)) {
         acc.push(version.author);
       }
       return acc;
     }, []);
     return authors;
-  }, [versions]);
+  }, [currentVersions]);
 
   const filteredVersions = useMemo(() => {
-    return versions.filter((version) => {
+    return currentVersions.filter((version) => {
       const matchesSearch =
         version.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         version.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         version.author.name?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesAuthor =
         !filterByAuthor || version.author.id === filterByAuthor;
+
       return matchesSearch && matchesAuthor;
     });
-  }, [versions, searchTerm, filterByAuthor]);
+  }, [currentVersions, searchTerm, filterByAuthor]);
 
   const groupedVersions = useMemo(() => {
     const groups: { [key: string]: Version[] } = {};
@@ -136,6 +201,7 @@ export function VersionHistory({
       metadata: {
         version: version.version,
         name: version.name || `Version ${version.version}`,
+        type: version.type || "document",
         description: version.description || "",
         createdAt: version.createdAt,
         author: version.author,
@@ -159,6 +225,7 @@ export function VersionHistory({
       metadata: {
         version: version.version,
         name: version.name || `Version ${version.version}`,
+        type: version.type || "document",
         description: version.description || "",
         createdAt: version.createdAt,
         author: version.author,
@@ -168,7 +235,6 @@ export function VersionHistory({
     };
     try {
       await navigator.clipboard.writeText(JSON.stringify(versionData, null, 2));
-      console.log("Version copied to clipboard");
     } catch (err) {
       console.error("Failed to copy version: ", err);
     }
@@ -177,7 +243,6 @@ export function VersionHistory({
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      console.log("Content copied to clipboard");
     } catch (err) {
       console.error("Failed to copy text: ", err);
     }
@@ -204,13 +269,33 @@ export function VersionHistory({
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400)
+      return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  };
+
   const VersionDiffPreview = ({ version }: { version: Version }) => {
     const isExpanded = expandedVersion === version.id;
     if (!isExpanded) return null;
 
-    const currentIndex = versions.findIndex((v) => v.id === version.id);
+    const sameTypeVersions = versions
+      .filter((v) => v.type === version.type)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+    const currentIndex = sameTypeVersions.findIndex((v) => v.id === version.id);
     const previousVersion =
-      currentIndex < versions.length - 1 ? versions[currentIndex + 1] : null;
+      currentIndex < sameTypeVersions.length - 1
+        ? sameTypeVersions[currentIndex + 1]
+        : null;
 
     const handleOpenPortal = (e: React.MouseEvent) => {
       e.preventDefault();
@@ -221,11 +306,18 @@ export function VersionHistory({
       });
     };
 
+    const getElementCount = (content: string) => {
+      try {
+        const data = JSON.parse(content);
+        return Array.isArray(data) ? data.length : 0;
+      } catch {
+        return 0;
+      }
+    };
+
     return (
       <div
-        className={`mt-3 p-4 bg-linear-to-br from-blue-50/50 to-indigo-50/50 rounded-lg border border-blue-200/60 shadow-sm ${
-          isMobile ? "p-3" : ""
-        }`}
+        className="mt-3 p-4 bg-linear-to-br from-blue-50/50 to-indigo-50/50 rounded-lg border border-blue-200/60 shadow-sm"
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -245,17 +337,24 @@ export function VersionHistory({
               {formatFileSize(version.content?.length || 0)}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              {version.content?.split("\n")?.length || 0} lines
+              {version.type === "whiteboard"
+                ? `${getElementCount(version.content)} elements`
+                : `${version.content?.split("\n")?.length || 0} lines`}
             </div>
           </div>
           <div className="bg-white/90 rounded-lg p-3 border border-gray-200/50">
-            <div className="text-xs font-medium text-gray-600 mb-1">Author</div>
-            <div
-              className={`font-semibold text-gray-900 truncate ${
-                isMobile ? "text-base" : "text-sm"
-              }`}
-            >
-              {version.author?.name || "Unknown"}
+            <div className="text-xs font-medium text-gray-600 mb-1">Type</div>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="outline"
+                className={`${
+                  version.type === "whiteboard"
+                    ? "bg-purple-50 text-purple-700 border-purple-200"
+                    : "bg-blue-50 text-blue-700 border-blue-200"
+                }`}
+              >
+                {version.type === "whiteboard" ? "Whiteboard" : "Document"}
+              </Badge>
             </div>
             <div className="text-xs text-gray-500 mt-1">
               {new Date(version.createdAt).toLocaleDateString()}
@@ -291,8 +390,16 @@ export function VersionHistory({
               <div className="text-center">
                 <div
                   className={`font-bold ${
-                    version.content.split("\n").length >
-                    previousVersion.content.split("\n").length
+                    version.type === "whiteboard"
+                      ? getElementCount(version.content) >
+                        getElementCount(previousVersion.content)
+                        ? "text-green-600"
+                        : getElementCount(version.content) <
+                          getElementCount(previousVersion.content)
+                        ? "text-red-600"
+                        : "text-gray-600"
+                      : version.content.split("\n").length >
+                        previousVersion.content.split("\n").length
                       ? "text-green-600"
                       : version.content.split("\n").length <
                         previousVersion.content.split("\n").length
@@ -300,15 +407,25 @@ export function VersionHistory({
                       : "text-gray-600"
                   } ${isMobile ? "text-lg" : "text-xl"}`}
                 >
-                  {version.content.split("\n").length -
-                    previousVersion.content.split("\n").length >
-                  0
-                    ? "+"
-                    : ""}
-                  {version.content.split("\n").length -
-                    previousVersion.content.split("\n").length}
+                  {version.type === "whiteboard"
+                    ? (getElementCount(version.content) -
+                        getElementCount(previousVersion.content) >
+                      0
+                        ? "+"
+                        : "") +
+                      (getElementCount(version.content) -
+                        getElementCount(previousVersion.content))
+                    : (version.content.split("\n").length -
+                        previousVersion.content.split("\n").length >
+                      0
+                        ? "+"
+                        : "") +
+                      (version.content.split("\n").length -
+                        previousVersion.content.split("\n").length)}
                 </div>
-                <div className="text-xs text-gray-500">lines</div>
+                <div className="text-xs text-gray-500">
+                  {version.type === "whiteboard" ? "elements" : "lines"}
+                </div>
               </div>
             </div>
           </div>
@@ -316,19 +433,16 @@ export function VersionHistory({
 
         <Button
           onClick={handleOpenPortal}
-          className={`w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-md transition-all duration-200 ${
-            isMobile ? "py-3 text-base" : "py-2.5"
-          }`}
+          className="w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-md transition-all duration-200 py-2.5"
         >
-          <GitCompare
-            className={`${isMobile ? "h-5 w-5 mr-2" : "h-4 w-4 mr-2"}`}
-          />
-          {isMobile ? "Open Comparison" : "Open Detailed Comparison"}
+          <GitCompare className="h-4 w-4 mr-2" />
+          Open Detailed Comparison
         </Button>
       </div>
     );
   };
 
+  // Обработка клавиши Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -357,147 +471,153 @@ export function VersionHistory({
         }`}
       >
         {/* Header */}
-        <div
-          className={`border-b bg-linear-to-r from-blue-50 via-indigo-50 to-purple-50 shrink-0 ${
-            isMobile ? "p-4" : "p-5"
-          }`}
-        >
-          <div
-            className={`flex items-center justify-between ${
-              isMobile ? "mb-4" : "mb-4"
-            }`}
-          >
+        <div className="border-b bg-linear-to-r from-blue-50 via-indigo-50 to-purple-50 shrink-0 p-5">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div
-                className={`bg-white rounded-lg shadow-sm ${
-                  isMobile ? "p-2" : "p-2"
-                }`}
-              >
-                <History
-                  className={`text-indigo-600 ${
-                    isMobile ? "h-6 w-6" : "h-5 w-5"
-                  }`}
-                />
+              <div className="bg-white rounded-lg shadow-sm p-2">
+                <History className="text-indigo-600 h-5 w-5" />
               </div>
               <div>
-                <h3
-                  className={`font-bold text-gray-900 ${
-                    isMobile ? "text-xl" : "text-lg"
-                  }`}
-                >
+                <h3 className="font-bold text-gray-900 text-lg">
                   Version History
                 </h3>
-                <p
-                  className={`text-gray-600 ${
-                    isMobile ? "text-base" : "text-sm"
-                  }`}
-                >
-                  {stats.totalVersions} total versions
+                <p className="text-gray-600 text-sm">
+                  {stats.totalVersions}{" "}
+                  {filterByType === "all" ? "total" : filterByType} versions
+                  {lastRefreshTime && (
+                    <span className="text-gray-400 ml-1">
+                      • {formatTimeAgo(lastRefreshTime)}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className={`hover:bg-white/80 rounded-lg ${
-                isMobile ? "h-10 w-10 p-0" : "h-9 w-9 p-0"
-              }`}
-            >
-              <X className={isMobile ? "h-5 w-5" : "h-5 w-5"} />
-            </Button>
+            <div className="flex items-center gap-1">
+              {/* Кнопка обновления */}
+              {onRefreshVersions && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRefreshVersions}
+                  disabled={isRefreshing || isLoading}
+                  className="hover:bg-white/80 rounded-lg h-9 w-9 p-0"
+                  title="Refresh versions"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                  />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="hover:bg-white/80 rounded-lg h-9 w-9 p-0"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
 
-          {/* Stats */}
-          <div
-            className={`grid grid-cols-3 gap-2 ${isMobile ? "mb-4" : "mb-4"}`}
-          >
+          {/* Tabs для фильтрации по типам */}
+          <div className="flex bg-white rounded-lg p-1 border border-gray-200 mb-4">
+            {[
+              {
+                key: "all" as const,
+                label: "All",
+                count: typeStats.all,
+                icon: History,
+              },
+              {
+                key: "document" as const,
+                label: "Doc",
+                count: typeStats.document,
+                icon: File,
+              },
+              {
+                key: "whiteboard" as const,
+                label: "Board",
+                count: typeStats.whiteboard,
+                icon: Palette,
+              },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setFilterByType(tab.key)}
+                className={`flex-1 py-2 px-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                  filterByType === tab.key
+                    ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                }`}
+              >
+                <tab.icon className="h-3.5 w-3.5" />
+                <span>{tab.label}</span>
+                {tab.count > 0 && (
+                  <span
+                    className={`px-1 py-0.5 text-xs rounded-full min-w-5 ${
+                      filterByType === tab.key
+                        ? "bg-indigo-200 text-indigo-800"
+                        : "bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Статистика */}
+          <div className="grid grid-cols-3 gap-2 mb-4">
             <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200/50">
               <div className="flex items-center gap-1.5 mb-1">
-                <Clock
-                  className={`text-blue-600 ${
-                    isMobile ? "h-4 w-4" : "h-3.5 w-3.5"
-                  }`}
-                />
-                <span
-                  className={`font-medium text-gray-600 ${
-                    isMobile ? "text-sm" : "text-xs"
-                  }`}
-                >
+                <Clock className="text-blue-600 h-3.5 w-3.5" />
+                <span className="font-medium text-gray-600 text-xs">
                   7 Days
                 </span>
               </div>
-              <div
-                className={`font-bold text-gray-900 ${
-                  isMobile ? "text-lg" : "text-xl"
-                }`}
-              >
+              <div className="font-bold text-gray-900 text-xl">
                 {stats.last7Days}
               </div>
             </div>
             <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200/50">
               <div className="flex items-center gap-1.5 mb-1">
-                <Users
-                  className={`text-purple-600 ${
-                    isMobile ? "h-4 w-4" : "h-3.5 w-3.5"
-                  }`}
-                />
-                <span
-                  className={`font-medium text-gray-600 ${
-                    isMobile ? "text-sm" : "text-xs"
-                  }`}
-                >
+                <Users className="text-purple-600 h-3.5 w-3.5" />
+                <span className="font-medium text-gray-600 text-xs">
                   Authors
                 </span>
               </div>
-              <div
-                className={`font-bold text-gray-900 ${
-                  isMobile ? "text-lg" : "text-xl"
-                }`}
-              >
+              <div className="font-bold text-gray-900 text-xl">
                 {stats.uniqueAuthors}
               </div>
             </div>
             <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200/50">
               <div className="flex items-center gap-1.5 mb-1">
-                <FileText
-                  className={`text-green-600 ${
-                    isMobile ? "h-4 w-4" : "h-3.5 w-3.5"
-                  }`}
-                />
-                <span
-                  className={`font-medium text-gray-600 ${
-                    isMobile ? "text-sm" : "text-xs"
-                  }`}
-                >
-                  Avg Size
+                <FileText className="text-green-600 h-3.5 w-3.5" />
+                <span className="font-medium text-gray-600 text-xs">
+                  {filterByType === "document"
+                    ? "Doc"
+                    : filterByType === "whiteboard"
+                    ? "Board"
+                    : "Avg"}{" "}
+                  Size
                 </span>
               </div>
-              <div
-                className={`font-bold text-gray-900 ${
-                  isMobile ? "text-sm" : "text-sm"
-                }`}
-              >
+              <div className="font-bold text-gray-900 text-sm">
                 {formatFileSize(stats.avgSize)}
               </div>
             </div>
           </div>
 
-          {/* Search and Filters */}
+          {/* Поиск и фильтры */}
           <div className="space-y-2">
             <div className="relative">
-              <Search
-                className={`absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 ${
-                  isMobile ? "h-5 w-5" : "h-4 w-4"
-                }`}
-              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder="Search versions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`bg-white border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 ${
-                  isMobile ? "pl-12 h-12 text-base" : "pl-9"
-                }`}
+                className="bg-white border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pl-9"
               />
             </div>
             <div className="flex gap-2">
@@ -506,13 +626,9 @@ export function VersionHistory({
                   variant="outline"
                   size="sm"
                   onClick={() => setFilterOpen(!filterOpen)}
-                  className={`w-full bg-white hover:bg-gray-50 ${
-                    isMobile ? "h-12 text-base" : ""
-                  }`}
+                  className="w-full bg-white hover:bg-gray-50"
                 >
-                  <Filter
-                    className={`${isMobile ? "h-5 w-5 mr-2" : "h-4 w-4 mr-2"}`}
-                  />
+                  <Filter className="h-4 w-4 mr-2" />
                   {filterByAuthor ? "Filtered" : "Filter"}
                 </Button>
                 {filterOpen && (
@@ -522,9 +638,7 @@ export function VersionHistory({
                         setFilterByAuthor("");
                         setFilterOpen(false);
                       }}
-                      className={`w-full px-4 py-2 text-left hover:bg-gray-50 ${
-                        isMobile ? "text-base" : "text-sm"
-                      }`}
+                      className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm"
                     >
                       All Authors
                     </button>
@@ -535,17 +649,11 @@ export function VersionHistory({
                           setFilterByAuthor(author.id);
                           setFilterOpen(false);
                         }}
-                        className={`w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 ${
-                          isMobile ? "text-base" : "text-sm"
-                        }`}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm"
                       >
-                        <Avatar
-                          className={`${isMobile ? "h-5 w-5" : "h-4 w-4"}`}
-                        >
+                        <Avatar className="h-4 w-4">
                           <AvatarImage src={author.image} />
-                          <AvatarFallback
-                            className={isMobile ? "text-xs" : "text-xs"}
-                          >
+                          <AvatarFallback className="text-xs">
                             {author.name?.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
@@ -555,71 +663,58 @@ export function VersionHistory({
                   </div>
                 )}
               </div>
-              {versions.length > 0 && (
+              {filteredVersions.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onRestoreVersion(versions[0])}
-                  className={`bg-white hover:bg-gray-50 ${
-                    isMobile ? "h-12 text-base flex-1" : "flex-1"
-                  }`}
+                  onClick={() => onRestoreVersion(filteredVersions[0])}
+                  className="bg-white hover:bg-gray-50 flex-1"
                 >
-                  <RotateCcw
-                    className={`${isMobile ? "h-5 w-5 mr-1" : "h-4 w-4 mr-1"}`}
-                  />
-                  {isMobile ? "Latest" : "Latest"}
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Latest
                 </Button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Versions List */}
+        {/* Список версий */}
         <div className="flex-1 overflow-y-auto bg-gray-50">
-          {versions.length === 0 ? (
-            <div
-              className={`text-center text-gray-500 ${
-                isMobile ? "py-20" : "py-12"
-              }`}
-            >
-              <History
-                className={`mx-auto mb-4 text-gray-300 ${
-                  isMobile ? "w-20 h-20" : "w-16 h-16"
-                }`}
-              />
-              <h3
-                className={`font-semibold mb-2 text-gray-800 ${
-                  isMobile ? "text-xl" : "text-lg"
-                }`}
-              >
-                No version history yet
+          {isLoading || isRefreshing ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-3 text-gray-500">
+                <RefreshCw className="h-5 w-5 animate-spin" />
+                <span>Loading versions...</span>
+              </div>
+            </div>
+          ) : currentVersions.length === 0 ? (
+            <div className="text-center text-gray-500 py-12">
+              <History className="mx-auto mb-4 text-gray-300 w-16 h-16" />
+              <h3 className="font-semibold mb-2 text-gray-800 text-lg">
+                No {filterByType !== "all" ? filterByType : ""} versions yet
               </h3>
-              <p
-                className={`text-gray-600 mb-4 max-w-sm mx-auto ${
-                  isMobile ? "text-base" : "text-sm"
-                }`}
-              >
-                Versions are automatically created when you make significant
-                changes.
+              <p className="text-gray-600 mb-4 max-w-sm mx-auto text-sm">
+                {filterByType === "all"
+                  ? "Save your document or whiteboard to create the first version."
+                  : `Save your ${filterByType} to create the first version.`}
               </p>
+              {onRefreshVersions && (
+                <Button
+                  onClick={handleRefreshVersions}
+                  variant="outline"
+                  size="sm"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+              )}
             </div>
           ) : filteredVersions.length === 0 ? (
-            <div
-              className={`text-center text-gray-500 ${
-                isMobile ? "py-16" : "py-8"
-              }`}
-            >
-              <Search
-                className={`mx-auto mb-4 text-gray-300 ${
-                  isMobile ? "w-16 h-16" : "w-12 h-12"
-                }`}
-              />
-              <p
-                className={`text-gray-600 mb-3 ${
-                  isMobile ? "text-base" : "text-sm"
-                }`}
-              >
-                No versions match your search
+            <div className="text-center text-gray-500 py-8">
+              <Search className="mx-auto mb-4 text-gray-300 w-12 h-12" />
+              <p className="text-gray-600 mb-3 text-sm">
+                No {filterByType !== "all" ? filterByType : ""} versions match
+                your search
               </p>
               <Button
                 variant="outline"
@@ -628,20 +723,15 @@ export function VersionHistory({
                   setSearchTerm("");
                   setFilterByAuthor("");
                 }}
-                className={isMobile ? "h-10 text-base px-4" : ""}
               >
                 Clear filters
               </Button>
             </div>
           ) : (
-            <div className={`space-y-4 ${isMobile ? "p-3" : "p-4"}`}>
+            <div className="space-y-4 p-4">
               {Object.entries(groupedVersions).map(([date, dayVersions]) => (
                 <div key={date}>
-                  <h4
-                    className={`font-bold text-gray-500 mb-2 uppercase tracking-wider sticky top-0 bg-gray-50 py-1.5 ${
-                      isMobile ? "text-sm" : "text-xs"
-                    }`}
-                  >
+                  <h4 className="font-bold text-gray-500 mb-2 uppercase tracking-wider sticky top-0 bg-gray-50 py-1.5 text-xs">
                     {date}
                   </h4>
                   <div className="space-y-3">
@@ -652,81 +742,58 @@ export function VersionHistory({
                           compareTarget?.id === version.id
                             ? "border-indigo-500 border-2"
                             : "border-gray-200 hover:border-indigo-300"
-                        } ${isMobile ? "p-4" : "p-4"}`}
+                        } p-4`}
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <h4
-                                className={`font-semibold text-gray-900 truncate ${
-                                  isMobile ? "text-base" : "text-sm"
-                                }`}
-                              >
+                              <h4 className="font-semibold text-gray-900 truncate text-sm">
                                 {version.name || `Version ${version.version}`}
                               </h4>
-                              {index === 0 && (
-                                <Badge
-                                  className={`text-white bg-green-500 ${
-                                    isMobile ? "text-sm px-2 py-1" : "text-xs"
-                                  }`}
-                                >
-                                  Latest
-                                </Badge>
-                              )}
+                              {index === 0 &&
+                                filteredVersions[0]?.id === version.id && (
+                                  <Badge className="text-white bg-green-500 text-xs">
+                                    Latest
+                                  </Badge>
+                                )}
+                              <Badge
+                                variant="outline"
+                                className={`${
+                                  version.type === "whiteboard"
+                                    ? "bg-purple-50 text-purple-700 border-purple-200"
+                                    : "bg-blue-50 text-blue-700 border-blue-200"
+                                } text-xs`}
+                              >
+                                {version.type === "whiteboard"
+                                  ? "Whiteboard"
+                                  : "Document"}
+                              </Badge>
                             </div>
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <Badge
                                 variant="outline"
-                                className={`font-mono bg-indigo-50 text-indigo-700 border-indigo-200 ${
-                                  isMobile ? "text-sm px-2 py-1" : "text-xs"
-                                }`}
+                                className="font-mono bg-indigo-50 text-indigo-700 border-indigo-200 text-xs"
                               >
                                 v{version.version}
                               </Badge>
-                              <Badge
-                                variant="outline"
-                                className={`bg-purple-50 text-purple-700 border-purple-200 ${
-                                  isMobile ? "text-sm px-2 py-1" : "text-xs"
-                                }`}
-                              >
-                                JSON
-                              </Badge>
-                              <span
-                                className={`text-gray-500 ${
-                                  isMobile ? "text-sm" : "text-xs"
-                                }`}
-                              >
+                              <span className="text-gray-500 text-xs">
                                 {formatFileSize(version.content?.length || 0)}
                               </span>
                             </div>
                             {version.description && (
-                              <p
-                                className={`text-gray-600 line-clamp-2 mb-2 ${
-                                  isMobile ? "text-base" : "text-xs"
-                                }`}
-                              >
+                              <p className="text-gray-600 line-clamp-2 mb-2 text-xs">
                                 {version.description}
                               </p>
                             )}
                           </div>
                         </div>
 
-                        {/* Author and Date */}
-                        <div
-                          className={`flex items-center gap-3 text-gray-500 mb-3 flex-wrap ${
-                            isMobile ? "text-sm" : "text-xs"
-                          }`}
-                        >
+                        {/* Автор и дата */}
+                        <div className="flex items-center gap-3 text-gray-500 mb-3 flex-wrap text-xs">
                           <div className="flex items-center gap-1.5">
-                            <Avatar
-                              className={isMobile ? "h-6 w-6" : "h-5 w-5"}
-                            >
+                            <Avatar className="h-5 w-5">
                               <AvatarImage src={version.author.image} />
-                              <AvatarFallback
-                                className={`bg-indigo-100 text-indigo-700 ${
-                                  isMobile ? "text-xs" : "text-[10px]"
-                                }`}
-                              >
+                              <AvatarFallback className="bg-indigo-100 text-indigo-700 text-[10px]">
                                 {version.author.name
                                   ?.charAt(0)
                                   ?.toUpperCase() || "U"}
@@ -744,7 +811,7 @@ export function VersionHistory({
 
                         <VersionDiffPreview version={version} />
 
-                        {/* Actions */}
+                        {/* Действия */}
                         <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
                           <Button
                             variant="ghost"
@@ -758,24 +825,12 @@ export function VersionHistory({
                                   : version.id
                               );
                             }}
-                            className={`text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 ${
-                              isMobile
-                                ? "h-10 text-base px-4"
-                                : "h-8 text-xs px-3"
-                            }`}
+                            className="text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 h-8 text-xs px-3"
                           >
                             {expandedVersion === version.id ? (
-                              <ChevronUp
-                                className={`${
-                                  isMobile ? "h-5 w-5 mr-1" : "h-3.5 w-3.5 mr-1"
-                                }`}
-                              />
+                              <ChevronUp className="h-3.5 w-3.5 mr-1" />
                             ) : (
-                              <ChevronDown
-                                className={`${
-                                  isMobile ? "h-5 w-5 mr-1" : "h-3.5 w-3.5 mr-1"
-                                }`}
-                              />
+                              <ChevronDown className="h-3.5 w-3.5 mr-1" />
                             )}
                             {expandedVersion === version.id ? "Hide" : "Show"}{" "}
                             Details
@@ -787,39 +842,25 @@ export function VersionHistory({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className={`p-0 opacity-60 hover:opacity-100 ${
-                                    isMobile ? "h-10 w-10" : "h-8 w-8"
-                                  }`}
+                                  className="p-0 opacity-60 hover:opacity-100 h-8 w-8"
                                 >
-                                  <MoreVertical
-                                    className={isMobile ? "h-5 w-5" : "h-4 w-4"}
-                                  />
+                                  <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
-                                className={
-                                  isMobile ? "w-56 text-base" : "w-48 text-sm"
-                                }
+                                className="w-48 text-sm"
                               >
                                 <DropdownMenuItem
                                   onClick={() => downloadVersion(version)}
                                 >
-                                  <Download
-                                    className={`${
-                                      isMobile ? "h-5 w-5 mr-3" : "h-4 w-4 mr-2"
-                                    }`}
-                                  />
+                                  <Download className="h-4 w-4 mr-2" />
                                   Download as JSON
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => copyVersionAsJSON(version)}
                                 >
-                                  <Copy
-                                    className={`${
-                                      isMobile ? "h-5 w-5 mr-3" : "h-4 w-4 mr-2"
-                                    }`}
-                                  />
+                                  <Copy className="h-4 w-4 mr-2" />
                                   Copy as JSON
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
@@ -827,11 +868,7 @@ export function VersionHistory({
                                     copyToClipboard(version.content)
                                   }
                                 >
-                                  <Copy
-                                    className={`${
-                                      isMobile ? "h-5 w-5 mr-3" : "h-4 w-4 mr-2"
-                                    }`}
-                                  />
+                                  <Copy className="h-4 w-4 mr-2" />
                                   Copy Content Only
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
@@ -847,11 +884,7 @@ export function VersionHistory({
                                     }
                                   }}
                                 >
-                                  <GitCompare
-                                    className={`${
-                                      isMobile ? "h-5 w-5 mr-3" : "h-4 w-4 mr-2"
-                                    }`}
-                                  />
+                                  <GitCompare className="h-4 w-4 mr-2" />
                                   {compareTarget &&
                                   compareTarget.id !== version.id
                                     ? "Compare with selected"
@@ -863,34 +896,13 @@ export function VersionHistory({
                             </DropdownMenu>
 
                             <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => downloadVersion(version)}
-                              className={`hover:bg-gray-100 ${
-                                isMobile ? "h-10 w-10 p-0" : "h-8 w-8 p-0"
-                              }`}
-                              title="Download version as JSON"
-                            >
-                              <Download
-                                className={isMobile ? "h-5 w-5" : "h-4 w-4"}
-                              />
-                            </Button>
-                            <Button
                               variant="outline"
                               size="sm"
                               onClick={() => onRestoreVersion(version)}
-                              className={`${
-                                isMobile
-                                  ? "h-10 text-base px-4"
-                                  : "h-8 text-xs px-3"
-                              }`}
+                              className="h-8 text-xs px-3"
                             >
-                              <Eye
-                                className={`${
-                                  isMobile ? "h-5 w-5 mr-2" : "h-3.5 w-3.5 mr-1"
-                                }`}
-                              />
-                              {isMobile ? "View" : "Restore"}
+                              <Eye className="h-3.5 w-3.5 mr-1" />
+                              Restore
                             </Button>
                           </div>
                         </div>
@@ -904,19 +916,11 @@ export function VersionHistory({
         </div>
 
         {/* Footer */}
-        <div
-          className={`border-t bg-linear-to-r from-gray-50 to-white shrink-0 ${
-            isMobile ? "p-4" : "p-4"
-          }`}
-        >
+        <div className="border-t bg-linear-to-r from-gray-50 to-white shrink-0 p-4">
           {compareTarget && (
             <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center justify-between">
-                <div
-                  className={`text-blue-800 ${
-                    isMobile ? "text-base" : "text-sm"
-                  }`}
-                >
+                <div className="text-blue-800 text-sm">
                   <strong>Selected for comparison:</strong>{" "}
                   {compareTarget.name || `Version ${compareTarget.version}`}
                 </div>
@@ -924,28 +928,19 @@ export function VersionHistory({
                   variant="ghost"
                   size="sm"
                   onClick={() => setCompareTarget(null)}
-                  className={`p-0 text-blue-800 hover:text-blue-900 ${
-                    isMobile ? "h-8 w-8" : "h-6 w-6"
-                  }`}
+                  className="p-0 text-blue-800 hover:text-blue-900 h-6 w-6"
                 >
-                  <X className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
+                  <X className="h-3 w-3" />
                 </Button>
               </div>
-              <p
-                className={`text-blue-600 mt-1 ${
-                  isMobile ? "text-sm" : "text-xs"
-                }`}
-              >
+              <p className="text-blue-600 mt-1 text-xs">
                 Select another version to compare
               </p>
             </div>
           )}
-          <div
-            className={`text-gray-600 space-y-1 text-center ${
-              isMobile ? "text-sm" : "text-xs"
-            }`}
-          >
-            <p>💡 Auto-saved on significant changes</p>
+          <div className="text-gray-600 space-y-1 text-center text-xs">
+            <p>💡 Click "Save" to create new versions</p>
+            <p>🔄 Click refresh button to update the list</p>
             <p>⏰ Press ESC to close</p>
           </div>
         </div>

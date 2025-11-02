@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ fileId: string }> } // ДОБАВЬТЕ Promise<>
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const { getUser } = getKindeServerSession();
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { fileId } = await params; // ДОБАВЬТЕ AWAIT И ДЕСТРУКТУРИЗАЦИЮ
+    const { fileId } = await params;
 
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email },
@@ -77,7 +77,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ fileId: string }> } // ДОБАВЬТЕ Promise<>
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const { getUser } = getKindeServerSession();
@@ -87,8 +87,18 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { fileId } = await params; // ДОБАВЬТЕ AWAIT И ДЕСТРУКТУРИЗАЦИЮ
-    const { name, description, content } = await request.json();
+    const { fileId } = await params;
+    const {
+      name,
+      description,
+      content,
+      type = "document",
+    } = await request.json();
+
+    console.log(`🎯 Creating ${type} version for file ${fileId}`, {
+      contentLength: content?.length,
+      name,
+    });
 
     if (!content) {
       return NextResponse.json(
@@ -126,45 +136,92 @@ export async function POST(
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    // Получаем последнюю версию
-    const lastVersion = await prisma.documentVersion.findFirst({
-      where: { fileId },
-      orderBy: { version: "desc" },
-    });
+    // Используем транзакцию для атомарного получения последней версии и создания новой
+    const result = await prisma.$transaction(async (tx) => {
+      // Получаем последнюю версию с блокировкой для предотвращения race condition
+      const lastVersion = await tx.documentVersion.findFirst({
+        where: {
+          fileId,
+          type,
+        },
+        orderBy: { version: "desc" },
+        select: { version: true },
+      });
 
-    const newVersionNumber = (lastVersion?.version || 0) + 1;
+      const newVersionNumber = (lastVersion?.version || 0) + 1;
 
-    // Создаем новую версию
-    const newVersion = await prisma.documentVersion.create({
-      data: {
-        version: newVersionNumber,
-        name: name || `Version ${newVersionNumber}`,
-        description: description || "",
-        content: content,
-        fileId: fileId,
-        authorId: dbUser.id,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
+      console.log(
+        `📝 Creating ${type} version ${newVersionNumber} for file ${fileId}`
+      );
+
+      // Проверяем, не существует ли уже такая версия (на случай race condition)
+      const existingVersion = await tx.documentVersion.findUnique({
+        where: {
+          fileId_type_version: {
+            fileId,
+            type,
+            version: newVersionNumber,
           },
         },
-      },
+      });
+
+      if (existingVersion) {
+        console.error(
+          `❌ Version ${newVersionNumber} already exists for ${type} in file ${fileId}`
+        );
+        throw new Error(
+          `Version ${newVersionNumber} already exists for ${type}`
+        );
+      }
+
+      // Создаем новую версию
+      const newVersion = await tx.documentVersion.create({
+        data: {
+          version: newVersionNumber,
+          name:
+            name ||
+            `${
+              type === "whiteboard" ? "Whiteboard" : "Document"
+            } Version ${newVersionNumber}`,
+          description: description || "",
+          content: content,
+          type: type,
+          fileId: fileId,
+          authorId: dbUser.id,
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      console.log(
+        `✅ Successfully created ${type} version ${newVersionNumber}`
+      );
+      return newVersion;
     });
 
-    return NextResponse.json(newVersion);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("Error creating version:", error);
+    console.error("❌ Error creating version:", error);
 
-    if (error instanceof Error && "code" in error && error.code === "P2002") {
-      return NextResponse.json(
-        { error: "Version already exists. Please try again." },
-        { status: 400 }
-      );
+    if (error instanceof Error) {
+      if ("code" in error && error.code === "P2002") {
+        return NextResponse.json(
+          { error: "Version already exists. Please try again." },
+          { status: 400 }
+        );
+      }
+
+      if (error.message.includes("already exists")) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
     }
 
     return NextResponse.json(
