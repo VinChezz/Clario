@@ -12,6 +12,7 @@ import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import { WindowControlsPopover } from "../window-controls/WindowControlsPopover";
 import ShareButton from "../share-button/ShareButton";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { toast } from "sonner";
 
 interface WorkspaceHeaderProps {
   file?: FILE;
@@ -36,6 +37,7 @@ export default function WorkspaceHeader({
   const [permissions, setPermissions] = useState<"ADMIN" | "VIEW" | "EDIT">(
     "VIEW"
   );
+  const [isSaving, setIsSaving] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -65,12 +67,20 @@ export default function WorkspaceHeader({
 
   const canEdit = permissions === "ADMIN" || permissions === "EDIT";
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canEdit) {
-      console.log("❌ No permission to save");
+      toast.error("No permission to save");
       return;
     }
-    onSave();
+
+    setIsSaving(true);
+    try {
+      await onSave();
+    } catch (error) {
+      console.error("Error saving:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const hasWindowControls = onWindowModeChange && onActiveComponentChange;
@@ -94,16 +104,19 @@ export default function WorkspaceHeader({
       </div>
       <div className="flex items-center gap-2 sm:gap-4">
         <Button
-          className="h-8 sm:h-8 text-[10px] sm:text-[12px] gap-1 sm:gap-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="h-8 sm:h-8 text-[10px] sm:text-[12px] gap-1 sm:gap-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
           onClick={handleSave}
-          disabled={!canEdit}
+          disabled={!canEdit || isSaving}
         >
           <Save className="h-3 w-3 sm:h-4 sm:w-4" />
-          <span className="hidden sm:inline">Save</span>
+          <span className="hidden sm:inline">
+            {isSaving ? "Saving..." : "Save"}
+          </span>
           {!canEdit && (
             <span className="text-xs hidden sm:inline">(No permission)</span>
           )}
         </Button>
+
         <ShareButton
           fileId={file?.id || ""}
           fileName={file?.fileName || "Untitled"}

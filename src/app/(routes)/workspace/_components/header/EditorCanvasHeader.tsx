@@ -1,6 +1,7 @@
 import { MessageCircleMore } from "lucide-react";
 import { PresenceIndicator } from "../PresenceIndicator";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { Badge } from "@/components/ui/badge";
 
 interface EditorCanvasHeaderProps {
   permissions: "ADMIN" | "VIEW" | "EDIT";
@@ -15,6 +16,7 @@ interface EditorCanvasHeaderProps {
   windowMode?: "split" | "fullscreen";
   activeComponent?: "editor" | "canvas" | "both";
   commentsCount?: number;
+  hasUnsavedChanges?: boolean;
 }
 
 export function EditorCanvasHeader({
@@ -30,6 +32,7 @@ export function EditorCanvasHeader({
   windowMode = "split",
   activeComponent = "editor",
   commentsCount = 0,
+  hasUnsavedChanges = false,
 }: EditorCanvasHeaderProps) {
   const isMobile = useIsMobile();
   const fileTypeLabels = {
@@ -45,10 +48,29 @@ export function EditorCanvasHeader({
   const isFullscreen = windowMode === "fullscreen";
   const showAllElements = isFullscreen;
 
-  const showVersionsButton = !(
-    fileType === "whiteboard" && windowMode === "split"
-  );
+  const showVersionsButton =
+    fileType === "document" ||
+    (fileType === "whiteboard" && windowMode === "fullscreen") ||
+    (fileType === "whiteboard" &&
+      windowMode === "split" &&
+      versions.length > 0);
+
   const showCommentsButton = onToggleCommentSidebar !== undefined;
+
+  const getActiveComponentLabel = () => {
+    if (windowMode === "split") {
+      return fileTypeLabels[fileType];
+    } else {
+      // fullscreen режим
+      if (activeComponent === "editor") {
+        return "Document (Fullscreen)";
+      } else if (activeComponent === "canvas") {
+        return "Whiteboard (Fullscreen)";
+      } else {
+        return fileTypeLabels[fileType];
+      }
+    }
+  };
 
   return (
     <div className="flex items-center justify-between bg-white border-b border-gray-200 px-3 sm:px-4 py-2 sm:py-3 h-14 sm:h-16">
@@ -62,16 +84,19 @@ export function EditorCanvasHeader({
               </span>
             </p>
           ) : (
-            <span className="text-xs sm:text-sm">
-              {isMobile ? "Manual save" : "Manual save available"} •{" "}
-              {isFullscreen
-                ? `${isMobile ? "" : fileTypeLabels[fileType]} (${
-                    activeComponent === "editor"
-                      ? "Fullscreen"
-                      : "Fullscreen Canvas"
-                  })`
-                : fileTypeLabels[fileType]}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm">
+                {getActiveComponentLabel()}
+              </span>
+              {hasUnsavedChanges && (
+                <Badge
+                  variant="outline"
+                  className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs"
+                >
+                  Unsaved
+                </Badge>
+              )}
+            </div>
           )}
         </span>
       </div>
