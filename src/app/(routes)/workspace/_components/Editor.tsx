@@ -57,7 +57,6 @@ export const generateUserColor = (userId: string): string => {
 interface EditorProps {
   fileId: string;
   fileData: FILE | null;
-  onSaveTrigger: number;
   onSaveSuccess?: () => void;
   onVersionRestore?: (content: string, type: "document" | "whiteboard") => void;
   windowMode: WindowMode;
@@ -66,12 +65,12 @@ interface EditorProps {
   onActiveComponentChange: (component: ActiveComponent) => void;
   currentComponent: "editor" | "canvas" | "both";
   isFullscreen?: boolean;
+  onSaveHandlerChange?: (handler: () => Promise<void>) => void;
 }
 
 export default function Editor({
   fileId,
   fileData,
-  onSaveTrigger,
   onSaveSuccess,
   onVersionRestore,
   isFullscreen,
@@ -80,6 +79,7 @@ export default function Editor({
   onActiveComponentChange,
   onWindowModeChange,
   windowMode,
+  onSaveHandlerChange,
 }: EditorProps) {
   const [editorData, setEditorData] = useState<any>(null);
   const { activeTeam } = useActiveTeam();
@@ -146,9 +146,6 @@ export default function Editor({
     fetchVersions,
     createManualVersion,
     restoreVersion,
-    hasSignificantChanges,
-    lastContent,
-    autoVersioning,
     isLoading: versionsLoading,
   } = versionManager;
 
@@ -215,7 +212,6 @@ export default function Editor({
             "✅ Using saved document data with blocks:",
             parsedData.blocks.length
           );
-          lastContent.current = fileData.document;
         } else {
           console.warn("⚠️ No blocks in saved data, using default");
           initialData = rawDocument;
@@ -335,51 +331,67 @@ export default function Editor({
     [isConnected, currentUser, permissions, sendContentUpdate]
   );
 
-  const checkAndCreateAutoVersion = useCallback(
-    async (content: string) => {
-      if (!autoVersioning) return;
-
-      try {
-        if (hasSignificantChanges(content, lastContent.current)) {
-          console.log("🎯 Significant changes detected, creating auto-version");
-
-          await createManualVersion({
-            name: `Auto-save ${new Date().toLocaleString()}`,
-            description:
-              "Automatically created version after significant changes",
-            content: content,
-            type: "document",
-          });
-
-          lastContent.current = content;
-        }
-      } catch (error) {
-        console.error("❌ Failed to create auto-version:", error);
-      }
-    },
-    [createManualVersion, autoVersioning, hasSignificantChanges]
-  );
-
-  const handleManualSave = useCallback(async () => {
+  const handleEditorSave = useCallback(async () => {
     if (!editorRef.current || isSaving.current) {
       console.log("❌ Editor not ready or already saving, skipping save");
       return;
     }
 
     isSaving.current = true;
-    console.log("💾 Starting manual save process...");
+    console.log("💾 Editor manual save triggered...");
 
     try {
       const outputData = await editorRef.current.save();
       console.log("📦 Data to save:", outputData);
 
+      // Проверяем есть ли контент для сохранения
       if (!outputData.blocks || outputData.blocks.length === 0) {
         console.log("⚠️ No content to save");
-        toast.info("No content to save");
+        toast.info("No content to save in document");
         return;
       }
 
       const contentString = JSON.stringify(outputData);
+
+      // Проверяем изменения
+      const currentContent = fileData?.document;
+      let hasChanges = true;
+
+      if (currentContent && currentContent !== '""') {
+        try {
+          const currentData = JSON.parse(currentContent);
+          const newData = outputData;
+
+          // Сравниваем по текстовому содержимому и структуре блоков
+          const currentText = currentData.blocks
+            ?.map((block: any) => block.data?.text || "")
+            .join("")
+            .trim();
+          const newText = newData.blocks
+            ?.map((block: any) => block.data?.text || "")
+            .join("")
+            .trim();
+
+          const currentBlocks = JSON.stringify(currentData.blocks);
+          const newBlocks = JSON.stringify(newData.blocks);
+
+          // Если текст и структура блоков одинаковые - изменений нет
+          if (currentText === newText && currentBlocks === newBlocks) {
+            console.log(
+              "🔄 No changes detected in document, skipping version creation"
+            );
+            hasChanges = false;
+            toast.info("No changes to save in document");
+          }
+        } catch (e) {
+          console.log("⚠️ Could not compare content, creating version anyway");
+        }
+      }
+
+      // Если нет изменений, выходим
+      if (!hasChanges) {
+        return;
+      }
 
       console.log("🔄 Saving document to API...");
       const res = await fetch(`/api/files/${fileId}`, {
@@ -403,18 +415,19 @@ export default function Editor({
 
       try {
         await createManualVersion({
-          name: `Manual save ${new Date().toLocaleString()}`,
-          description: "Manually created version",
+          name: `Document - ${new Date().toLocaleString()}`,
+          description: "Manually saved version",
           content: contentString,
           type: "document",
         });
+
+        await fetchVersions();
+
         toast.success("Document saved with new version!");
       } catch (versionError) {
         console.error("⚠️ Version creation failed:", versionError);
         toast.success("Document saved! (Version creation failed)");
       }
-
-      lastContent.current = contentString;
 
       if (onSaveSuccess) {
         console.log("🔄 Triggering data refresh...");
@@ -429,26 +442,13 @@ export default function Editor({
       isSaving.current = false;
       console.log("🏁 Save process finished");
     }
-  }, [fileId, onSaveSuccess, createManualVersion]);
+  }, [fileId, onSaveSuccess, createManualVersion, fileData]);
 
   useEffect(() => {
-    console.log("🎯 Save triggered, initialized:", isInitialized.current);
-
-    if (!isInitialized.current) {
-      console.log(
-        "⏳ Editor not initialized yet, save will be triggered after init"
-      );
-      return;
+    if (onSaveHandlerChange) {
+      onSaveHandlerChange(handleEditorSave);
     }
-
-    handleManualSave();
-  }, [onSaveTrigger, handleManualSave]);
-
-  useEffect(() => {
-    if (showVersionHistory) {
-      fetchVersions();
-    }
-  }, [showVersionHistory, fetchVersions]);
+  }, [handleEditorSave, onSaveHandlerChange]);
 
   const handleRestoreVersion = useCallback(
     async (version: any) => {
@@ -752,11 +752,6 @@ export default function Editor({
                 updateLightPresence("EDITING");
 
                 sendContentUpdateThrottled(outputData);
-
-                if (autoVersioning) {
-                  const contentString = JSON.stringify(outputData);
-                  await checkAndCreateAutoVersion(contentString);
-                }
               } catch (error) {
                 console.error("❌ Error in editor onChange:", error);
               }
@@ -799,8 +794,6 @@ export default function Editor({
     permissions,
     sendContentUpdateThrottled,
     updatePresence,
-    checkAndCreateAutoVersion,
-    autoVersioning,
   ]);
 
   const handleEditorMouseMove = useCallback(
@@ -1009,6 +1002,7 @@ export default function Editor({
             onRestoreVersion={handleRestoreVersion}
             onClose={() => setShowVersionHistory(false)}
             isLoading={versionsLoading}
+            onRefreshVersions={fetchVersions}
           />
         </div>
       )}

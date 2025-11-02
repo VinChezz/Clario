@@ -26,21 +26,28 @@ export default function WorkspacePage() {
   const fileId = params.fieldId as string;
 
   const [fileData, setFileData] = useState<FILE | null>(null);
-  const [triggerSave, setTriggerSave] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [windowMode, setWindowMode] = useState<WindowMode>(
-    isMobile ? "fullscreen" : "fullscreen"
-  );
-  const [activeComponent, setActiveComponent] = useState<ActiveComponent>(
-    isMobile ? "editor" : "editor"
-  );
+  const [windowMode, setWindowMode] = useState<WindowMode>("split");
+  const [activeComponent, setActiveComponent] =
+    useState<ActiveComponent>("both");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [editorSaveHandler, setEditorSaveHandler] = useState<
+    (() => Promise<void>) | null
+  >(null);
+  const [canvasSaveHandler, setCanvasSaveHandler] = useState<
+    (() => Promise<void>) | null
+  >(null);
 
   const [dividerPercent, setDividerPercent] = useState<number>(50);
   const [isDragging, setIsDragging] = useState(false);
   const splitRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
+
+  const [isEditorReady, setIsEditorReady] = useState(false);
+  const [isCanvasReady, setIsCanvasReady] = useState(false);
 
   useEffect(() => {
     if (isMobile) {
@@ -63,14 +70,12 @@ export default function WorkspacePage() {
     draggingRef.current = true;
     setIsDragging(true);
     document.body.style.cursor = "col-resize";
-    // УБИРАЕМ userSelect: 'none' - это основная проблема!
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
     draggingRef.current = false;
     document.body.style.cursor = "default";
-    // УБИРАЕМ сброс userSelect - это ломает скролл!
     window.dispatchEvent(new Event("resize"));
     setTimeout(() => window.dispatchEvent(new Event("resize")), 50);
   };
@@ -191,6 +196,128 @@ export default function WorkspacePage() {
     fetchFileData();
   }, [fileId]);
 
+  const handleSave = useCallback(async () => {
+    if (isSaving) {
+      console.log("🔄 Save already in progress, skipping...");
+      return;
+    }
+
+    setIsSaving(true);
+
+    const saveToast = toast.loading("Saving...", {
+      duration: Infinity,
+    });
+
+    console.log("💾 Workspace save triggered", {
+      windowMode,
+      activeComponent,
+      editorSaveHandler: !!editorSaveHandler,
+      canvasSaveHandler: !!canvasSaveHandler,
+    });
+
+    try {
+      const saveResults = {
+        editor: { success: false, message: "" },
+        canvas: { success: false, message: "" },
+      };
+
+      if (windowMode === "split") {
+        if (editorSaveHandler && canvasSaveHandler) {
+          const [editorResult, canvasResult] = await Promise.allSettled([
+            editorSaveHandler(),
+            canvasSaveHandler(),
+          ]);
+
+          if (editorResult.status === "fulfilled") {
+            saveResults.editor = { success: true, message: "Document saved" };
+          } else {
+            saveResults.editor = {
+              success: false,
+              message: "Document save failed",
+            };
+            console.error("❌ Editor save failed:", editorResult.reason);
+          }
+
+          if (canvasResult.status === "fulfilled") {
+            saveResults.canvas = { success: true, message: "Whiteboard saved" };
+          } else {
+            saveResults.canvas = {
+              success: false,
+              message: "Whiteboard save failed",
+            };
+            console.error("❌ Canvas save failed:", canvasResult.reason);
+          }
+
+          const successCount = [saveResults.editor, saveResults.canvas].filter(
+            (r) => r.success
+          ).length;
+
+          if (successCount === 2) {
+            toast.success("Document and whiteboard saved successfully!", {
+              id: saveToast,
+            });
+          } else if (successCount === 1) {
+            const successfulComponent = saveResults.editor.success
+              ? "Document"
+              : "Whiteboard";
+            const failedComponent = saveResults.editor.success
+              ? "Whiteboard"
+              : "Document";
+            toast.warning(
+              `${successfulComponent} saved, but ${failedComponent} failed`,
+              { id: saveToast }
+            );
+          } else {
+            toast.error("Both document and whiteboard failed to save", {
+              id: saveToast,
+            });
+          }
+        } else {
+          toast.error("Save handlers not ready", { id: saveToast });
+        }
+      } else if (windowMode === "fullscreen") {
+        if (activeComponent === "editor" && editorSaveHandler) {
+          await editorSaveHandler();
+          toast.success("Document saved successfully!", { id: saveToast });
+        } else if (activeComponent === "canvas" && canvasSaveHandler) {
+          await canvasSaveHandler();
+          toast.success("Whiteboard saved successfully!", { id: saveToast });
+        } else {
+          toast.error("Save handler not ready", { id: saveToast });
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error saving components:", error);
+      toast.error("Failed to save", { id: saveToast });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    windowMode,
+    activeComponent,
+    editorSaveHandler,
+    canvasSaveHandler,
+    isSaving,
+  ]);
+
+  const handleEditorSaveHandlerChange = useCallback(
+    (handler: () => Promise<void>) => {
+      console.log("✅ Editor save handler registered");
+      setEditorSaveHandler(() => handler);
+      setIsEditorReady(true);
+    },
+    []
+  );
+
+  const handleCanvasSaveHandlerChange = useCallback(
+    (handler: () => Promise<void>) => {
+      console.log("✅ Canvas save handler registered");
+      setCanvasSaveHandler(() => handler);
+      setIsCanvasReady(true);
+    },
+    []
+  );
+
   if (!fileId || isLoading) return <LogoClarioLoader />;
 
   if (error)
@@ -219,12 +346,12 @@ export default function WorkspacePage() {
     <div className="h-screen flex flex-col overflow-hidden">
       <WorkspaceHeader
         file={fileData}
-        onSave={() => setTriggerSave((prev) => prev + 1)}
+        onSave={handleSave}
         windowMode={windowMode}
         activeComponent={activeComponent}
-        onWindowModeChange={handleWindowModeChange}
-        onActiveComponentChange={handleActiveComponentChange}
-        currentComponent={activeComponent}
+        onWindowModeChange={setWindowMode}
+        onActiveComponentChange={setActiveComponent}
+        currentComponent="both"
       />
 
       {windowMode === "split" ? (
@@ -237,16 +364,17 @@ export default function WorkspacePage() {
             style={{ flexBasis: `${dividerPercent}%` }}
           >
             <Editor
-              onSaveTrigger={triggerSave}
               fileId={fileId}
               fileData={fileData}
               onSaveSuccess={handleSaveSuccess}
               onVersionRestore={handleVersionRestore}
-              windowMode="split"
-              activeComponent="both"
+              windowMode={windowMode}
+              activeComponent={activeComponent}
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
-              currentComponent="editor"
+              currentComponent="both"
+              isFullscreen={false}
+              onSaveHandlerChange={handleEditorSaveHandlerChange}
             />
           </div>
 
@@ -261,15 +389,17 @@ export default function WorkspacePage() {
             style={{ flexBasis: `${100 - dividerPercent}%` }}
           >
             <Canvas
-              onSaveTrigger={triggerSave}
               fileId={fileId}
               fileData={fileData}
               onVersionRestore={handleVersionRestore}
-              windowMode="split"
-              activeComponent="both"
+              windowMode={windowMode}
+              activeComponent={activeComponent}
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
-              currentComponent="canvas"
+              currentComponent="both"
+              isFullscreen={false}
+              onSaveHandlerChange={handleCanvasSaveHandlerChange}
+              onSaveSuccess={handleSaveSuccess}
             />
           </div>
         </div>
@@ -277,7 +407,6 @@ export default function WorkspacePage() {
         <div className="flex-1 overflow-hidden">
           {activeComponent === "editor" ? (
             <Editor
-              onSaveTrigger={triggerSave}
               fileId={fileId}
               fileData={fileData}
               onSaveSuccess={handleSaveSuccess}
@@ -287,11 +416,11 @@ export default function WorkspacePage() {
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
               currentComponent="editor"
-              isFullscreen
+              isFullscreen={true}
+              onSaveHandlerChange={handleEditorSaveHandlerChange}
             />
           ) : (
             <Canvas
-              onSaveTrigger={triggerSave}
               fileId={fileId}
               fileData={fileData}
               onVersionRestore={handleVersionRestore}
@@ -300,7 +429,9 @@ export default function WorkspacePage() {
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
               currentComponent="canvas"
-              isFullscreen
+              isFullscreen={true}
+              onSaveHandlerChange={handleCanvasSaveHandlerChange}
+              onSaveSuccess={handleSaveSuccess}
             />
           )}
         </div>
