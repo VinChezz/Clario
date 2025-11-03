@@ -1,3 +1,5 @@
+"use client";
+
 import { MessageCircleMore } from "lucide-react";
 import { PresenceIndicator } from "../PresenceIndicator";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -12,9 +14,10 @@ interface EditorCanvasHeaderProps {
   onToggleVersionHistory: () => void;
   onToggleCommentSidebar?: () => void;
   showCommentSidebar?: boolean;
-  fetchVersions: () => void;
+  fetchVersions?: () => void;
   windowMode?: "split" | "fullscreen";
   activeComponent?: "editor" | "canvas" | "both";
+  currentComponent?: "editor" | "canvas" | "both";
   commentsCount?: number;
   hasUnsavedChanges?: boolean;
 }
@@ -31,6 +34,7 @@ export function EditorCanvasHeader({
   fetchVersions,
   windowMode = "split",
   activeComponent = "editor",
+  currentComponent = "editor",
   commentsCount = 0,
   hasUnsavedChanges = false,
 }: EditorCanvasHeaderProps) {
@@ -42,18 +46,19 @@ export function EditorCanvasHeader({
 
   const handleVersionClick = () => {
     onToggleVersionHistory();
-    fetchVersions();
+    if (fetchVersions) {
+      fetchVersions();
+    }
   };
 
   const isFullscreen = windowMode === "fullscreen";
   const showAllElements = isFullscreen;
 
   const showVersionsButton =
-    fileType === "document" ||
-    (fileType === "whiteboard" && windowMode === "fullscreen") ||
-    (fileType === "whiteboard" &&
-      windowMode === "split" &&
-      versions.length > 0);
+    (windowMode === "split" && fileType === "document") ||
+    (windowMode === "fullscreen" &&
+      ((fileType === "document" && activeComponent === "editor") ||
+        (fileType === "whiteboard" && activeComponent === "canvas")));
 
   const showCommentsButton = onToggleCommentSidebar !== undefined;
 
@@ -61,7 +66,6 @@ export function EditorCanvasHeader({
     if (windowMode === "split") {
       return fileTypeLabels[fileType];
     } else {
-      // fullscreen режим
       if (activeComponent === "editor") {
         return "Document (Fullscreen)";
       } else if (activeComponent === "canvas") {
@@ -115,11 +119,12 @@ export function EditorCanvasHeader({
             )}
           </button>
         )}
+
         {showVersionsButton && (
           <button
             onClick={handleVersionClick}
             className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-10"
-            disabled={versionsLoading}
+            disabled={versionsLoading || !fetchVersions}
           >
             <svg
               className="w-3 h-3 sm:w-4 sm:h-4"
@@ -142,6 +147,7 @@ export function EditorCanvasHeader({
             )}
           </button>
         )}
+
         {(showAllElements || fileType === "whiteboard") && (
           <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 bg-white border border-gray-300 rounded-lg shadow-sm h-8 sm:h-10">
             <div className="flex items-center gap-1 sm:gap-1.5">

@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 interface WorkspaceHeaderProps {
   file?: FILE;
-  onSave: () => void;
+  onSave: () => Promise<{ editor: boolean; canvas: boolean }>;
   windowMode: WindowMode;
   activeComponent: ActiveComponent;
   onWindowModeChange?: (mode: WindowMode) => void;
@@ -75,9 +75,14 @@ export default function WorkspaceHeader({
 
     setIsSaving(true);
     try {
-      await onSave();
+      const results = await onSave();
+
+      if (results.editor || results.canvas) {
+        toast.success("Changes saved");
+      }
     } catch (error) {
       console.error("Error saving:", error);
+      toast.error("Failed to save");
     } finally {
       setIsSaving(false);
     }

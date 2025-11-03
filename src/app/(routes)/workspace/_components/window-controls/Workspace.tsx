@@ -30,7 +30,6 @@ export default function Workspace({
     isMobile ? "editor" : "editor"
   );
 
-  // Добавьте недостающую функцию refreshFileData
   const refreshFileData = useCallback(async () => {
     if (!fileId) return;
     try {
@@ -66,7 +65,6 @@ export default function Workspace({
     onActiveComponentChange: handleActiveComponentChange,
   };
 
-  // Исправленная handleVersionRestore
   const handleVersionRestore = useCallback(
     async (content: string, contentType: "document" | "whiteboard") => {
       try {

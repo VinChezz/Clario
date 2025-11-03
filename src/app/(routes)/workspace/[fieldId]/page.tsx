@@ -49,6 +49,9 @@ export default function WorkspacePage() {
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isCanvasReady, setIsCanvasReady] = useState(false);
 
+  const [versions, setVersions] = useState<any[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+
   useEffect(() => {
     if (isMobile) {
       setWindowMode("fullscreen");
@@ -64,6 +67,47 @@ export default function WorkspacePage() {
       setActiveComponent("both");
     }
   }, [windowMode, activeComponent]);
+
+  const fetchVersions = useCallback(
+    async (forceRefresh = false) => {
+      if (!fileId) return;
+
+      setVersionsLoading(true);
+      try {
+        console.log(`📋 Fetching versions for file: ${fileId}`, {
+          forceRefresh,
+        });
+        const response = await fetch(
+          `/api/files/${fileId}/versions?t=${Date.now()}`
+        );
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            console.warn("Versions API not found, returning empty array");
+            setVersions([]);
+            return;
+          }
+          throw new Error(`Failed to fetch versions: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`✅ Versions fetched:`, data.length);
+        setVersions(data);
+      } catch (error) {
+        console.error("Error fetching versions:", error);
+        setVersions([]);
+      } finally {
+        setVersionsLoading(false);
+      }
+    },
+    [fileId]
+  );
+
+  useEffect(() => {
+    if (fileId) {
+      fetchVersions();
+    }
+  }, [fileId, fetchVersions]);
 
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -145,11 +189,14 @@ export default function WorkspacePage() {
             : null
         );
 
-        toast.success(
-          `Version synchronized in ${
-            contentType === "document" ? "Editor" : "Canvas"
-          }`
+        console.log(
+          `✅ WORKSPACE: ${contentType} version applied to file data`
         );
+        console.log(`🔄 Version restore in ${contentType}`, {
+          contentType,
+          windowMode,
+          activeComponent,
+        });
 
         await refreshFileData();
       } catch (error) {
@@ -157,12 +204,32 @@ export default function WorkspacePage() {
         toast.error("Failed to sync version");
       }
     },
-    [fileId, refreshFileData]
+    [fileId, refreshFileData, windowMode, activeComponent]
   );
+
+  useEffect(() => {
+    console.log("🔧 Debug - Current state:", {
+      windowMode,
+      activeComponent,
+      editorSaveHandler: !!editorSaveHandler,
+      canvasSaveHandler: !!canvasSaveHandler,
+      fileData: !!fileData,
+      versionsCount: versions.length,
+    });
+  }, [
+    windowMode,
+    activeComponent,
+    editorSaveHandler,
+    canvasSaveHandler,
+    fileData,
+    versions,
+  ]);
 
   const handleSaveSuccess = useCallback(async () => {
     await refreshFileData();
-  }, [refreshFileData]);
+
+    await fetchVersions(true);
+  }, [refreshFileData, fetchVersions]);
 
   const handleWindowModeChange = useCallback((mode: WindowMode) => {
     setWindowMode(mode);
@@ -199,14 +266,10 @@ export default function WorkspacePage() {
   const handleSave = useCallback(async () => {
     if (isSaving) {
       console.log("🔄 Save already in progress, skipping...");
-      return;
+      return { editor: false, canvas: false };
     }
 
     setIsSaving(true);
-
-    const saveToast = toast.loading("Saving...", {
-      duration: Infinity,
-    });
 
     console.log("💾 Workspace save triggered", {
       windowMode,
@@ -229,7 +292,7 @@ export default function WorkspacePage() {
           ]);
 
           if (editorResult.status === "fulfilled") {
-            saveResults.editor = { success: true, message: "Document saved" };
+            saveResults.editor = { success: true, message: "Changes saved" };
           } else {
             saveResults.editor = {
               success: false,
@@ -239,7 +302,7 @@ export default function WorkspacePage() {
           }
 
           if (canvasResult.status === "fulfilled") {
-            saveResults.canvas = { success: true, message: "Whiteboard saved" };
+            saveResults.canvas = { success: true, message: "Changes saved" };
           } else {
             saveResults.canvas = {
               success: false,
@@ -247,48 +310,28 @@ export default function WorkspacePage() {
             };
             console.error("❌ Canvas save failed:", canvasResult.reason);
           }
-
-          const successCount = [saveResults.editor, saveResults.canvas].filter(
-            (r) => r.success
-          ).length;
-
-          if (successCount === 2) {
-            toast.success("Document and whiteboard saved successfully!", {
-              id: saveToast,
-            });
-          } else if (successCount === 1) {
-            const successfulComponent = saveResults.editor.success
-              ? "Document"
-              : "Whiteboard";
-            const failedComponent = saveResults.editor.success
-              ? "Whiteboard"
-              : "Document";
-            toast.warning(
-              `${successfulComponent} saved, but ${failedComponent} failed`,
-              { id: saveToast }
-            );
-          } else {
-            toast.error("Both document and whiteboard failed to save", {
-              id: saveToast,
-            });
-          }
         } else {
-          toast.error("Save handlers not ready", { id: saveToast });
+          console.error("Save handlers not ready");
         }
       } else if (windowMode === "fullscreen") {
         if (activeComponent === "editor" && editorSaveHandler) {
           await editorSaveHandler();
-          toast.success("Document saved successfully!", { id: saveToast });
+          saveResults.editor = { success: true, message: "Changes saved" };
         } else if (activeComponent === "canvas" && canvasSaveHandler) {
           await canvasSaveHandler();
-          toast.success("Whiteboard saved successfully!", { id: saveToast });
+          saveResults.canvas = { success: true, message: "Changes saved" };
         } else {
-          toast.error("Save handler not ready", { id: saveToast });
+          console.error("Save handler not ready");
         }
       }
+
+      return {
+        editor: saveResults.editor.success,
+        canvas: saveResults.canvas.success,
+      };
     } catch (error) {
       console.error("❌ Error saving components:", error);
-      toast.error("Failed to save", { id: saveToast });
+      return { editor: false, canvas: false };
     } finally {
       setIsSaving(false);
     }
@@ -372,9 +415,12 @@ export default function WorkspacePage() {
               activeComponent={activeComponent}
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
-              currentComponent="both"
+              currentComponent="editor"
               isFullscreen={false}
               onSaveHandlerChange={handleEditorSaveHandlerChange}
+              versions={versions}
+              versionsLoading={versionsLoading}
+              onRefreshVersions={fetchVersions}
             />
           </div>
 
@@ -396,10 +442,13 @@ export default function WorkspacePage() {
               activeComponent={activeComponent}
               onWindowModeChange={handleWindowModeChange}
               onActiveComponentChange={handleActiveComponentChange}
-              currentComponent="both"
+              currentComponent="canvas"
               isFullscreen={false}
               onSaveHandlerChange={handleCanvasSaveHandlerChange}
               onSaveSuccess={handleSaveSuccess}
+              versions={versions}
+              versionsLoading={versionsLoading}
+              onRefreshVersions={fetchVersions}
             />
           </div>
         </div>
@@ -418,6 +467,9 @@ export default function WorkspacePage() {
               currentComponent="editor"
               isFullscreen={true}
               onSaveHandlerChange={handleEditorSaveHandlerChange}
+              versions={versions}
+              versionsLoading={versionsLoading}
+              onRefreshVersions={fetchVersions}
             />
           ) : (
             <Canvas
@@ -432,6 +484,9 @@ export default function WorkspacePage() {
               isFullscreen={true}
               onSaveHandlerChange={handleCanvasSaveHandlerChange}
               onSaveSuccess={handleSaveSuccess}
+              versions={versions}
+              versionsLoading={versionsLoading}
+              onRefreshVersions={fetchVersions}
             />
           )}
         </div>
