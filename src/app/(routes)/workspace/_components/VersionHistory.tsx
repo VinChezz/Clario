@@ -23,7 +23,7 @@ import {
   File,
   Palette,
   RefreshCw,
-} from "lucide-react"; // Добавили RefreshCw
+} from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import {
   DropdownMenu,
@@ -59,7 +59,11 @@ interface VersionHistoryProps {
   onRestoreVersion: (version: Version) => void;
   onClose: () => void;
   isLoading: boolean;
-  onRefreshVersions?: () => Promise<void>; // Добавляем пропс для обновления
+  onRefreshVersions?: () => Promise<void>;
+  componentType?: "editor" | "canvas";
+
+  canRestoreDocument?: boolean;
+  canRestoreWhiteboard?: boolean;
 }
 
 export function VersionHistory({
@@ -67,7 +71,10 @@ export function VersionHistory({
   onRestoreVersion,
   onClose,
   isLoading,
-  onRefreshVersions, // Получаем функцию обновления
+  onRefreshVersions,
+  componentType = "editor",
+  canRestoreDocument = componentType === "editor",
+  canRestoreWhiteboard = componentType === "canvas",
 }: VersionHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterByAuthor, setFilterByAuthor] = useState("");
@@ -86,7 +93,27 @@ export function VersionHistory({
 
   const isMobile = useIsMobile();
 
-  // Функция для обновления версий
+  const canRestoreVersion = (version: Version): boolean => {
+    if (version.type === "document") {
+      return canRestoreDocument;
+    }
+    if (version.type === "whiteboard") {
+      return canRestoreWhiteboard;
+    }
+
+    return true;
+  };
+
+  const getRestoreDisabledReason = (version: Version): string => {
+    if (version.type === "document" && !canRestoreDocument) {
+      return "Switch to document editor to restore this version";
+    }
+    if (version.type === "whiteboard" && !canRestoreWhiteboard) {
+      return "Switch to whiteboard to restore this version";
+    }
+    return "";
+  };
+
   const handleRefreshVersions = async () => {
     if (!onRefreshVersions) {
       console.warn("⚠️ onRefreshVersions function not provided");
@@ -106,18 +133,18 @@ export function VersionHistory({
     }
   };
 
-  // Автоматическое обновление при открытии
   useEffect(() => {
     if (onRefreshVersions && versions.length === 0) {
       console.log("🔄 Auto-refreshing versions on open");
       handleRefreshVersions();
     }
-  }, []); // Только при монтировании
+  }, [onRefreshVersions, versions.length]);
 
   const currentVersions = useMemo(() => {
-    return filterByType === "all"
-      ? versions
-      : versions.filter((v) => v.type === filterByType);
+    if (filterByType === "all") {
+      return versions;
+    }
+    return versions.filter((v) => v.type === filterByType);
   }, [versions, filterByType]);
 
   const stats = useMemo(() => {
@@ -125,28 +152,26 @@ export function VersionHistory({
     const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const filteredVersions = currentVersions;
-
     return {
-      totalVersions: filteredVersions.length,
-      last30Days: filteredVersions.filter(
+      totalVersions: currentVersions.length,
+      last30Days: currentVersions.filter(
         (v) => new Date(v.createdAt) > last30Days
       ).length,
-      last7Days: filteredVersions.filter(
+      last7Days: currentVersions.filter(
         (v) => new Date(v.createdAt) > last7Days
       ).length,
-      uniqueAuthors: new Set(filteredVersions.map((v) => v.author.id)).size,
-      totalSize: filteredVersions.reduce(
+      uniqueAuthors: new Set(currentVersions.map((v) => v.author.id)).size,
+      totalSize: currentVersions.reduce(
         (sum, v) => sum + (v.content?.length || 0),
         0
       ),
       avgSize:
-        filteredVersions.length > 0
+        currentVersions.length > 0
           ? Math.round(
-              filteredVersions.reduce(
+              currentVersions.reduce(
                 (sum, v) => sum + (v.content?.length || 0),
                 0
-              ) / filteredVersions.length
+              ) / currentVersions.length
             )
           : 0,
     };
@@ -188,7 +213,12 @@ export function VersionHistory({
 
   const groupedVersions = useMemo(() => {
     const groups: { [key: string]: Version[] } = {};
-    filteredVersions.forEach((version) => {
+
+    const safeFilteredVersions = Array.isArray(filteredVersions)
+      ? filteredVersions
+      : [];
+
+    safeFilteredVersions.forEach((version) => {
       const date = new Date(version.createdAt).toLocaleDateString();
       if (!groups[date]) groups[date] = [];
       groups[date].push(version);
@@ -305,6 +335,19 @@ export function VersionHistory({
         previousVersion: previousVersion || undefined,
       });
     };
+
+    console.log("🔍 VersionHistory Debug:", {
+      componentType,
+      currentVersions: currentVersions.length,
+      filteredVersions: filteredVersions.length,
+      versions: versions.map((v) => ({
+        id: v.id,
+        type: v.type,
+        version: v.version,
+        canRestore: canRestoreVersion(v),
+        disabledReason: getRestoreDisabledReason(v),
+      })),
+    });
 
     const getElementCount = (content: string) => {
       try {
@@ -442,7 +485,6 @@ export function VersionHistory({
     );
   };
 
-  // Обработка клавиши Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -667,8 +709,19 @@ export function VersionHistory({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onRestoreVersion(filteredVersions[0])}
+                  onClick={() => {
+                    const latestVersion = filteredVersions[0];
+                    if (canRestoreVersion(latestVersion)) {
+                      onRestoreVersion(latestVersion);
+                    }
+                  }}
+                  disabled={!canRestoreVersion(filteredVersions[0])}
                   className="bg-white hover:bg-gray-50 flex-1"
+                  title={
+                    !canRestoreVersion(filteredVersions[0])
+                      ? getRestoreDisabledReason(filteredVersions[0])
+                      : "Restore latest version"
+                  }
                 >
                   <RotateCcw className="h-4 w-4 mr-1" />
                   Latest
@@ -898,8 +951,25 @@ export function VersionHistory({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => onRestoreVersion(version)}
+                              onClick={() => {
+                                console.log(
+                                  "🎯 VERSION HISTORY: Restore button clicked",
+                                  {
+                                    versionId: version.id,
+                                    versionType: version.type,
+                                    componentType: componentType,
+                                    canRestore: canRestoreVersion(version),
+                                  }
+                                );
+                                onRestoreVersion(version);
+                              }}
                               className="h-8 text-xs px-3"
+                              disabled={!canRestoreVersion(version)}
+                              title={
+                                !canRestoreVersion(version)
+                                  ? getRestoreDisabledReason(version)
+                                  : `Restore ${version.type} version`
+                              }
                             >
                               <Eye className="h-3.5 w-3.5 mr-1" />
                               Restore

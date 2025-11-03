@@ -4,6 +4,7 @@ interface DocumentVersion {
   id: string;
   version: number;
   name?: string;
+  type?: "document" | "whiteboard";
   description?: string;
   content: string;
   fileId: string;
@@ -27,7 +28,10 @@ interface CreateVersionOptions {
 interface UseVersionManagerProps {
   fileId: string;
   fileData: any;
-  onVersionRestore?: (content: string, type: "document" | "whiteboard") => void;
+  onVersionRestore?: (
+    content: string,
+    type: "document" | "whiteboard"
+  ) => void | Promise<void>;
 }
 
 export function useVersionManager({
@@ -136,8 +140,9 @@ export function useVersionManager({
               author: {
                 id: "local-user",
                 name: "Local User",
-                email: "local@example.com",
+                email: "fallback@example.com",
               },
+              type: type,
             };
 
             setVersions((prev) => [localVersion, ...prev]);
@@ -172,6 +177,7 @@ export function useVersionManager({
             name: "Fallback User",
             email: "fallback@example.com",
           },
+          type: type,
         };
 
         setVersions((prev) => [fallbackVersion, ...prev]);
@@ -183,42 +189,37 @@ export function useVersionManager({
   );
 
   const restoreVersion = useCallback(
-    async (versionId: string, type: "document" | "whiteboard") => {
+    async (versionId: string, expectedType?: "document" | "whiteboard") => {
       try {
-        console.log(`🔄 Restoring ${type} version: ${versionId}`);
+        console.log("🎯 VERSION MANAGER: Restore called", {
+          versionId,
+          expectedType,
+          fileId,
+          hasOnVersionRestore: !!onVersionRestore,
+        });
 
-        const localVersion = versions.find((v) => v.id === versionId);
-        if (localVersion && onVersionRestore) {
-          console.log("✅ Using local version for restore");
-          onVersionRestore(localVersion.content, type);
-          return { version: localVersion };
+        if (!versions.length) {
+          console.warn("⚠️ Versions list empty — fetching...");
+          await fetchVersions(true);
         }
 
-        const response = await fetch(
-          `/api/versions/restore?fileId=${fileId}&versionId=${versionId}`
-        );
+        const currentVersions = versions.length
+          ? versions
+          : await fetchVersions(true);
+        const version = currentVersions?.find((v: any) => v.id === versionId);
+        if (!version) throw new Error("Version not found after refetch");
 
-        if (!response.ok) {
-          throw new Error(`Failed to restore version: ${response.status}`);
-        }
+        const versionType = version.type || expectedType;
+        if (!versionType) throw new Error("Version type not specified");
 
-        const restoreData = await response.json();
-        console.log(
-          `✅ ${type} version data retrieved:`,
-          restoreData.version.id
-        );
-
-        if (onVersionRestore) {
-          onVersionRestore(restoreData.version.content, type);
-        }
-
-        return restoreData;
+        await onVersionRestore?.(version.content, versionType);
+        return { version, restoredVia: "callback" } as const;
       } catch (error) {
-        console.error(`❌ Error restoring ${type} version:`, error);
+        console.error("❌ VERSION MANAGER: Error:", error);
         throw error;
       }
     },
-    [fileId, onVersionRestore, versions]
+    [fileId, onVersionRestore, versions, fetchVersions]
   );
 
   const refreshVersions = useCallback(async () => {
