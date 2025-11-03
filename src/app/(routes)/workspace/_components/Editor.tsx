@@ -66,6 +66,9 @@ interface EditorProps {
   currentComponent: "editor" | "canvas" | "both";
   isFullscreen?: boolean;
   onSaveHandlerChange?: (handler: () => Promise<void>) => void;
+  versions?: any[];
+  versionsLoading?: boolean;
+  onRefreshVersions?: () => Promise<void>;
 }
 
 export default function Editor({
@@ -80,6 +83,9 @@ export default function Editor({
   onWindowModeChange,
   windowMode,
   onSaveHandlerChange,
+  versions = [],
+  versionsLoading = false,
+  onRefreshVersions,
 }: EditorProps) {
   const [editorData, setEditorData] = useState<any>(null);
   const { activeTeam } = useActiveTeam();
@@ -89,6 +95,7 @@ export default function Editor({
   const [selection, setSelection] = useState<any>(null);
   const [showCommentSidebar, setShowCommentSidebar] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   const editorRef = useRef<EditorJS | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -133,21 +140,12 @@ export default function Editor({
   const { activeUsers, updatePresence, startPresenceUpdates } =
     usePresence(fileId);
   const { updateLightPresence } = useLightweightPresence(fileId, currentUser);
-  const versionManager = useVersionManager({
+
+  const { createManualVersion, restoreVersion } = useVersionManager({
     fileId,
     fileData,
     onVersionRestore,
   });
-
-  const {
-    versions,
-    showVersionHistory,
-    setShowVersionHistory,
-    fetchVersions,
-    createManualVersion,
-    restoreVersion,
-    isLoading: versionsLoading,
-  } = versionManager;
 
   const canEdit = permissions === "EDIT" || permissions === "ADMIN";
 
@@ -344,16 +342,13 @@ export default function Editor({
       const outputData = await editorRef.current.save();
       console.log("📦 Data to save:", outputData);
 
-      // Проверяем есть ли контент для сохранения
       if (!outputData.blocks || outputData.blocks.length === 0) {
         console.log("⚠️ No content to save");
-        toast.info("No content to save in document");
         return;
       }
 
       const contentString = JSON.stringify(outputData);
 
-      // Проверяем изменения
       const currentContent = fileData?.document;
       let hasChanges = true;
 
@@ -362,7 +357,6 @@ export default function Editor({
           const currentData = JSON.parse(currentContent);
           const newData = outputData;
 
-          // Сравниваем по текстовому содержимому и структуре блоков
           const currentText = currentData.blocks
             ?.map((block: any) => block.data?.text || "")
             .join("")
@@ -375,20 +369,17 @@ export default function Editor({
           const currentBlocks = JSON.stringify(currentData.blocks);
           const newBlocks = JSON.stringify(newData.blocks);
 
-          // Если текст и структура блоков одинаковые - изменений нет
           if (currentText === newText && currentBlocks === newBlocks) {
             console.log(
               "🔄 No changes detected in document, skipping version creation"
             );
             hasChanges = false;
-            toast.info("No changes to save in document");
           }
         } catch (e) {
           console.log("⚠️ Could not compare content, creating version anyway");
         }
       }
 
-      // Если нет изменений, выходим
       if (!hasChanges) {
         return;
       }
@@ -420,29 +411,20 @@ export default function Editor({
           content: contentString,
           type: "document",
         });
-
-        await fetchVersions();
-
-        toast.success("Document saved with new version!");
       } catch (versionError) {
         console.error("⚠️ Version creation failed:", versionError);
-        toast.success("Document saved! (Version creation failed)");
       }
 
       if (onSaveSuccess) {
-        console.log("🔄 Triggering data refresh...");
         onSaveSuccess();
       }
-    } catch (err) {
-      console.error("💥 Save error:", err);
-      toast.error(
-        err instanceof Error ? err.message : "Error saving document!"
-      );
+    } catch (error) {
+      console.error("❌ Error saving document:", error);
     } finally {
       isSaving.current = false;
       console.log("🏁 Save process finished");
     }
-  }, [fileId, onSaveSuccess, createManualVersion, fileData]);
+  }, [fileId, onSaveSuccess, createManualVersion, fileData, windowMode]);
 
   useEffect(() => {
     if (onSaveHandlerChange) {
@@ -453,32 +435,33 @@ export default function Editor({
   const handleRestoreVersion = useCallback(
     async (version: any) => {
       try {
-        console.log("🔄 Starting version restore in Editor...", {
+        console.log("🎯 EDITOR: Starting document version restore", {
           versionId: version.id,
           versionNumber: version.version,
+          versionType: version.type,
+          windowMode,
+          activeComponent,
+          currentComponent: "editor",
         });
 
-        if (version.fileId !== fileId) {
-          console.log("❌ Version file mismatch");
-          toast.error("Version does not belong to this file");
-          return;
-        }
-
-        console.log("📞 Calling restore API...");
         await restoreVersion(version.id, "document");
 
-        toast.success(`Version ${version.version} restored successfully!`);
+        console.log("✅ EDITOR: Document version restore completed");
+
         setShowVersionHistory(false);
 
         if (onSaveSuccess) {
-          console.log("🔄 Triggering parent refresh...");
           onSaveSuccess();
         }
       } catch (error) {
-        console.error("💥 Restore failed:", error);
+        console.error("❌ EDITOR: Restore failed:", error);
 
         if (error instanceof Error) {
-          if (error.message.includes("404")) {
+          if (error.message.includes("Type mismatch")) {
+            toast.error(
+              "This version can only be restored in the Whiteboard panel"
+            );
+          } else if (error.message.includes("404")) {
             toast.error("Version or file not found");
           } else if (
             error.message.includes("401") ||
@@ -918,7 +901,7 @@ export default function Editor({
             setShowCommentSidebar(!showCommentSidebar)
           }
           showCommentSidebar={showCommentSidebar}
-          fetchVersions={fetchVersions}
+          fetchVersions={onRefreshVersions}
           windowMode={windowMode}
           activeComponent={activeComponent}
         />
@@ -1002,7 +985,10 @@ export default function Editor({
             onRestoreVersion={handleRestoreVersion}
             onClose={() => setShowVersionHistory(false)}
             isLoading={versionsLoading}
-            onRefreshVersions={fetchVersions}
+            onRefreshVersions={onRefreshVersions}
+            componentType="editor"
+            canRestoreDocument={true}
+            canRestoreWhiteboard={true}
           />
         </div>
       )}

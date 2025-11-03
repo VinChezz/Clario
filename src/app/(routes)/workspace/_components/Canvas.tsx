@@ -47,6 +47,9 @@ interface CanvasProps {
   currentComponent: "editor" | "canvas" | "both";
   isFullscreen?: boolean;
   onSaveHandlerChange?: (handler: () => Promise<void>) => void;
+  versions?: any[];
+  versionsLoading?: boolean;
+  onRefreshVersions?: () => Promise<void>;
 }
 
 export default function Canvas({
@@ -61,6 +64,9 @@ export default function Canvas({
   windowMode,
   isFullscreen,
   onSaveHandlerChange,
+  versions = [],
+  versionsLoading = false,
+  onRefreshVersions,
 }: CanvasProps) {
   const [whiteBoardData, setWhiteBoardData] = useState<any>([]);
   const [permissions, setPermissions] = useState<"ADMIN" | "VIEW" | "EDIT">(
@@ -131,19 +137,11 @@ export default function Canvas({
     subscribeToContentSync,
   } = useRealtimeCanvasContent(fileId, currentUser);
 
-  const versionManager = useVersionManager({
+  const { createManualVersion, restoreVersion } = useVersionManager({
     fileId,
     fileData,
     onVersionRestore,
   });
-
-  const {
-    versions,
-    fetchVersions,
-    createManualVersion,
-    restoreVersion,
-    isLoading: versionsLoading,
-  } = versionManager;
 
   const {
     comments,
@@ -206,11 +204,9 @@ export default function Canvas({
         const data = JSON.parse(fileData.whiteboard);
         console.log("📁 Loaded whiteboard data:", data.length, "elements");
 
-        // Всегда обновляем состояние, даже если данные уже применялись
         setWhiteBoardData(data);
         lastSavedContent.current = fileData.whiteboard;
 
-        // Если Excalidraw готов, применяем данные
         if (excalidrawRef.current && isInitialized) {
           console.log("🔄 Applying whiteboard data to initialized Excalidraw");
           excalidrawRef.current.updateScene({
@@ -219,12 +215,10 @@ export default function Canvas({
           });
           hasAppliedInitialData.current = true;
         } else if (!hasAppliedInitialData.current) {
-          // Помечаем что данные готовы к применению при инициализации Excalidraw
           console.log("📝 Whiteboard data ready for Excalidraw initialization");
-          hasAppliedInitialData.current = false; // Сбрасываем чтобы применить при готовности
+          hasAppliedInitialData.current = false;
         }
 
-        // Проверяем синхронизацию
         setTimeout(() => {
           if (excalidrawRef.current && isInitialized) {
             const currentElements = excalidrawRef.current.getSceneElements();
@@ -244,7 +238,6 @@ export default function Canvas({
         console.error("Failed to parse whiteboard data:", e);
       }
     } else if (fileData && !fileData.whiteboard) {
-      // Если файл есть, но whiteboard пустой
       console.log("📝 No whiteboard data, initializing empty");
       setWhiteBoardData([]);
       lastSavedContent.current = "[]";
@@ -426,7 +419,6 @@ export default function Canvas({
         lastSentContent.current = contentString;
         sendContentUpdate(elements);
 
-        // Проверяем нужно ли авто-сохранение
         handleSignificantChange(elements);
       }
     },
@@ -442,7 +434,9 @@ export default function Canvas({
   const handleCanvasSave = useCallback(async () => {
     if (!canEdit) {
       console.log("❌ No permission to save whiteboard");
-      toast.error("No permission to save");
+      if (windowMode === "split") {
+        toast.error("No permission to save");
+      }
       return;
     }
 
@@ -467,15 +461,12 @@ export default function Canvas({
 
       console.log("✅ Whiteboard saved successfully!");
 
-      // Обновляем последнее сохраненное состояние
       lastSavedContent.current = contentString;
       setHasUnsavedChanges(false);
 
-      // Проверяем, есть ли изменения для создания версии
       const currentContent = fileData?.whiteboard;
       let hasChanges = false;
 
-      // Если текущий контент пустой или отсутствует, а у нас есть элементы - это изменения
       if (
         (!currentContent ||
           currentContent === '""' ||
@@ -484,9 +475,7 @@ export default function Canvas({
       ) {
         console.log("🆕 First save or empty whiteboard, creating version");
         hasChanges = true;
-      }
-      // Если текущий контент есть, но у нас нет элементов - это изменения (очистка)
-      else if (
+      } else if (
         currentContent &&
         currentContent !== '""' &&
         currentContent !== "[]" &&
@@ -494,9 +483,7 @@ export default function Canvas({
       ) {
         console.log("🗑️ Whiteboard cleared, creating version");
         hasChanges = true;
-      }
-      // Если оба содержат данные, сравниваем детально
-      else if (
+      } else if (
         currentContent &&
         currentContent !== '""' &&
         currentContent !== "[]" &&
@@ -505,18 +492,15 @@ export default function Canvas({
         try {
           const currentElements = JSON.parse(currentContent);
 
-          // Быстрое сравнение по количеству элементов
           if (currentElements.length !== elements.length) {
             console.log("🔢 Element count changed");
             hasChanges = true;
           } else {
-            // Детальное сравнение каждого элемента
             const hasElementChanges = elements.some(
               (element: any, index: number) => {
                 const currentElement = currentElements[index];
                 if (!currentElement) return true;
 
-                // Сравниваем основные свойства элемента
                 return (
                   element.x !== currentElement.x ||
                   element.y !== currentElement.y ||
@@ -553,32 +537,16 @@ export default function Canvas({
         }
       }
 
-      // Если нет изменений, показываем информационное сообщение и выходим
-      if (!hasChanges) {
-        console.log("🔄 No changes to save in whiteboard");
-        toast.success("Whiteboard synchronized!");
-        return;
-      }
-
-      // Создаем версию только если были изменения и есть элементы
       if (elements.length > 0) {
         try {
-          console.log("🆕 Creating whiteboard version...");
           await createManualVersion({
             name: `Whiteboard - ${new Date().toLocaleString()}`,
             description: "Manually saved version",
             content: contentString,
             type: "whiteboard",
           });
-          console.log("✅ Whiteboard version created successfully!");
-
-          // ВАЖНО: Обновляем список версий после создания новой версии
-          await fetchVersions();
-
-          toast.success("Whiteboard saved with new version!");
         } catch (versionError) {
           console.error("⚠️ Version creation failed:", versionError);
-          toast.success("Whiteboard saved! (Version creation failed)");
         }
       } else {
         try {
@@ -589,13 +557,8 @@ export default function Canvas({
             content: contentString,
             type: "whiteboard",
           });
-
-          await fetchVersions();
-
-          toast.success("Whiteboard cleared and saved!");
         } catch (versionError) {
           console.error("⚠️ Version creation failed:", versionError);
-          toast.success("Whiteboard cleared! (Version creation failed)");
         }
       }
 
@@ -604,7 +567,9 @@ export default function Canvas({
       }
     } catch (error) {
       console.error("❌ Error saving whiteboard:", error);
-      toast.error("Failed to save whiteboard");
+      if (windowMode === "split") {
+        toast.error("Failed to save whiteboard");
+      }
     }
   }, [
     fileId,
@@ -612,7 +577,7 @@ export default function Canvas({
     createManualVersion,
     fileData,
     onSaveSuccess,
-    fetchVersions,
+    windowMode,
   ]);
 
   const handleClearCanvas = useCallback(() => {
@@ -622,7 +587,6 @@ export default function Canvas({
         commitToHistory: true,
       });
 
-      // Даем время на обновление и затем синхронизируем
       setTimeout(() => {
         if (excalidrawRef.current) {
           const elements = excalidrawRef.current.getSceneElements();
@@ -665,20 +629,37 @@ export default function Canvas({
   useEffect(() => {
     if (showVersionHistory) {
       console.log("🔄 Fetching versions for VersionHistory...");
-      fetchVersions();
     }
-  }, [showVersionHistory, fetchVersions]);
+  }, [showVersionHistory]);
 
   const handleRestoreVersion = useCallback(
     async (version: any) => {
       try {
-        console.log("🔄 Restoring whiteboard version:", version.id);
+        console.log("🎯 CANVAS: Starting whiteboard version restore", {
+          versionId: version.id,
+          versionType: version.type,
+          componentType: "canvas",
+        });
+
         await restoreVersion(version.id, "whiteboard");
+
         toast.success(`Version ${version.version} restored successfully!`);
+
         setShowVersionHistory(false);
       } catch (error) {
-        console.error("❌ Failed to restore version:", error);
-        toast.error("Failed to restore version");
+        console.error("❌ CANVAS: Failed to restore version:", error);
+
+        if (error instanceof Error) {
+          if (error.message.includes("Type mismatch")) {
+            toast.error(
+              "This version can only be restored in the Document panel"
+            );
+          } else {
+            toast.error(`Restore failed: ${error.message}`);
+          }
+        } else {
+          toast.error("Failed to restore version");
+        }
       }
     },
     [restoreVersion]
@@ -691,7 +672,6 @@ export default function Canvas({
         updateLightPresence("EDITING");
         sendContentUpdateThrottled(elements);
 
-        // Проверяем есть ли изменения
         const currentContent = JSON.stringify(elements);
         const savedContent = fileData?.whiteboard || "[]";
 
@@ -712,7 +692,6 @@ export default function Canvas({
       excalidrawRef.current = api;
       setIsInitialized(true);
 
-      // ВАЖНО: Всегда применяем данные при готовности, даже если уже применялись
       if (whiteBoardData && whiteBoardData.length > 0) {
         console.log("🔄 Applying whiteboard data to ready Excalidraw");
         api.updateScene({
@@ -974,7 +953,7 @@ export default function Canvas({
                 showCommentsButton ? handleToggleComments : undefined
               }
               showCommentSidebar={showCommentSidebar}
-              fetchVersions={fetchVersions}
+              fetchVersions={onRefreshVersions}
               windowMode={windowMode}
               activeComponent={activeComponent}
               commentsCount={comments.length}
@@ -1085,7 +1064,10 @@ export default function Canvas({
             onRestoreVersion={handleRestoreVersion}
             onClose={() => setShowVersionHistory(false)}
             isLoading={versionsLoading}
-            onRefreshVersions={fetchVersions}
+            onRefreshVersions={onRefreshVersions}
+            componentType="canvas"
+            canRestoreDocument={true}
+            canRestoreWhiteboard={true}
           />
         </div>
       )}
