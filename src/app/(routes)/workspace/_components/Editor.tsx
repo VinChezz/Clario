@@ -652,91 +652,160 @@ export default function Editor({
   );
 
   useEffect(() => {
-    if (!editorData || !currentUser) return;
+    if (!editorData || !currentUser || typeof window === "undefined") return;
 
     let isMounted = true;
     let editorInstance: EditorJS | null = null;
 
     const initEditor = async () => {
       try {
-        console.log("🚀 Initializing EditorJS...");
+        console.log("🚀 Initializing EditorJS with SAFE tools only...");
 
-        const [
-          { default: EditorJS },
-          { default: Header },
-          { default: List },
-          { default: Checklist },
-          { default: Paragraph },
-          { default: Warning },
-        ] = await Promise.all([
-          import("@editorjs/editorjs"),
-          import("@editorjs/header"),
-          import("@editorjs/list"),
-          import("@editorjs/checklist"),
-          import("@editorjs/paragraph"),
-          import("@editorjs/warning"),
-        ]);
+        const EditorJS = (await import("@editorjs/editorjs")).default;
+        const Paragraph = (await import("@editorjs/paragraph")).default;
+        const Header = (await import("@editorjs/header")).default;
+        const List = (await import("@editorjs/list")).default;
+
+        if (!EditorJS || !Paragraph) {
+          throw new Error("Essential EditorJS tools failed to load");
+        }
 
         if (editorRef.current) {
           editorRef.current.destroy();
           editorRef.current = null;
         }
 
-        const editor = new EditorJS({
-          holder: "editorjs",
-          tools: {
-            header: {
-              class: Header,
-              shortcut: "CMD+SHIFT+H",
-              config: {
-                placeholder: "Enter a header",
-                levels: [1, 2, 3, 4],
-                defaultLevel: 2,
-              },
-            },
-            list: {
-              class: List,
-              inlineToolbar: true,
-              shortcut: "CMD+SHIFT+L",
-            },
-            checklist: {
-              class: Checklist,
-              inlineToolbar: true,
-              shortcut: "CMD+SHIFT+C",
-            },
-            paragraph: {
-              class: Paragraph,
-              inlineToolbar: true,
-            },
-            warning: {
-              class: Warning,
-              inlineToolbar: true,
-              shortcut: "CMD+SHIFT+W",
+        const toolsConfig: any = {
+          paragraph: {
+            class: Paragraph,
+            inlineToolbar: true,
+          },
+          header: {
+            class: Header,
+            config: {
+              placeholder: "Enter a header",
+              levels: [2, 3, 4],
+              defaultLevel: 2,
             },
           },
+          list: {
+            class: List,
+            inlineToolbar: true,
+          },
+        };
+
+        const safeTools = [
+          { name: "checklist", import: () => import("@editorjs/checklist") },
+          { name: "code", import: () => import("@editorjs/code") },
+          { name: "delimiter", import: () => import("@editorjs/delimiter") },
+          { name: "quote", import: () => import("@editorjs/quote") },
+          { name: "marker", import: () => import("@editorjs/marker") },
+          {
+            name: "inline-code",
+            import: () => import("@editorjs/inline-code"),
+          },
+          { name: "table", import: () => import("@editorjs/table") },
+        ];
+
+        for (const loader of safeTools) {
+          try {
+            const module = await loader.import();
+            const toolClass = module.default;
+
+            switch (loader.name) {
+              case "checklist":
+                toolsConfig.checklist = {
+                  class: toolClass,
+                  inlineToolbar: true,
+                };
+                break;
+              case "code":
+                toolsConfig.code = {
+                  class: toolClass,
+                };
+                break;
+              case "delimiter":
+                toolsConfig.delimiter = {
+                  class: toolClass,
+                };
+                break;
+              case "quote":
+                toolsConfig.quote = {
+                  class: toolClass,
+                  inlineToolbar: true,
+                  config: {
+                    quotePlaceholder: "Enter a quote",
+                    captionPlaceholder: "Quote's author",
+                  },
+                };
+                break;
+              case "marker":
+                toolsConfig.marker = {
+                  class: toolClass,
+                };
+                break;
+              case "inline-code":
+                toolsConfig.inlineCode = {
+                  class: toolClass,
+                };
+                break;
+              case "table":
+                toolsConfig.table = {
+                  class: toolClass,
+                  inlineToolbar: true,
+                  config: {
+                    rows: 3,
+                    cols: 2,
+                    autoHeadings: true,
+                  },
+                };
+                console.log("✅ Table tool added successfully");
+                break;
+            }
+            console.log(`✅ ${loader.name} tool added successfully`);
+          } catch (error) {
+            console.warn(`⚠️ ${loader.name} tool failed to load:`, error);
+          }
+        }
+
+        console.log("🔄 Creating EditorJS instance...");
+
+        const editor = new EditorJS({
+          holder: "editorjs",
+          tools: toolsConfig,
+          inlineToolbar: ["bold", "italic", "marker", "inlineCode"],
           data: editorData,
           autofocus: false,
           placeholder: "Start writing your notes...",
           onReady: () => {
-            console.log("🎉 Editor.js is ready!");
+            console.log("🎉 Editor.js is ready with safe tools!");
+            isInitialized.current = true;
           },
-          onChange: async (api, event) => {
-            console.log("⌨️ EDITOR: onChange triggered", event);
+          onChange: async (api: any, event: any) => {
+            if (!isMounted) return;
 
             if (
-              (isMounted && permissions === "EDIT") ||
-              (permissions === "ADMIN" && !isApplyingRemoteContent.current)
+              (permissions === "EDIT" || permissions === "ADMIN") &&
+              !isApplyingRemoteContent.current
             ) {
               try {
                 const outputData = await api.saver.save();
 
-                await sendContentUpdateImmediate(outputData);
-
-                updateLightPresence("EDITING");
-
-                sendContentUpdateThrottled(outputData);
+                if (
+                  outputData &&
+                  outputData.blocks &&
+                  outputData.blocks.length > 0
+                ) {
+                  requestAnimationFrame(() => {
+                    if (isMounted) {
+                      sendContentUpdateImmediate(outputData);
+                      updateLightPresence("EDITING");
+                      sendContentUpdateThrottled(outputData);
+                    }
+                  });
+                }
               } catch (error) {
-                console.error("❌ Error in editor onChange:", error);
+                console.error("❌ Error saving editor content:", error);
               }
             }
           },
@@ -747,28 +816,37 @@ export default function Editor({
         if (isMounted) {
           editorInstance = editor;
           editorRef.current = editor;
-          isInitialized.current = true;
-          console.log("✅ Editor initialized successfully!");
+          const loadedTools = Object.keys(toolsConfig).length;
+          console.log(`✅ Editor initialized with ${loadedTools} safe tools!`);
         }
       } catch (err) {
         console.error("💥 Editor initialization failed:", err);
-        toast.error("Failed to initialize editor");
+        toast.error("Failed to initialize editor. Please refresh the page.");
       }
     };
 
-    initEditor();
+    const initTimer = setTimeout(initEditor, 100);
 
     return () => {
       isMounted = false;
-      if (editorInstance) {
-        try {
-          editorInstance.destroy();
-        } catch (e) {
-          console.error("Error destroying editor:", e);
-        }
-        editorInstance = null;
-        editorRef.current = null;
-        isInitialized.current = false;
+      clearTimeout(initTimer);
+
+      if (editorInstance && typeof editorInstance.destroy === "function") {
+        setTimeout(() => {
+          try {
+            editorInstance!.destroy();
+            console.log("🔧 Editor destroyed successfully");
+          } catch (e) {
+            console.error("Error destroying editor:", e);
+          }
+          editorInstance = null;
+          editorRef.current = null;
+          isInitialized.current = false;
+        }, 50);
+      } else {
+        console.warn(
+          "⚠️ Editor instance not properly initialized, skipping destroy"
+        );
       }
     };
   }, [
@@ -776,7 +854,8 @@ export default function Editor({
     currentUser,
     permissions,
     sendContentUpdateThrottled,
-    updatePresence,
+    sendContentUpdateImmediate,
+    updateLightPresence,
   ]);
 
   const handleEditorMouseMove = useCallback(
