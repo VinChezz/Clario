@@ -9,6 +9,7 @@ import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import dynamic from "next/dynamic";
 import WorkspaceHeader from "../_components/header/WorkspaceHeader";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 
 const Editor = dynamic(() => import("../_components/Editor"), {
   loading: () => <div>Loading Editor...</div>,
@@ -24,6 +25,7 @@ export default function WorkspacePage() {
   const isMobile = useIsMobile();
   const params = useParams();
   const fileId = params.fieldId as string;
+  const { activeTeam, isLoading: teamLoading } = useActiveTeam();
 
   const [fileData, setFileData] = useState<FILE | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +53,22 @@ export default function WorkspacePage() {
 
   const [versions, setVersions] = useState<any[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
+
+  useEffect(() => {
+    console.log("🔍 WorkspacePage - ActiveTeam state:", {
+      activeTeam: activeTeam
+        ? {
+            id: activeTeam.id,
+            name: activeTeam.name,
+            createdById: activeTeam.createdById,
+            membersCount: activeTeam.members?.length,
+          }
+        : "NULL",
+      teamLoading,
+      fileId,
+      timestamp: new Date().toISOString(),
+    });
+  }, [activeTeam, teamLoading, fileId]);
 
   useEffect(() => {
     if (isMobile) {
@@ -215,6 +233,8 @@ export default function WorkspacePage() {
       canvasSaveHandler: !!canvasSaveHandler,
       fileData: !!fileData,
       versionsCount: versions.length,
+      activeTeam: !!activeTeam, // ДОБАВЬТЕ ЭТО
+      teamLoading, // ДОБАВЬТЕ ЭТО
     });
   }, [
     windowMode,
@@ -223,11 +243,12 @@ export default function WorkspacePage() {
     canvasSaveHandler,
     fileData,
     versions,
+    activeTeam, // ДОБАВЬТЕ ЭТО
+    teamLoading, // ДОБАВЬТЕ ЭТО
   ]);
 
   const handleSaveSuccess = useCallback(async () => {
     await refreshFileData();
-
     await fetchVersions(true);
   }, [refreshFileData, fetchVersions]);
 
@@ -276,6 +297,7 @@ export default function WorkspacePage() {
       activeComponent,
       editorSaveHandler: !!editorSaveHandler,
       canvasSaveHandler: !!canvasSaveHandler,
+      activeTeam: activeTeam?.id, // ДОБАВЬТЕ ЭТО
     });
 
     try {
@@ -341,6 +363,7 @@ export default function WorkspacePage() {
     editorSaveHandler,
     canvasSaveHandler,
     isSaving,
+    activeTeam, // ДОБАВЬТЕ ЭТО
   ]);
 
   const handleEditorSaveHandlerChange = useCallback(
@@ -361,7 +384,24 @@ export default function WorkspacePage() {
     []
   );
 
-  if (!fileId || isLoading) return <LogoClarioLoader />;
+  // ОБНОВИТЕ УСЛОВИЯ ЗАГРУЗКИ - ДОБАВЬТЕ teamLoading
+  if (!fileId || isLoading || teamLoading) return <LogoClarioLoader />;
+
+  // ДОБАВЬТЕ ПРОВЕРКУ НА activeTeam
+  if (!activeTeam) {
+    return (
+      <div className="p-4">
+        <h2>No Active Team</h2>
+        <p>Please select a team to continue working.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2"
+        >
+          Reload Page
+        </button>
+      </div>
+    );
+  }
 
   if (error)
     return (

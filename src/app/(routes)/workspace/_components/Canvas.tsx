@@ -157,40 +157,68 @@ export default function Canvas({
   const canEdit = permissions === "EDIT" || permissions === "ADMIN";
 
   useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const userRes = await fetch("/api/auth/user");
-        if (!userRes.ok) throw new Error("Failed to fetch user");
-        const dbUser = await userRes.json();
-        setCurrentUser(dbUser);
+    if (activeTeam && !currentUser) {
+      console.log("🔄 ActiveTeam loaded, fetching user permissions...");
 
-        if (!activeTeam || !dbUser) {
+      const fetchCurrentUser = async () => {
+        try {
+          const userRes = await fetch("/api/auth/user");
+          if (!userRes.ok) throw new Error("Failed to fetch user");
+          const dbUser = await userRes.json();
+          setCurrentUser(dbUser);
+
+          const savedPermissions = localStorage.getItem(
+            `file_permissions_${fileId}`
+          );
+          if (savedPermissions) {
+            const parsedPermissions = JSON.parse(savedPermissions);
+            if (
+              parsedPermissions.userId === dbUser.id &&
+              parsedPermissions.teamId === activeTeam.id
+            ) {
+              console.log(
+                "🔄 Restoring permissions from localStorage:",
+                parsedPermissions.role
+              );
+              setPermissions(parsedPermissions.role);
+              return;
+            }
+          }
+
+          const isCreator = activeTeam.createdById === dbUser.id;
+          const userMembership = activeTeam.members?.find(
+            (member: any) => member.userId === dbUser.id
+          );
+
+          let userRole: "ADMIN" | "VIEW" | "EDIT" = "VIEW";
+
+          if (isCreator) {
+            userRole = "ADMIN";
+          } else if (userMembership) {
+            userRole = userMembership.role as "ADMIN" | "VIEW" | "EDIT";
+          }
+
+          console.log("🔐 Final permissions setting:", userRole);
+          setPermissions(userRole);
+
+          localStorage.setItem(
+            `file_permissions_${fileId}`,
+            JSON.stringify({
+              userId: dbUser.id,
+              teamId: activeTeam.id,
+              role: userRole,
+              timestamp: Date.now(),
+            })
+          );
+        } catch (err) {
+          console.error("Error:", err);
           setPermissions("VIEW");
-          return;
         }
+      };
 
-        const isCreator = activeTeam.createdById === dbUser.id;
-        const userMembership = activeTeam.members?.find(
-          (member: any) => member.userId === dbUser.id
-        );
-
-        let userRole: "ADMIN" | "VIEW" | "EDIT" = "VIEW";
-
-        if (isCreator) {
-          userRole = "ADMIN";
-        } else if (userMembership) {
-          userRole = userMembership.role as "ADMIN" | "VIEW" | "EDIT";
-        }
-
-        setPermissions(userRole);
-      } catch (err) {
-        console.error("Error:", err);
-        setPermissions("VIEW");
-      }
-    };
-
-    fetchCurrentUser();
-  }, [activeTeam]);
+      fetchCurrentUser();
+    }
+  }, [activeTeam, fileId, currentUser]);
 
   useEffect(() => {
     console.log("🔄 Canvas: fileData changed", {
