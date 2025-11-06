@@ -920,6 +920,7 @@ export function VersionHistory({
           </Button>
         </div>
 
+        {/* Основной контент с скроллом */}
         <div
           className={`
             flex-1 bg-gray-50 transition-[max-height] duration-700 ease-in-out
@@ -928,256 +929,259 @@ export function VersionHistory({
                 ? "max-h-[calc(100%-4rem)]"
                 : "max-h-[calc(100%-20rem)]"
             }
+            overflow-y-auto
           `}
         >
-          {isLoading || isRefreshing ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex items-center gap-3 text-gray-500">
-                <RefreshCw className="h-5 w-5 animate-spin" />
-                <span>Loading versions...</span>
+          <div className="h-full">
+            {isLoading || isRefreshing ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex items-center gap-3 text-gray-500">
+                  <RefreshCw className="h-5 w-5 animate-spin" />
+                  <span>Loading versions...</span>
+                </div>
               </div>
-            </div>
-          ) : currentVersions.length === 0 ? (
-            <div className="text-center text-gray-500 py-12">
-              <History className="mx-auto mb-4 text-gray-300 w-16 h-16" />
-              <h3 className="font-semibold mb-2 text-gray-800 text-lg">
-                No {filterByType !== "all" ? filterByType : ""} versions yet
-              </h3>
-              <p className="text-gray-600 mb-4 max-w-sm mx-auto text-sm">
-                {filterByType === "all"
-                  ? "Save your document or whiteboard to create the first version."
-                  : `Save your ${filterByType} to create the first version.`}
-              </p>
-              {onRefreshVersions && (
+            ) : currentVersions.length === 0 ? (
+              <div className="text-center text-gray-500 py-12">
+                <History className="mx-auto mb-4 text-gray-300 w-16 h-16" />
+                <h3 className="font-semibold mb-2 text-gray-800 text-lg">
+                  No {filterByType !== "all" ? filterByType : ""} versions yet
+                </h3>
+                <p className="text-gray-600 mb-4 max-w-sm mx-auto text-sm">
+                  {filterByType === "all"
+                    ? "Save your document or whiteboard to create the first version."
+                    : `Save your ${filterByType} to create the first version.`}
+                </p>
+                {onRefreshVersions && (
+                  <Button
+                    onClick={handleRefreshVersions}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                )}
+              </div>
+            ) : filteredVersions.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                <Search className="mx-auto mb-4 text-gray-300 w-12 h-12" />
+                <p className="text-gray-600 mb-3 text-sm">
+                  No {filterByType !== "all" ? filterByType : ""} versions match
+                  your search
+                </p>
                 <Button
-                  onClick={handleRefreshVersions}
                   variant="outline"
                   size="sm"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setFilterByAuthor("");
+                  }}
                 >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
+                  Clear filters
                 </Button>
-              )}
-            </div>
-          ) : filteredVersions.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              <Search className="mx-auto mb-4 text-gray-300 w-12 h-12" />
-              <p className="text-gray-600 mb-3 text-sm">
-                No {filterByType !== "all" ? filterByType : ""} versions match
-                your search
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSearchTerm("");
-                  setFilterByAuthor("");
-                }}
-              >
-                Clear filters
-              </Button>
-            </div>
-          ) : (
-            <div className="pl-4 pr-4">
-              {Object.entries(groupedVersions).map(([date, dayVersions]) => (
-                <div key={date}>
-                  <h4 className="font-bold text-gray-500 mb-2 uppercase tracking-wider sticky top-0 bg-gray-50 py-1.5 text-xs z-10">
-                    {date}
-                  </h4>
-                  <div className="space-y-3">
-                    {dayVersions.map((version, index) => (
-                      <div
-                        key={version.id}
-                        className={`border bg-white hover:shadow-md transition-all duration-200 rounded-xl ${
-                          compareTarget?.id === version.id
-                            ? "border-indigo-500 border-2"
-                            : "border-gray-200 hover:border-indigo-300"
-                        } p-4`}
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <h4 className="font-semibold text-gray-900 truncate text-sm">
-                                {version.name || `Version ${version.version}`}
-                              </h4>
-                              {index === 0 &&
-                                filteredVersions[0]?.id === version.id && (
-                                  <Badge className="text-white bg-green-500 text-xs">
-                                    Latest
-                                  </Badge>
-                                )}
-                              <Badge
-                                variant="outline"
-                                className={`${
-                                  version.type === "whiteboard"
-                                    ? "bg-purple-50 text-purple-700 border-purple-200"
-                                    : "bg-blue-50 text-blue-700 border-blue-200"
-                                } text-xs`}
-                              >
-                                {version.type === "whiteboard"
-                                  ? "Whiteboard"
-                                  : "Document"}
-                              </Badge>
+              </div>
+            ) : (
+              <div className="pl-4 pr-4 pb-4">
+                {Object.entries(groupedVersions).map(([date, dayVersions]) => (
+                  <div key={date}>
+                    <h4 className="font-bold text-gray-500 mb-2 uppercase tracking-wider sticky top-0 bg-gray-50 py-1.5 text-xs z-10">
+                      {date}
+                    </h4>
+                    <div className="space-y-3">
+                      {dayVersions.map((version, index) => (
+                        <div
+                          key={version.id}
+                          className={`border bg-white hover:shadow-md transition-all duration-200 rounded-xl ${
+                            compareTarget?.id === version.id
+                              ? "border-indigo-500 border-2"
+                              : "border-gray-200 hover:border-indigo-300"
+                          } p-4`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <h4 className="font-semibold text-gray-900 truncate text-sm">
+                                  {version.name || `Version ${version.version}`}
+                                </h4>
+                                {index === 0 &&
+                                  filteredVersions[0]?.id === version.id && (
+                                    <Badge className="text-white bg-green-500 text-xs">
+                                      Latest
+                                    </Badge>
+                                  )}
+                                <Badge
+                                  variant="outline"
+                                  className={`${
+                                    version.type === "whiteboard"
+                                      ? "bg-purple-50 text-purple-700 border-purple-200"
+                                      : "bg-blue-50 text-blue-700 border-blue-200"
+                                  } text-xs`}
+                                >
+                                  {version.type === "whiteboard"
+                                    ? "Whiteboard"
+                                    : "Document"}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <Badge
+                                  variant="outline"
+                                  className="font-mono bg-indigo-50 text-indigo-700 border-indigo-200 text-xs"
+                                >
+                                  v{version.version}
+                                </Badge>
+                                <span className="text-gray-500 text-xs">
+                                  {formatFileSize(version.content?.length || 0)}
+                                </span>
+                              </div>
+                              {version.description && (
+                                <p className="text-gray-600 line-clamp-2 mb-2 text-xs">
+                                  {version.description}
+                                </p>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <Badge
-                                variant="outline"
-                                className="font-mono bg-indigo-50 text-indigo-700 border-indigo-200 text-xs"
-                              >
-                                v{version.version}
-                              </Badge>
-                              <span className="text-gray-500 text-xs">
-                                {formatFileSize(version.content?.length || 0)}
+                          </div>
+
+                          <div className="flex items-center gap-3 text-gray-500 mb-3 flex-wrap text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src={version.author.image} />
+                                <AvatarFallback className="bg-indigo-100 text-indigo-700 text-[10px]">
+                                  {version.author.name
+                                    ?.charAt(0)
+                                    ?.toUpperCase() || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium">
+                                {version.author.name}
                               </span>
                             </div>
-                            {version.description && (
-                              <p className="text-gray-600 line-clamp-2 mb-2 text-xs">
-                                {version.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 text-gray-500 mb-3 flex-wrap text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <Avatar className="h-5 w-5">
-                              <AvatarImage src={version.author.image} />
-                              <AvatarFallback className="bg-indigo-100 text-indigo-700 text-[10px]">
-                                {version.author.name
-                                  ?.charAt(0)
-                                  ?.toUpperCase() || "U"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">
-                              {version.author.name}
+                            <span>•</span>
+                            <span>
+                              {new Date(version.createdAt).toLocaleString()}
                             </span>
                           </div>
-                          <span>•</span>
-                          <span>
-                            {new Date(version.createdAt).toLocaleString()}
-                          </span>
-                        </div>
 
-                        <VersionDiffPreview version={version} />
+                          <VersionDiffPreview version={version} />
 
-                        <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setExpandedVersion(
-                                expandedVersion === version.id
-                                  ? null
-                                  : version.id
-                              );
-                            }}
-                            className="text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 h-8 text-xs px-3"
-                          >
-                            {expandedVersion === version.id ? (
-                              <ChevronUp className="h-3.5 w-3.5 mr-1" />
-                            ) : (
-                              <ChevronDown className="h-3.5 w-3.5 mr-1" />
-                            )}
-                            {expandedVersion === version.id ? "Hide" : "Show"}{" "}
-                            Details
-                          </Button>
-
-                          <div className="flex items-center gap-1">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="p-0 opacity-60 hover:opacity-100 h-8 w-8"
-                                >
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent
-                                align="end"
-                                className="w-48 text-sm z-50"
-                              >
-                                <DropdownMenuItem
-                                  onClick={() => downloadVersion(version)}
-                                >
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Download as JSON
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => copyVersionAsJSON(version)}
-                                >
-                                  <Copy className="h-4 w-4 mr-2" />
-                                  Copy as JSON
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    copyToClipboard(version.content)
-                                  }
-                                >
-                                  <Copy className="h-4 w-4 mr-2" />
-                                  Copy Content Only
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    if (
-                                      compareTarget &&
-                                      compareTarget.id !== version.id
-                                    ) {
-                                      compareVersions(compareTarget, version);
-                                      setCompareTarget(null);
-                                    } else {
-                                      setCompareTarget(version);
-                                    }
-                                  }}
-                                >
-                                  <GitCompare className="h-4 w-4 mr-2" />
-                                  {compareTarget &&
-                                  compareTarget.id !== version.id
-                                    ? "Compare with selected"
-                                    : compareTarget?.id === version.id
-                                    ? "Cancel comparison"
-                                    : "Select for comparison"}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                console.log(
-                                  "🎯 VERSION HISTORY: Restore button clicked",
-                                  {
-                                    versionId: version.id,
-                                    versionType: version.type,
-                                    componentType: componentType,
-                                    canRestore: canRestoreVersion(version),
-                                  }
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setExpandedVersion(
+                                  expandedVersion === version.id
+                                    ? null
+                                    : version.id
                                 );
-                                onRestoreVersion(version);
                               }}
-                              className="h-8 text-xs px-3"
-                              disabled={!canRestoreVersion(version)}
-                              title={
-                                !canRestoreVersion(version)
-                                  ? getRestoreDisabledReason(version)
-                                  : `Restore ${version.type} version`
-                              }
+                              className="text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 h-8 text-xs px-3"
                             >
-                              <Eye className="h-3.5 w-3.5 mr-1" />
-                              Restore
+                              {expandedVersion === version.id ? (
+                                <ChevronUp className="h-3.5 w-3.5 mr-1" />
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                              )}
+                              {expandedVersion === version.id ? "Hide" : "Show"}{" "}
+                              Details
                             </Button>
+
+                            <div className="flex items-center gap-1">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="p-0 opacity-60 hover:opacity-100 h-8 w-8"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-48 text-sm z-50"
+                                >
+                                  <DropdownMenuItem
+                                    onClick={() => downloadVersion(version)}
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download as JSON
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => copyVersionAsJSON(version)}
+                                  >
+                                    <Copy className="h-4 w-4 mr-2" />
+                                    Copy as JSON
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      copyToClipboard(version.content)
+                                    }
+                                  >
+                                    <Copy className="h-4 w-4 mr-2" />
+                                    Copy Content Only
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      if (
+                                        compareTarget &&
+                                        compareTarget.id !== version.id
+                                      ) {
+                                        compareVersions(compareTarget, version);
+                                        setCompareTarget(null);
+                                      } else {
+                                        setCompareTarget(version);
+                                      }
+                                    }}
+                                  >
+                                    <GitCompare className="h-4 w-4 mr-2" />
+                                    {compareTarget &&
+                                    compareTarget.id !== version.id
+                                      ? "Compare with selected"
+                                      : compareTarget?.id === version.id
+                                      ? "Cancel comparison"
+                                      : "Select for comparison"}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  console.log(
+                                    "🎯 VERSION HISTORY: Restore button clicked",
+                                    {
+                                      versionId: version.id,
+                                      versionType: version.type,
+                                      componentType: componentType,
+                                      canRestore: canRestoreVersion(version),
+                                    }
+                                  );
+                                  onRestoreVersion(version);
+                                }}
+                                className="h-8 text-xs px-3"
+                                disabled={!canRestoreVersion(version)}
+                                title={
+                                  !canRestoreVersion(version)
+                                    ? getRestoreDisabledReason(version)
+                                    : `Restore ${version.type} version`
+                                }
+                              >
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                Restore
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="border-t bg-linear-to-r from-gray-50 to-white shrink-0 p-4">
