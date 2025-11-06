@@ -103,9 +103,10 @@ export default function Editor({
   const isSaving = useRef(false);
   const isApplyingRemoteContent = useRef(false);
   const lastMousePresenceUpdate = useRef<number>(0);
-  const mouseMoveTimeoutRef = useRef<NodeJS.Timeout>(null);
+  const mouseMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isApplyingRemoteUpdate = useRef(false);
   const lastSentContent = useRef<string>("");
+  const editorDestroyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMobile = useIsMobile();
 
   const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
@@ -148,6 +149,33 @@ export default function Editor({
   });
 
   const canEdit = permissions === "EDIT" || permissions === "ADMIN";
+
+  const destroyEditor = useCallback(() => {
+    if (editorDestroyTimeoutRef.current) {
+      clearTimeout(editorDestroyTimeoutRef.current);
+    }
+
+    if (editorRef.current) {
+      try {
+        console.log("🔧 Destroying EditorJS instance...");
+        editorRef.current.destroy();
+        editorRef.current = null;
+        isInitialized.current = false;
+        console.log("✅ EditorJS instance destroyed successfully");
+      } catch (error) {
+        console.error("❌ Error destroying editor:", error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      destroyEditor();
+      if (mouseMoveTimeoutRef.current) {
+        clearTimeout(mouseMoveTimeoutRef.current);
+      }
+    };
+  }, [destroyEditor]);
 
   useEffect(() => {
     if (activeTeam && !currentUser) {
@@ -687,6 +715,8 @@ export default function Editor({
 
     const initEditor = async () => {
       try {
+        destroyEditor();
+
         console.log("🚀 Initializing EditorJS with SAFE tools only...");
 
         const EditorJS = (await import("@editorjs/editorjs")).default;
@@ -698,9 +728,12 @@ export default function Editor({
           throw new Error("Essential EditorJS tools failed to load");
         }
 
-        if (editorRef.current) {
-          editorRef.current.destroy();
-          editorRef.current = null;
+        const editorElement = document.getElementById("editorjs");
+        if (editorElement && editorElement.children.length > 1) {
+          console.warn(
+            "⚠️ Editor container already has content, cleaning up..."
+          );
+          editorElement.innerHTML = "";
         }
 
         const toolsConfig: any = {
@@ -859,10 +892,10 @@ export default function Editor({
       isMounted = false;
       clearTimeout(initTimer);
 
-      if (editorInstance && typeof editorInstance.destroy === "function") {
-        setTimeout(() => {
+      editorDestroyTimeoutRef.current = setTimeout(() => {
+        if (editorInstance && typeof editorInstance.destroy === "function") {
           try {
-            editorInstance!.destroy();
+            editorInstance.destroy();
             console.log("🔧 Editor destroyed successfully");
           } catch (e) {
             console.error("Error destroying editor:", e);
@@ -870,12 +903,8 @@ export default function Editor({
           editorInstance = null;
           editorRef.current = null;
           isInitialized.current = false;
-        }, 50);
-      } else {
-        console.warn(
-          "⚠️ Editor instance not properly initialized, skipping destroy"
-        );
-      }
+        }
+      }, 50);
     };
   }, [
     editorData,
@@ -884,6 +913,7 @@ export default function Editor({
     sendContentUpdateThrottled,
     sendContentUpdateImmediate,
     updateLightPresence,
+    destroyEditor,
   ]);
 
   const handleEditorMouseMove = useCallback(
