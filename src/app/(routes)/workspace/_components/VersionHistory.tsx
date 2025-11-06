@@ -90,6 +90,7 @@ export function VersionHistory({
   >("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
   const isMobile = useIsMobile();
 
@@ -512,227 +513,275 @@ export function VersionHistory({
           isMobile ? "fixed inset-0 z-50 w-full h-full" : "w-96 h-[92vh]"
         }`}
       >
-        {/* Header */}
-        <div className="border-b bg-linear-to-r from-blue-50 via-indigo-50 to-purple-50 shrink-0 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-white rounded-lg shadow-sm p-2">
-                <History className="text-indigo-600 h-5 w-5" />
+        <div
+          className={`
+          border-b bg-linear-to-r from-blue-50 via-indigo-50 to-purple-50 shrink-0
+          transition-all duration-300 ease-in-out overflow-hidden
+          ${isHeaderCollapsed ? "max-h-16" : "max-h-80"}
+        `}
+        >
+          <div className="p-2">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-white rounded-lg shadow-sm p-2">
+                  <History className="text-indigo-600 h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">
+                    Version History
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    {stats.totalVersions}{" "}
+                    {filterByType === "all" ? "total" : filterByType} versions
+                    {lastRefreshTime && (
+                      <span className="text-gray-400 ml-1">
+                        • {formatTimeAgo(lastRefreshTime)}
+                      </span>
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">
-                  Version History
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  {stats.totalVersions}{" "}
-                  {filterByType === "all" ? "total" : filterByType} versions
-                  {lastRefreshTime && (
-                    <span className="text-gray-400 ml-1">
-                      • {formatTimeAgo(lastRefreshTime)}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              {/* Кнопка обновления */}
-              {onRefreshVersions && (
+              <div className="flex items-center gap-1">
+                {onRefreshVersions && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRefreshVersions}
+                    disabled={isRefreshing || isLoading}
+                    className="hover:bg-white/80 rounded-lg h-9 w-9 p-0"
+                    title="Refresh versions"
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${
+                        isRefreshing ? "animate-spin" : ""
+                      }`}
+                    />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleRefreshVersions}
-                  disabled={isRefreshing || isLoading}
+                  onClick={onClose}
                   className="hover:bg-white/80 rounded-lg h-9 w-9 p-0"
-                  title="Refresh versions"
                 >
-                  <RefreshCw
-                    className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-                  />
+                  <X className="h-5 w-5" />
                 </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onClose}
-                className="hover:bg-white/80 rounded-lg h-9 w-9 p-0"
-              >
-                <X className="h-5 w-5" />
-              </Button>
+              </div>
             </div>
-          </div>
 
-          {/* Tabs для фильтрации по типам */}
-          <div className="flex bg-white rounded-lg p-1 border border-gray-200 mb-4">
-            {[
-              {
-                key: "all" as const,
-                label: "All",
-                count: typeStats.all,
-                icon: History,
-              },
-              {
-                key: "document" as const,
-                label: "Doc",
-                count: typeStats.document,
-                icon: File,
-              },
-              {
-                key: "whiteboard" as const,
-                label: "Board",
-                count: typeStats.whiteboard,
-                icon: Palette,
-              },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFilterByType(tab.key)}
-                className={`flex-1 py-2 px-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-                  filterByType === tab.key
-                    ? "bg-indigo-100 text-indigo-700 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                <tab.icon className="h-3.5 w-3.5" />
-                <span>{tab.label}</span>
-                {tab.count > 0 && (
-                  <span
-                    className={`px-1 py-0.5 text-xs rounded-full min-w-5 ${
+            <div
+              className={`
+              transition-all duration-300 ease-in-out
+              ${
+                isHeaderCollapsed
+                  ? "opacity-0 max-h-0 overflow-hidden"
+                  : "opacity-100 max-h-64 overflow-visible"
+              }
+            `}
+            >
+              <div className="flex bg-white rounded-lg p-1 border border-gray-200 mb-4">
+                {[
+                  {
+                    key: "all" as const,
+                    label: "All",
+                    count: typeStats.all,
+                    icon: History,
+                  },
+                  {
+                    key: "document" as const,
+                    label: "Doc",
+                    count: typeStats.document,
+                    icon: File,
+                  },
+                  {
+                    key: "whiteboard" as const,
+                    label: "Board",
+                    count: typeStats.whiteboard,
+                    icon: Palette,
+                  },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setFilterByType(tab.key)}
+                    className={`flex-1 py-2 px-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
                       filterByType === tab.key
-                        ? "bg-indigo-200 text-indigo-800"
-                        : "bg-gray-200 text-gray-700"
+                        ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     }`}
                   >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Статистика */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200/50">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Clock className="text-blue-600 h-3.5 w-3.5" />
-                <span className="font-medium text-gray-600 text-xs">
-                  7 Days
-                </span>
-              </div>
-              <div className="font-bold text-gray-900 text-xl">
-                {stats.last7Days}
-              </div>
-            </div>
-            <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200/50">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Users className="text-purple-600 h-3.5 w-3.5" />
-                <span className="font-medium text-gray-600 text-xs">
-                  Authors
-                </span>
-              </div>
-              <div className="font-bold text-gray-900 text-xl">
-                {stats.uniqueAuthors}
-              </div>
-            </div>
-            <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200/50">
-              <div className="flex items-center gap-1.5 mb-1">
-                <FileText className="text-green-600 h-3.5 w-3.5" />
-                <span className="font-medium text-gray-600 text-xs">
-                  {filterByType === "document"
-                    ? "Doc"
-                    : filterByType === "whiteboard"
-                    ? "Board"
-                    : "Avg"}{" "}
-                  Size
-                </span>
-              </div>
-              <div className="font-bold text-gray-900 text-sm">
-                {formatFileSize(stats.avgSize)}
-              </div>
-            </div>
-          </div>
-
-          {/* Поиск и фильтры */}
-          <div className="space-y-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search versions..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-white border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pl-9"
-              />
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFilterOpen(!filterOpen)}
-                  className="w-full bg-white hover:bg-gray-50"
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  {filterByAuthor ? "Filtered" : "Filter"}
-                </Button>
-                {filterOpen && (
-                  <div className="absolute top-full mt-1 left-0 right-0 bg-white border rounded-lg shadow-lg z-10">
-                    <button
-                      onClick={() => {
-                        setFilterByAuthor("");
-                        setFilterOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm"
-                    >
-                      All Authors
-                    </button>
-                    {uniqueAuthors.map((author) => (
-                      <button
-                        key={author.id}
-                        onClick={() => {
-                          setFilterByAuthor(author.id);
-                          setFilterOpen(false);
-                        }}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm"
+                    <tab.icon className="h-3.5 w-3.5" />
+                    <span>{tab.label}</span>
+                    {tab.count > 0 && (
+                      <span
+                        className={`px-1 py-0.5 text-xs rounded-full min-w-5 ${
+                          filterByType === tab.key
+                            ? "bg-indigo-200 text-indigo-800"
+                            : "bg-gray-200 text-gray-700"
+                        }`}
                       >
-                        <Avatar className="h-4 w-4">
-                          <AvatarImage src={author.image} />
-                          <AvatarFallback className="text-xs">
-                            {author.name?.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        {author.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
-              {filteredVersions.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const latestVersion = filteredVersions[0];
-                    if (canRestoreVersion(latestVersion)) {
-                      onRestoreVersion(latestVersion);
-                    }
-                  }}
-                  disabled={!canRestoreVersion(filteredVersions[0])}
-                  className="bg-white hover:bg-gray-50 flex-1"
-                  title={
-                    !canRestoreVersion(filteredVersions[0])
-                      ? getRestoreDisabledReason(filteredVersions[0])
-                      : "Restore latest version"
-                  }
-                >
-                  <RotateCcw className="h-4 w-4 mr-1" />
-                  Latest
-                </Button>
-              )}
+
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200/50">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Clock className="text-blue-600 h-3.5 w-3.5" />
+                    <span className="font-medium text-gray-600 text-xs">
+                      7 Days
+                    </span>
+                  </div>
+                  <div className="font-bold text-gray-900 text-xl">
+                    {stats.last7Days}
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200/50">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Users className="text-purple-600 h-3.5 w-3.5" />
+                    <span className="font-medium text-gray-600 text-xs">
+                      Authors
+                    </span>
+                  </div>
+                  <div className="font-bold text-gray-900 text-xl">
+                    {stats.uniqueAuthors}
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200/50">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <FileText className="text-green-600 h-3.5 w-3.5" />
+                    <span className="font-medium text-gray-600 text-xs">
+                      {filterByType === "document"
+                        ? "Doc"
+                        : filterByType === "whiteboard"
+                        ? "Board"
+                        : "Avg"}{" "}
+                      Size
+                    </span>
+                  </div>
+                  <div className="font-bold text-gray-900 text-sm">
+                    {formatFileSize(stats.avgSize)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search versions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="bg-white border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 pl-9"
+                  />
+                </div>
+                <div className="flex gap-2 h-10">
+                  <div className="flex-1 relative">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFilterOpen(!filterOpen)}
+                      className="h-full bg-white hover:bg-gray-50 min-w-[180px]"
+                    >
+                      <Filter className="h-4 w-4 mr-2" />
+                      {filterByAuthor ? "Filtered" : "Filter"}
+                    </Button>
+                    {filterOpen && (
+                      <div className="absolute top-full mt-1 left-0 right-0 bg-white border rounded-lg shadow-lg z-10">
+                        <button
+                          onClick={() => {
+                            setFilterByAuthor("");
+                            setFilterOpen(false);
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm"
+                        >
+                          All Authors
+                        </button>
+                        {uniqueAuthors.map((author) => (
+                          <button
+                            key={author.id}
+                            onClick={() => {
+                              setFilterByAuthor(author.id);
+                              setFilterOpen(false);
+                            }}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm"
+                          >
+                            <Avatar className="h-4 w-4">
+                              <AvatarImage src={author.image} />
+                              <AvatarFallback className="text-xs">
+                                {author.name?.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            {author.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {filteredVersions.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const latestVersion = filteredVersions[0];
+                        if (canRestoreVersion(latestVersion)) {
+                          onRestoreVersion(latestVersion);
+                        }
+                      }}
+                      disabled={!canRestoreVersion(filteredVersions[0])}
+                      className="h-full bg-white hover:bg-gray-50 min-w-[180px]"
+                      title={
+                        !canRestoreVersion(filteredVersions[0])
+                          ? getRestoreDisabledReason(filteredVersions[0])
+                          : "Restore latest version"
+                      }
+                    >
+                      <RotateCcw className="h-4 w-4 mr-1" />
+                      Latest
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Список версий */}
-        <div className="flex-1 overflow-y-auto bg-gray-50">
+        <div className="flex justify-center ml-0.5">
+          <Button
+            variant="outline"
+            onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+            className={`
+              flex items-center justify-center rounded-full
+              border border-transparent
+              active:scale-95
+              transition-all duration-300 ease-in-out
+              group
+            `}
+            title={isHeaderCollapsed ? "Expand header" : "Collapse header"}
+          >
+            <ChevronUp
+              className={`
+                h-8 w-8 text-gray-600 transition-transform duration-500 ease-in-out
+                ${isHeaderCollapsed ? "rotate-180" : "rotate-0"}
+                group-hover:scale-135
+              `}
+            />
+          </Button>
+        </div>
+
+        <div
+          className={`
+            flex-1 overflow-y-auto bg-gray-50 transition-[max-height] duration-700 ease-in-out
+            ${
+              isHeaderCollapsed
+                ? "max-h-[calc(100%-4rem)]"
+                : "max-h-[calc(100%-20rem)]"
+            }
+          `}
+        >
           {isLoading || isRefreshing ? (
             <div className="flex items-center justify-center py-12">
               <div className="flex items-center gap-3 text-gray-500">
@@ -781,7 +830,7 @@ export function VersionHistory({
               </Button>
             </div>
           ) : (
-            <div className="space-y-4 p-4">
+            <div className="space-y-1 pl-4 pr-4">
               {Object.entries(groupedVersions).map(([date, dayVersions]) => (
                 <div key={date}>
                   <h4 className="font-bold text-gray-500 mb-2 uppercase tracking-wider sticky top-0 bg-gray-50 py-1.5 text-xs">
@@ -841,7 +890,6 @@ export function VersionHistory({
                           </div>
                         </div>
 
-                        {/* Автор и дата */}
                         <div className="flex items-center gap-3 text-gray-500 mb-3 flex-wrap text-xs">
                           <div className="flex items-center gap-1.5">
                             <Avatar className="h-5 w-5">
@@ -864,7 +912,6 @@ export function VersionHistory({
 
                         <VersionDiffPreview version={version} />
 
-                        {/* Действия */}
                         <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
                           <Button
                             variant="ghost"
@@ -985,7 +1032,6 @@ export function VersionHistory({
           )}
         </div>
 
-        {/* Footer */}
         <div className="border-t bg-linear-to-r from-gray-50 to-white shrink-0 p-4">
           {compareTarget && (
             <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
