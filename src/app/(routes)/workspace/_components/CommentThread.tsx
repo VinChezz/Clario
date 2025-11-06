@@ -84,7 +84,7 @@ const CommentTypeSelector = ({
           onClick={() => onTypeChange(type.value)}
           title={type.title}
           className={`
-            flex flex-col items-center justify-center w-18 h-15
+            flex flex-col items-center justify-center w-19.5 h-15
             p-3 rounded-xl border-2 transition-all duration-200 min-w-[60px]
             ${
               selectedType === type.value
@@ -404,14 +404,14 @@ export function CommentThread({
 
   return (
     <div
-      className={`bg-white flex flex-col shadow-2xl rounded-xl overflow-hidden border border-gray-200 ${
+      className={`bg-white flex flex-col shadow-2xl rounded-xl border border-gray-200 ${
         isMobile ? "fixed inset-0 z-50 w-full h-full" : "w-96 h-[92vh]"
       }`}
     >
       <div
         className={`
           border-b from-blue-50 via-indigo-50 to-purple-50 shrink-0
-          transition-all duration-300 ease-in-out overflow-hidden
+          transition-all duration-300 ease-in-out
           ${isHeaderCollapsed ? "max-h-16" : "max-h-80"}
         `}
       >
@@ -543,56 +543,148 @@ export function CommentThread({
                       : "Filter"}
                   </Button>
                   {filterOpen && (
-                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border rounded-lg shadow-lg z-10 p-2 space-y-2">
-                      <div className="text-xs font-medium text-gray-500">
-                        Author
-                      </div>
-                      <button
-                        onClick={() => setFilterByAuthor("")}
-                        className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm rounded-md"
-                      >
-                        All Authors
-                      </button>
-                      {uniqueAuthors.map((author) => (
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border rounded-lg shadow-lg z-10 p-4 space-y-4">
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                          Author
+                        </div>
                         <button
-                          key={author.id}
-                          onClick={() => {
-                            setFilterByAuthor(author.id);
-                            setFilterOpen(false);
-                          }}
-                          className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm rounded-md"
+                          onClick={() => setFilterByAuthor("")}
+                          className={`w-full px-3 py-2 text-left hover:bg-gray-50 text-sm rounded-md transition-colors ${
+                            !filterByAuthor
+                              ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              : ""
+                          }`}
                         >
-                          <Avatar className="h-4 w-4">
-                            <AvatarImage src={author.image} />
-                            <AvatarFallback className="text-xs">
-                              {author.name?.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          {author.name}
+                          All Authors
                         </button>
-                      ))}
+                        {uniqueAuthors.map((author) => (
+                          <button
+                            key={author.id}
+                            onClick={() => {
+                              setFilterByAuthor(author.id);
+                              setFilterOpen(false);
+                            }}
+                            className={`w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm rounded-md transition-colors ${
+                              filterByAuthor === author.id
+                                ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                : ""
+                            }`}
+                          >
+                            <Avatar className="h-4 w-4">
+                              <AvatarImage src={author.image} />
+                              <AvatarFallback className="text-xs">
+                                {author.name?.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            {author.name}
+                          </button>
+                        ))}
+                      </div>
 
-                      <div className="text-xs font-medium text-gray-500 mt-2">
-                        Type
+                      <div className="space-y-3">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                          Type
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            {
+                              key: "all",
+                              label: "All",
+                              emoji: "📝",
+                              color: "gray",
+                            },
+                            {
+                              key: "QUESTION",
+                              label: "Questions",
+                              emoji: "❓",
+                              color: "purple",
+                            },
+                            {
+                              key: "SUGGESTION",
+                              label: "Suggestions",
+                              emoji: "💡",
+                              color: "blue",
+                            },
+                          ].map((type) => (
+                            <button
+                              key={type.key}
+                              onClick={() => {
+                                setFilterByType(
+                                  type.key as "all" | "QUESTION" | "SUGGESTION"
+                                );
+                                setFilterOpen(false);
+                              }}
+                              className={`
+                                flex flex-col items-center justify-center p-2
+                                rounded-xl border-2 transition-all duration-200 min-h-[60px] w-full
+                                ${
+                                  filterByType === type.key
+                                    ? `bg-${type.color}-100 text-${type.color}-700 border-${type.color}-300 shadow-sm scale-105`
+                                    : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:scale-105 hover:border-gray-300"
+                                }
+                              `}
+                            >
+                              <span className="text-lg mb-1">{type.emoji}</span>
+                              <span
+                                className={`text-xs font-medium text-center ${
+                                  filterByType === type.key
+                                    ? `text-${type.color}-700`
+                                    : "text-gray-500"
+                                }`}
+                              >
+                                {type.label}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex justify-center gap-2">
+                          {[
+                            {
+                              key: "ISSUE",
+                              label: "Issues",
+                              emoji: "🐛",
+                              color: "red",
+                            },
+                            {
+                              key: "ç",
+                              label: "Praise",
+                              emoji: "🎉",
+                              color: "green",
+                            },
+                          ].map((type) => (
+                            <button
+                              key={type.key}
+                              onClick={() => {
+                                setFilterByType(type.key as "ISSUE" | "ISSUE");
+                                setFilterOpen(false);
+                              }}
+                              className={`
+          flex flex-col items-center justify-center p-2
+          rounded-xl border-2 transition-all duration-200 min-h-[60px] w-[calc(33.333%-0.5rem)]
+          ${
+            filterByType === type.key
+              ? `bg-${type.color}-100 text-${type.color}-700 border-${type.color}-300 shadow-sm scale-105`
+              : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:scale-105 hover:border-gray-300"
+          }
+        `}
+                            >
+                              <span className="text-lg mb-1">{type.emoji}</span>
+                              <span
+                                className={`text-xs font-medium text-center ${
+                                  filterByType === type.key
+                                    ? `text-${type.color}-700`
+                                    : "text-gray-500"
+                                }`}
+                              >
+                                {type.label}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      {[
-                        { key: "all" as const, label: "All Types" },
-                        { key: "QUESTION" as const, label: "❓ Questions" },
-                        { key: "SUGGESTION" as const, label: "💡 Suggestions" },
-                        { key: "ISSUE" as const, label: "🐛 Issues" },
-                        { key: "PRAISE" as const, label: "🎉 Praise" },
-                      ].map((type) => (
-                        <button
-                          key={type.key}
-                          onClick={() => {
-                            setFilterByType(type.key);
-                            setFilterOpen(false);
-                          }}
-                          className="w-full px-3 py-2 text-left hover:bg-gray-50 text-sm rounded-md"
-                        >
-                          {type.label}
-                        </button>
-                      ))}
                     </div>
                   )}
                 </div>

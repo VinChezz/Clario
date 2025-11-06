@@ -337,19 +337,6 @@ export function VersionHistory({
       });
     };
 
-    console.log("🔍 VersionHistory Debug:", {
-      componentType,
-      currentVersions: currentVersions.length,
-      filteredVersions: filteredVersions.length,
-      versions: versions.map((v) => ({
-        id: v.id,
-        type: v.type,
-        version: v.version,
-        canRestore: canRestoreVersion(v),
-        disabledReason: getRestoreDisabledReason(v),
-      })),
-    });
-
     const getElementCount = (content: string) => {
       try {
         const data = JSON.parse(content);
@@ -358,6 +345,76 @@ export function VersionHistory({
         return 0;
       }
     };
+
+    const getWordCount = (content: string) => {
+      return content.trim() ? content.trim().split(/\s+/).length : 0;
+    };
+
+    const getCharacterStats = (content: string) => {
+      const chars = content.length;
+      const withoutSpaces = content.replace(/\s/g, "").length;
+      return { total: chars, withoutSpaces };
+    };
+
+    const getLinesCount = (content: string) => {
+      return content.split("\n").length;
+    };
+
+    const getFileTypeInfo = (
+      content: string,
+      type?: string
+    ): Record<string, number> => {
+      if (type === "whiteboard") {
+        try {
+          const data = JSON.parse(content);
+          const elementTypes: Record<string, number> = {};
+          if (Array.isArray(data)) {
+            data.forEach((element: any) => {
+              const elementType = element.type || "unknown";
+              elementTypes[elementType] = (elementTypes[elementType] || 0) + 1;
+            });
+          }
+          return elementTypes;
+        } catch {
+          return {};
+        }
+      }
+      return {};
+    };
+
+    const characterStats = getCharacterStats(version.content);
+    const wordCount = getWordCount(version.content);
+    const linesCount = getLinesCount(version.content);
+    const elementTypes = getFileTypeInfo(version.content, version.type);
+    const elementCount = getElementCount(version.content);
+
+    const getChangeStats = () => {
+      if (!previousVersion) return null;
+
+      const currentChars = characterStats.total;
+      const previousChars = getCharacterStats(previousVersion.content).total;
+      const currentWords = wordCount;
+      const previousWords = getWordCount(previousVersion.content);
+      const currentLines = linesCount;
+      const previousLines = getLinesCount(previousVersion.content);
+      const currentElements = elementCount;
+      const previousElements = getElementCount(previousVersion.content);
+
+      return {
+        chars: currentChars - previousChars,
+        words: currentWords - previousWords,
+        lines: currentLines - previousLines,
+        elements: currentElements - previousElements,
+        percentage:
+          previousChars > 0
+            ? (((currentChars - previousChars) / previousChars) * 100).toFixed(
+                1
+              )
+            : "100",
+      };
+    };
+
+    const changeStats = getChangeStats();
 
     return (
       <div
@@ -380,10 +437,27 @@ export function VersionHistory({
             >
               {formatFileSize(version.content?.length || 0)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {version.type === "whiteboard"
-                ? `${getElementCount(version.content)} elements`
-                : `${version.content?.split("\n")?.length || 0} lines`}
+            <div className="text-sm text-gray-600 mt-1">
+              <div className="text-xs text-gray-600 space-y-0.5 mt-1">
+                <div className="flex justify-between">
+                  <span>Chars:</span>
+                  <span className="font-medium">
+                    {characterStats.total.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Words:</span>
+                  <span className="font-medium">
+                    {wordCount.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Lines:</span>
+                  <span className="font-medium">
+                    {linesCount.toLocaleString()}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           <div className="bg-white/90 rounded-lg p-3 border border-gray-200/50">
@@ -404,83 +478,144 @@ export function VersionHistory({
               {new Date(version.createdAt).toLocaleDateString()}
             </div>
           </div>
+
+          <div className="space-y-2">
+            {version.author && (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={version.author.image} />
+                  <AvatarFallback className="text-xs bg-indigo-100 text-indigo-700">
+                    {version.author.name?.charAt(0)?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 truncate">
+                    {version.author.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(version.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {version.type === "whiteboard" && (
+              <div className="text-xs text-gray-600">
+                <div className="font-medium">{elementCount} elements</div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {previousVersion && (
-          <div className="bg-white/90 rounded-lg p-3 border border-gray-200/50 mb-3">
-            <div className="text-xs font-medium text-gray-600 mb-2">
-              Changes from v{previousVersion.version}
+        {previousVersion && changeStats && (
+          <div className="bg-white/80 rounded-lg p-2 border border-gray-200/50 mb-3">
+            <div className="text-xs font-medium text-gray-600 mb-2 text-center">
+              Changes from v{previousVersion.version} ({changeStats.percentage}
+              %)
             </div>
-            <div
-              className={`flex justify-around ${isMobile ? "gap-2" : "gap-4"}`}
-            >
-              <div className="text-center">
+            <div className="grid grid-cols-4 gap-1 text-center">
+              <div>
                 <div
-                  className={`font-bold ${
-                    version.content.length > previousVersion.content.length
+                  className={`text-sm font-bold ${
+                    changeStats.chars > 0
                       ? "text-green-600"
-                      : version.content.length < previousVersion.content.length
+                      : changeStats.chars < 0
                       ? "text-red-600"
                       : "text-gray-600"
-                  } ${isMobile ? "text-lg" : "text-xl"}`}
+                  }`}
                 >
-                  {version.content.length - previousVersion.content.length > 0
-                    ? "+"
-                    : ""}
-                  {version.content.length - previousVersion.content.length}
+                  {changeStats.chars > 0 ? "+" : ""}
+                  {changeStats.chars}
                 </div>
-                <div className="text-xs text-gray-500">chars</div>
+                <div className="text-[10px] text-gray-500">chars</div>
               </div>
-              <div className="text-center">
+              <div>
                 <div
-                  className={`font-bold ${
-                    version.type === "whiteboard"
-                      ? getElementCount(version.content) >
-                        getElementCount(previousVersion.content)
+                  className={`text-sm font-bold ${
+                    changeStats.words > 0
+                      ? "text-green-600"
+                      : changeStats.words < 0
+                      ? "text-red-600"
+                      : "text-gray-600"
+                  }`}
+                >
+                  {changeStats.words > 0 ? "+" : ""}
+                  {changeStats.words}
+                </div>
+                <div className="text-[10px] text-gray-500">words</div>
+              </div>
+              <div>
+                <div
+                  className={`text-sm font-bold ${
+                    changeStats.lines > 0
+                      ? "text-green-600"
+                      : changeStats.lines < 0
+                      ? "text-red-600"
+                      : "text-gray-600"
+                  }`}
+                >
+                  {changeStats.lines > 0 ? "+" : ""}
+                  {changeStats.lines}
+                </div>
+                <div className="text-[10px] text-gray-500">lines</div>
+              </div>
+              {version.type === "whiteboard" && (
+                <div>
+                  <div
+                    className={`text-sm font-bold ${
+                      changeStats.elements > 0
                         ? "text-green-600"
-                        : getElementCount(version.content) <
-                          getElementCount(previousVersion.content)
+                        : changeStats.elements < 0
                         ? "text-red-600"
                         : "text-gray-600"
-                      : version.content.split("\n").length >
-                        previousVersion.content.split("\n").length
-                      ? "text-green-600"
-                      : version.content.split("\n").length <
-                        previousVersion.content.split("\n").length
-                      ? "text-red-600"
-                      : "text-gray-600"
-                  } ${isMobile ? "text-lg" : "text-xl"}`}
-                >
-                  {version.type === "whiteboard"
-                    ? (getElementCount(version.content) -
-                        getElementCount(previousVersion.content) >
-                      0
-                        ? "+"
-                        : "") +
-                      (getElementCount(version.content) -
-                        getElementCount(previousVersion.content))
-                    : (version.content.split("\n").length -
-                        previousVersion.content.split("\n").length >
-                      0
-                        ? "+"
-                        : "") +
-                      (version.content.split("\n").length -
-                        previousVersion.content.split("\n").length)}
+                    }`}
+                  >
+                    {changeStats.elements > 0 ? "+" : ""}
+                    {changeStats.elements}
+                  </div>
+                  <div className="text-[10px] text-gray-500">elements</div>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {version.type === "whiteboard" ? "elements" : "lines"}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
 
+        {version.type === "whiteboard" &&
+          Object.keys(elementTypes).length > 0 && (
+            <div className="bg-white/80 rounded-lg p-2 border border-gray-200/50 mb-3">
+              <div className="text-xs font-medium text-gray-600 mb-1 text-center">
+                Elements
+              </div>
+              <div className="flex flex-wrap gap-1 justify-center">
+                {Object.entries(elementTypes)
+                  .slice(0, 5)
+                  .map(([type, count]) => (
+                    <Badge
+                      key={type}
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0.5"
+                    >
+                      {type}: {count}
+                    </Badge>
+                  ))}
+                {Object.keys(elementTypes).length > 5 && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] px-1.5 py-0.5"
+                  >
+                    +{Object.keys(elementTypes).length - 5} more
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+
         <Button
           onClick={handleOpenPortal}
-          className="w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-md transition-all duration-200 py-2.5"
+          className="w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg transition-all duration-200 py-2 text-sm"
         >
-          <GitCompare className="h-4 w-4 mr-2" />
-          Open Detailed Comparison
+          <GitCompare className="h-3.5 w-3.5 mr-1.5" />
+          Detailed Comparison
         </Button>
       </div>
     );
@@ -497,6 +632,19 @@ export function VersionHistory({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, portalDiff]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterOpen) {
+        setFilterOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [filterOpen]);
+
   return (
     <>
       {portalDiff && (
@@ -509,14 +657,14 @@ export function VersionHistory({
       )}
 
       <div
-        className={`bg-white flex flex-col shadow-2xl rounded-xl overflow-hidden border border-gray-200 ${
+        className={`bg-white flex flex-col shadow-2xl rounded-xl border border-gray-200 ${
           isMobile ? "fixed inset-0 z-50 w-full h-full" : "w-96 h-[92vh]"
         }`}
       >
         <div
           className={`
           border-b bg-linear-to-r from-blue-50 via-indigo-50 to-purple-50 shrink-0
-          transition-all duration-300 ease-in-out overflow-hidden
+          transition-all duration-300 ease-in-out
           ${isHeaderCollapsed ? "max-h-16" : "max-h-80"}
         `}
         >
@@ -689,13 +837,13 @@ export function VersionHistory({
                       {filterByAuthor ? "Filtered" : "Filter"}
                     </Button>
                     {filterOpen && (
-                      <div className="absolute top-full mt-1 left-0 right-0 bg-white border rounded-lg shadow-lg z-10">
+                      <div className="absolute top-full mt-1 left-0 right-0 bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
                         <button
                           onClick={() => {
                             setFilterByAuthor("");
                             setFilterOpen(false);
                           }}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm"
+                          className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm border-b border-gray-100"
                         >
                           All Authors
                         </button>
@@ -706,7 +854,7 @@ export function VersionHistory({
                               setFilterByAuthor(author.id);
                               setFilterOpen(false);
                             }}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm"
+                            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm border-b border-gray-100 last:border-b-0"
                           >
                             <Avatar className="h-4 w-4">
                               <AvatarImage src={author.image} />
@@ -774,7 +922,7 @@ export function VersionHistory({
 
         <div
           className={`
-            flex-1 overflow-y-auto bg-gray-50 transition-[max-height] duration-700 ease-in-out
+            flex-1 bg-gray-50 transition-[max-height] duration-700 ease-in-out
             ${
               isHeaderCollapsed
                 ? "max-h-[calc(100%-4rem)]"
@@ -830,10 +978,10 @@ export function VersionHistory({
               </Button>
             </div>
           ) : (
-            <div className="space-y-1 pl-4 pr-4">
+            <div className="pl-4 pr-4">
               {Object.entries(groupedVersions).map(([date, dayVersions]) => (
                 <div key={date}>
-                  <h4 className="font-bold text-gray-500 mb-2 uppercase tracking-wider sticky top-0 bg-gray-50 py-1.5 text-xs">
+                  <h4 className="font-bold text-gray-500 mb-2 uppercase tracking-wider sticky top-0 bg-gray-50 py-1.5 text-xs z-10">
                     {date}
                   </h4>
                   <div className="space-y-3">
@@ -949,7 +1097,7 @@ export function VersionHistory({
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
-                                className="w-48 text-sm"
+                                className="w-48 text-sm z-50"
                               >
                                 <DropdownMenuItem
                                   onClick={() => downloadVersion(version)}
