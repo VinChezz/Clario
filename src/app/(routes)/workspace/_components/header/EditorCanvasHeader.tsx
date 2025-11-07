@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircleMore } from "lucide-react";
+import { MessageCircleMore, History } from "lucide-react";
 import { PresenceIndicator } from "../PresenceIndicator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,7 @@ export function EditorCanvasHeader({
   hasUnsavedChanges = false,
 }: EditorCanvasHeaderProps) {
   const isMobile = useIsMobile();
+
   const fileTypeLabels = {
     document: "Document",
     whiteboard: "Whiteboard",
@@ -67,9 +68,9 @@ export function EditorCanvasHeader({
       return fileTypeLabels[fileType];
     } else {
       if (activeComponent === "editor") {
-        return "Document (Fullscreen)";
+        return "Document";
       } else if (activeComponent === "canvas") {
-        return "Whiteboard (Fullscreen)";
+        return "Whiteboard";
       } else {
         return fileTypeLabels[fileType];
       }
@@ -77,87 +78,66 @@ export function EditorCanvasHeader({
   };
 
   return (
-    <div className="flex items-center justify-between bg-white border-b border-gray-200 px-3 sm:px-4 py-2 sm:py-3 h-14 sm:h-16">
-      <div className="flex items-center gap-2 text-gray-600 h-full">
-        <span className="flex items-center gap-2 text-xs sm:text-sm">
+    <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-3 h-14">
+      <div className="flex items-center gap-3">
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold text-gray-900">
+            {getActiveComponentLabel()}
+          </span>
           {permissions === "VIEW" ? (
-            <p className="flex items-center gap-1 flex-wrap">
-              <span>Viewing only •</span>
-              <span className="text-amber-600 text-xs">
-                no editing permissions
-              </span>
-            </p>
+            <span className="text-xs text-amber-600 font-medium">
+              View only • No editing permissions
+            </span>
           ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm">
-                {getActiveComponentLabel()}
-              </span>
-              {hasUnsavedChanges && (
-                <Badge
-                  variant="outline"
-                  className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs"
-                >
-                  Unsaved
-                </Badge>
-              )}
-            </div>
+            <span className="text-xs text-gray-500">
+              {windowMode === "fullscreen" ? "Fullscreen" : "Editing"}
+            </span>
           )}
-        </span>
+        </div>
+
+        {hasUnsavedChanges && (
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+            <span className="text-xs text-yellow-700 font-medium">Unsaved</span>
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-1 sm:gap-2 h-full">
+
+      <div className="flex items-center gap-2">
         {showCommentsButton && (
           <button
             onClick={onToggleCommentSidebar}
-            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:border-gray-400 transition-colors h-8 sm:h-10"
+            className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
           >
-            <MessageCircleMore className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Comment</span>
+            <MessageCircleMore className="w-4 h-4" />
             {commentsCount > 0 && (
-              <span className="bg-blue-500 text-white text-xs px-1.5 sm:px-2 py-0.5 rounded-full min-w-5 sm:min-w-6 flex justify-center">
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">
                 {commentsCount}
-              </span>
+              </div>
             )}
+            <span className="hidden sm:inline">Comments</span>
           </button>
         )}
 
         {showVersionsButton && (
           <button
             onClick={handleVersionClick}
-            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-10"
             disabled={versionsLoading || !fetchVersions}
+            className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <svg
-              className="w-3 h-3 sm:w-4 sm:h-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-            >
-              <path
-                d="M14 2.26953V6.40007C14 6.96012 14 7.24015 14.109 7.45406C14.2049 7.64222 14.3578 7.7952 14.546 7.89108C14.7599 8.00007 15.0399 8.00007 15.6 8.00007H19.7305M16 13H8M16 17H8M10 9H8M14 2H8.8C7.11984 2 6.27976 2 5.63803 2.32698C5.07354 2.6146 4.6146 3.07354 4.32698 3.63803C4 4.27976 4 5.11984 4 6.8V17.2C4 18.8802 4 19.7202 4.32698 20.362C4.6146 20.9265 5.07354 21.3854 5.63803 21.673C6.27976 22 7.11984 22 8.8 22H15.2C16.8802 22 17.7202 22 18.362 21.673C18.9265 21.3854 19.3854 20.9265 19.673 20.362C20 19.7202 20 18.8802 20 17.2V8L14 2Z"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span className="hidden sm:inline">Versions</span>
+            <History className="w-4 h-4" />
             {versions.length > 0 && (
-              <span className="bg-blue-500 text-white text-xs px-1.5 sm:px-2 py-0.5 rounded-full min-w-5 sm:min-w-6 flex justify-center">
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-600 text-white text-xs rounded-full flex items-center justify-center">
                 {versions.length}
-              </span>
+              </div>
             )}
+            <span className="hidden sm:inline">Versions</span>
           </button>
         )}
 
         {(showAllElements || fileType === "whiteboard") && (
-          <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 bg-white border border-gray-300 rounded-lg shadow-sm h-8 sm:h-10">
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></div>
-              <span className="text-xs sm:text-sm font-medium text-gray-700 hidden sm:inline">
-                Online
-              </span>
-            </div>
-            <div className="w-px h-3 sm:h-4 bg-gray-300"></div>
-            <div className="flex items-center">
+          <div className="flex items-center gap-3 pl-2 border-l border-gray-200">
+            <div className="flex items-center gap-2">
               <PresenceIndicator activeUsers={activeUsers} />
             </div>
           </div>
