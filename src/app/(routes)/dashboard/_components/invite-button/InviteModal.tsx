@@ -64,7 +64,6 @@ export default function InviteModal({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [existingMembers, setExistingMembers] = useState<User[]>([]);
 
-  // 🔹 Загружаем текущих участников команды
   useEffect(() => {
     const fetchExistingMembers = async () => {
       if (!teamId) return;
@@ -85,7 +84,6 @@ export default function InviteModal({
     }
   }, [isOpen, teamId]);
 
-  // 🔹 Сброс состояния при закрытии
   useEffect(() => {
     if (!isOpen) {
       setView("main");
@@ -96,7 +94,6 @@ export default function InviteModal({
     }
   }, [isOpen]);
 
-  // 🔹 Поиск пользователей (показываем всех, включая текущего пользователя)
   useEffect(() => {
     const searchUsers = async () => {
       if (searchQuery.length < 2) {
@@ -134,7 +131,6 @@ export default function InviteModal({
   };
 
   const handleUserSelect = (user: User) => {
-    // Не позволяем выбрать самого себя или уже добавленных в команду
     if (
       !isCurrentUser(user) &&
       !isUserAlreadyMember(user.id) &&
@@ -193,7 +189,6 @@ export default function InviteModal({
     }
   };
 
-  // 🔹 Отправка email-инвайтов
   const sendEmailInvites = async () => {
     if (!teamId || selectedUsers.length === 0) return;
 
@@ -248,10 +243,23 @@ export default function InviteModal({
     window.open(telegramUrl, "_blank", "width=600,height=500");
   };
 
-  const shareToDiscord = () => {
-    const text = `🎉 You've been invited to join **${teamName}**!\n\nClick here: ${inviteLink}`;
-    navigator.clipboard.writeText(text);
-    toast.success("Discord message copied!");
+  const shareToDiscord = async () => {
+    try {
+      const textToCopy = `🎉 **Team Invitation**\n\nJoin **${teamName}**\n\nInvite Link: ${inviteLink}`;
+
+      await navigator.clipboard.writeText(textToCopy);
+
+      toast.success(
+        <div className="flex items-center gap-2">
+          <MessageCircle className="h-4 w-4" />
+          <span>Discord invite copied! Paste it in your server</span>
+        </div>,
+        { duration: 4000 }
+      );
+    } catch (error) {
+      console.error("Failed to share to Discord:", error);
+      toast.error("Failed to prepare Discord invite");
+    }
   };
 
   const handleBackToMain = () => {
@@ -261,11 +269,10 @@ export default function InviteModal({
     setSearchQuery("");
   };
 
-  // View: Link Share
   if (view === "link") {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-lg bg-linear-to-br from-white to-gray-50/50 border-0 shadow-2xl">
           <div className="rounded-2xl">
             <DialogHeader className="text-center pb-4">
               <div className="flex items-center justify-between mb-2">
@@ -278,7 +285,7 @@ export default function InviteModal({
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex-1 text-center">
-                  <DialogTitle className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                     {currentPlatform === "telegram" ? "Telegram" : "Discord"}{" "}
                     Invite
                   </DialogTitle>
@@ -323,8 +330,8 @@ export default function InviteModal({
                       }
                       className={`flex-1 h-12 transition-all duration-200 transform hover:scale-[1.02] ${
                         currentPlatform === "telegram"
-                          ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/25"
-                          : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg shadow-indigo-500/25"
+                          ? "bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/25"
+                          : "bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg shadow-indigo-500/25"
                       }`}
                     >
                       <MessageCircle className="h-4 w-4 mr-2" />
@@ -332,10 +339,61 @@ export default function InviteModal({
                       {currentPlatform === "telegram" ? "Telegram" : "Discord"}
                     </Button>
                   </div>
+
+                  {currentPlatform === "discord" && (
+                    <Button
+                      onClick={() =>
+                        window.open(
+                          "https://discord.com/channels/@me",
+                          "_blank"
+                        )
+                      }
+                      variant="outline"
+                      className="w-full h-12 border-indigo-300 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 transition-all duration-200 transform hover:scale-[1.02] rounded-xl"
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Open Discord
+                    </Button>
+                  )}
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 border border-blue-200/50 rounded-xl p-4">
+              {currentPlatform === "discord" && (
+                <div className="bg-linear-to-r from-indigo-50 to-purple-50/50 border border-indigo-200/50 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-white p-2 rounded-lg shadow-sm border border-indigo-100">
+                      <MessageCircle className="h-4 w-4 text-indigo-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-indigo-900">
+                        How to share on Discord
+                      </p>
+                      <ol className="text-xs text-indigo-700/80 mt-1 list-decimal list-inside space-y-1">
+                        <li>Click "Share on Discord" to copy the invite</li>
+                        <li>
+                          Click {""}
+                          <span
+                            onClick={() =>
+                              window.open(
+                                "https://discord.com/channels/@me",
+                                "_blank"
+                              )
+                            }
+                            className="font-bold text-indigo-700 hover:text-indigo-800 transition-all duration-200 transform cursor-pointer"
+                          >
+                            "Open Discord" {""}
+                          </span>
+                          to go to your Discord
+                        </li>
+                        <li>Paste the invite in your desired channel</li>
+                        <li>Team members can click the link to join</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-linear-to-r from-blue-50 to-indigo-50/50 border border-blue-200/50 rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-white p-2 rounded-lg shadow-sm border border-blue-100">
                     <Check className="h-4 w-4 text-blue-600" />
@@ -357,11 +415,10 @@ export default function InviteModal({
     );
   }
 
-  // View: Search
   if (view === "search") {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-lg bg-linear-to-br from-white to-gray-50/50 border-0 shadow-2xl">
           <div className="rounded-2xl">
             <DialogHeader className="text-center pb-4">
               <div className="flex items-center justify-between mb-4">
@@ -374,7 +431,7 @@ export default function InviteModal({
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex-1 text-center">
-                  <DialogTitle className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                     Invite by Email
                   </DialogTitle>
                   <DialogDescription className="text-gray-600">
@@ -386,7 +443,6 @@ export default function InviteModal({
             </DialogHeader>
 
             <div className="space-y-4 p-1">
-              {/* Search Input */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
@@ -398,9 +454,8 @@ export default function InviteModal({
                 />
               </div>
 
-              {/* Selected Users */}
               {selectedUsers.length > 0 && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 border border-blue-200/50 rounded-xl p-4">
+                <div className="bg-linear-to-r from-blue-50 to-indigo-50/50 border border-blue-200/50 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-semibold text-blue-900">
                       Selected ({selectedUsers.length})
@@ -424,11 +479,11 @@ export default function InviteModal({
                         <div className="flex items-center gap-2">
                           <Avatar className="h-4 w-4">
                             <AvatarImage src={user.image} />
-                            <AvatarFallback className="text-[10px] bg-gradient-to-br from-blue-100 to-blue-200 text-blue-600">
+                            <AvatarFallback className="text-[10px] bg-linear-to-br from-blue-100 to-blue-200 text-blue-600">
                               {user.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-xs max-w-[80px] truncate font-medium">
+                          <span className="text-xs max-w-20 truncate font-medium">
                             {user.name}
                           </span>
                           <button
@@ -444,7 +499,6 @@ export default function InviteModal({
                 </div>
               )}
 
-              {/* Search Results */}
               <div className="max-h-64 overflow-y-auto space-y-2">
                 {searchLoading ? (
                   <div className="flex justify-center py-8">
@@ -470,7 +524,7 @@ export default function InviteModal({
                         onClick={() => !isSelf && handleUserSelect(user)}
                         className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border ${
                           isSelected
-                            ? "bg-gradient-to-r from-blue-50 to-blue-100/50 border-blue-200 shadow-sm"
+                            ? "bg-linear-to-r from-blue-50 to-blue-100/50 border-blue-200 shadow-sm"
                             : isSelf
                             ? "bg-gray-50/80 border-gray-200 cursor-not-allowed"
                             : isAlreadyMember
@@ -484,8 +538,8 @@ export default function InviteModal({
                           <AvatarFallback
                             className={`${
                               isSelf
-                                ? "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600"
-                                : "bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600"
+                                ? "bg-linear-to-br from-gray-100 to-gray-200 text-gray-600"
+                                : "bg-linear-to-br from-blue-100 to-indigo-100 text-blue-600"
                             }`}
                           >
                             {user.name.charAt(0).toUpperCase()}
@@ -533,12 +587,11 @@ export default function InviteModal({
                 )}
               </div>
 
-              {/* Invite Button */}
               {selectedUsers.length > 0 && (
                 <Button
                   onClick={sendEmailInvites}
                   disabled={isLoading}
-                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 transition-all duration-200 transform hover:scale-[1.02] rounded-xl"
+                  className="w-full h-12 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 transition-all duration-200 transform hover:scale-[1.02] rounded-xl"
                   size="lg"
                 >
                   {isLoading ? (
@@ -557,16 +610,15 @@ export default function InviteModal({
     );
   }
 
-  // View: Main (default)
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-2xl">
+      <DialogContent className="sm:max-w-md bg-linear-to-br from-white to-gray-50/50 border-0 shadow-2xl">
         <div className="rounded-2xl">
           <DialogHeader className="text-center space-y-2 pb-6">
-            <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+            <div className="mx-auto w-12 h-12 bg-linear-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
               <Mail className="h-6 w-6 text-white" />
             </div>
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <DialogTitle className="text-2xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               Invite to {teamName}
             </DialogTitle>
             <DialogDescription className="text-gray-600 text-base">
