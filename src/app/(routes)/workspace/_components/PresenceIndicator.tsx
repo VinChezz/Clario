@@ -127,9 +127,13 @@ export function PresenceIndicator({ activeUsers }: PresenceIndicatorProps) {
   return (
     <TooltipProvider>
       <div className="flex items-center gap-2">
-        {/* Только для десктопа показываем количество и слово "online" */}
         {!isMobile && (
-          <span className="text-xs text-gray-500">{users.length} online</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-sm font-medium text-gray-700 hidden sm:inline">
+              {activeUsers.length} online
+            </span>
+          </div>
         )}
 
         <div className="flex -space-x-2">
