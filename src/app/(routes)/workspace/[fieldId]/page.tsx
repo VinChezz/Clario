@@ -12,12 +12,20 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 
 const Editor = dynamic(() => import("../_components/Editor"), {
-  loading: () => <div>Loading Editor...</div>,
+  loading: () => (
+    <div className="flex items-center justify-center h-full text-gray-500">
+      Loading editor...
+    </div>
+  ),
   ssr: false,
 });
 
 const Canvas = dynamic(() => import("../_components/Canvas"), {
-  loading: () => <div>Loading Canvas...</div>,
+  loading: () => (
+    <div className="flex items-center justify-center h-full text-gray-500">
+      Loading canvas...
+    </div>
+  ),
   ssr: false,
 });
 
@@ -48,27 +56,8 @@ export default function WorkspacePage() {
   const splitRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
 
-  const [isEditorReady, setIsEditorReady] = useState(false);
-  const [isCanvasReady, setIsCanvasReady] = useState(false);
-
   const [versions, setVersions] = useState<any[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
-
-  useEffect(() => {
-    console.log("🔍 WorkspacePage - ActiveTeam state:", {
-      activeTeam: activeTeam
-        ? {
-            id: activeTeam.id,
-            name: activeTeam.name,
-            createdById: activeTeam.createdById,
-            membersCount: activeTeam.members?.length,
-          }
-        : "NULL",
-      teamLoading,
-      fileId,
-      timestamp: new Date().toISOString(),
-    });
-  }, [activeTeam, teamLoading, fileId]);
 
   useEffect(() => {
     if (isMobile) {
@@ -76,7 +65,7 @@ export default function WorkspacePage() {
       setActiveComponent("editor");
     } else {
       setWindowMode("split");
-      setActiveComponent("editor");
+      setActiveComponent("both");
     }
   }, [isMobile]);
 
@@ -92,16 +81,12 @@ export default function WorkspacePage() {
 
       setVersionsLoading(true);
       try {
-        console.log(`📋 Fetching versions for file: ${fileId}`, {
-          forceRefresh,
-        });
         const response = await fetch(
           `/api/files/${fileId}/versions?t=${Date.now()}`
         );
 
         if (!response.ok) {
           if (response.status === 404) {
-            console.warn("Versions API not found, returning empty array");
             setVersions([]);
             return;
           }
@@ -109,7 +94,6 @@ export default function WorkspacePage() {
         }
 
         const data = await response.json();
-        console.log(`✅ Versions fetched:`, data.length);
         setVersions(data);
       } catch (error) {
         console.error("Error fetching versions:", error);
@@ -132,14 +116,16 @@ export default function WorkspacePage() {
     draggingRef.current = true;
     setIsDragging(true);
     document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
     draggingRef.current = false;
     document.body.style.cursor = "default";
+    document.body.style.userSelect = "";
+
     window.dispatchEvent(new Event("resize"));
-    setTimeout(() => window.dispatchEvent(new Event("resize")), 50);
   };
 
   const onMouseMoveWindow = useCallback((e: MouseEvent) => {
@@ -149,7 +135,7 @@ export default function WorkspacePage() {
     const rect = container.getBoundingClientRect();
     const px = e.clientX - rect.left;
     let percent = (px / rect.width) * 100;
-    percent = Math.max(10, Math.min(90, percent));
+    percent = Math.max(25, Math.min(75, percent));
     setDividerPercent(percent);
   }, []);
 
@@ -207,45 +193,15 @@ export default function WorkspacePage() {
             : null
         );
 
-        console.log(
-          `✅ WORKSPACE: ${contentType} version applied to file data`
-        );
-        console.log(`🔄 Version restore in ${contentType}`, {
-          contentType,
-          windowMode,
-          activeComponent,
-        });
-
         await refreshFileData();
+        toast.success("Version restored successfully");
       } catch (error) {
         console.error("Error syncing version:", error);
-        toast.error("Failed to sync version");
+        toast.error("Failed to restore version");
       }
     },
-    [fileId, refreshFileData, windowMode, activeComponent]
+    [fileId, refreshFileData]
   );
-
-  useEffect(() => {
-    console.log("🔧 Debug - Current state:", {
-      windowMode,
-      activeComponent,
-      editorSaveHandler: !!editorSaveHandler,
-      canvasSaveHandler: !!canvasSaveHandler,
-      fileData: !!fileData,
-      versionsCount: versions.length,
-      activeTeam: !!activeTeam, // ДОБАВЬТЕ ЭТО
-      teamLoading, // ДОБАВЬТЕ ЭТО
-    });
-  }, [
-    windowMode,
-    activeComponent,
-    editorSaveHandler,
-    canvasSaveHandler,
-    fileData,
-    versions,
-    activeTeam, // ДОБАВЬТЕ ЭТО
-    teamLoading, // ДОБАВЬТЕ ЭТО
-  ]);
 
   const handleSaveSuccess = useCallback(async () => {
     await refreshFileData();
@@ -286,24 +242,16 @@ export default function WorkspacePage() {
 
   const handleSave = useCallback(async () => {
     if (isSaving) {
-      console.log("🔄 Save already in progress, skipping...");
+      console.log("Save already in progress, skipping...");
       return { editor: false, canvas: false };
     }
 
     setIsSaving(true);
 
-    console.log("💾 Workspace save triggered", {
-      windowMode,
-      activeComponent,
-      editorSaveHandler: !!editorSaveHandler,
-      canvasSaveHandler: !!canvasSaveHandler,
-      activeTeam: activeTeam?.id, // ДОБАВЬТЕ ЭТО
-    });
-
     try {
       const saveResults = {
-        editor: { success: false, message: "" },
-        canvas: { success: false, message: "" },
+        editor: false,
+        canvas: false,
       };
 
       if (windowMode === "split") {
@@ -313,46 +261,34 @@ export default function WorkspacePage() {
             canvasSaveHandler(),
           ]);
 
-          if (editorResult.status === "fulfilled") {
-            saveResults.editor = { success: true, message: "Changes saved" };
-          } else {
-            saveResults.editor = {
-              success: false,
-              message: "Document save failed",
-            };
-            console.error("❌ Editor save failed:", editorResult.reason);
-          }
+          saveResults.editor = editorResult.status === "fulfilled";
+          saveResults.canvas = canvasResult.status === "fulfilled";
 
-          if (canvasResult.status === "fulfilled") {
-            saveResults.canvas = { success: true, message: "Changes saved" };
-          } else {
-            saveResults.canvas = {
-              success: false,
-              message: "Whiteboard save failed",
-            };
-            console.error("❌ Canvas save failed:", canvasResult.reason);
+          if (editorResult.status === "rejected") {
+            console.error("Editor save failed:", editorResult.reason);
           }
-        } else {
-          console.error("Save handlers not ready");
+          if (canvasResult.status === "rejected") {
+            console.error("Canvas save failed:", canvasResult.reason);
+          }
         }
       } else if (windowMode === "fullscreen") {
         if (activeComponent === "editor" && editorSaveHandler) {
           await editorSaveHandler();
-          saveResults.editor = { success: true, message: "Changes saved" };
+          saveResults.editor = true;
         } else if (activeComponent === "canvas" && canvasSaveHandler) {
           await canvasSaveHandler();
-          saveResults.canvas = { success: true, message: "Changes saved" };
-        } else {
-          console.error("Save handler not ready");
+          saveResults.canvas = true;
         }
       }
 
-      return {
-        editor: saveResults.editor.success,
-        canvas: saveResults.canvas.success,
-      };
+      if (saveResults.editor || saveResults.canvas) {
+        toast.success("Changes saved successfully");
+      }
+
+      return saveResults;
     } catch (error) {
-      console.error("❌ Error saving components:", error);
+      console.error("Error saving components:", error);
+      toast.error("Failed to save changes");
       return { editor: false, canvas: false };
     } finally {
       setIsSaving(false);
@@ -363,87 +299,111 @@ export default function WorkspacePage() {
     editorSaveHandler,
     canvasSaveHandler,
     isSaving,
-    activeTeam, // ДОБАВЬТЕ ЭТО
   ]);
 
   const handleEditorSaveHandlerChange = useCallback(
     (handler: () => Promise<void>) => {
-      console.log("✅ Editor save handler registered");
       setEditorSaveHandler(() => handler);
-      setIsEditorReady(true);
     },
     []
   );
 
   const handleCanvasSaveHandlerChange = useCallback(
     (handler: () => Promise<void>) => {
-      console.log("✅ Canvas save handler registered");
       setCanvasSaveHandler(() => handler);
-      setIsCanvasReady(true);
     },
     []
   );
 
-  // ОБНОВИТЕ УСЛОВИЯ ЗАГРУЗКИ - ДОБАВЬТЕ teamLoading
-  if (!fileId || isLoading || teamLoading) return <LogoClarioLoader />;
-
-  // ДОБАВЬТЕ ПРОВЕРКУ НА activeTeam
-  if (!activeTeam) {
+  if (!fileId || isLoading || teamLoading) {
     return (
-      <div className="p-4">
-        <h2>No Active Team</h2>
-        <p>Please select a team to continue working.</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2"
-        >
-          Reload Page
-        </button>
+      <div>
+        <LogoClarioLoader />
       </div>
     );
   }
 
-  if (error)
+  if (!activeTeam) {
     return (
-      <div className="p-4">
-        <h2>Error loading file</h2>
-        <p>{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Reload
-        </button>
+      <div className="h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center p-8 max-w-md">
+          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">👥</span>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            No Active Team
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Please select a team to continue working.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Reload Page
+          </button>
+        </div>
       </div>
     );
+  }
 
-  if (!fileData)
+  if (error) {
     return (
-      <div className="p-4">
-        <h2>File not found</h2>
-        <p>File with ID {fileId} was not found.</p>
+      <div className="h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center p-8 max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Error Loading File
+          </h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
+  }
+
+  if (!fileData) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center p-8">
+          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">📄</span>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            File Not Found
+          </h2>
+          <p className="text-gray-600">File with ID {fileId} was not found.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col bg-white overflow-hidden">
       <WorkspaceHeader
         file={fileData}
         onSave={handleSave}
         windowMode={windowMode}
         activeComponent={activeComponent}
-        onWindowModeChange={setWindowMode}
-        onActiveComponentChange={setActiveComponent}
+        onWindowModeChange={handleWindowModeChange}
+        onActiveComponentChange={handleActiveComponentChange}
         currentComponent="both"
       />
 
       {windowMode === "split" ? (
         <div
           ref={splitRef}
-          className="flex flex-1 relative overflow-hidden min-w-0"
+          className="flex flex-1 relative overflow-hidden bg-gray-50"
         >
           <div
-            className="flex-1 min-w-0 overflow-hidden"
+            className="flex-1 min-w-0 overflow-hidden bg-white rounded-r-lg shadow-sm border-r border-gray-100"
             style={{ flexBasis: `${dividerPercent}%` }}
           >
             <Editor
@@ -466,12 +426,14 @@ export default function WorkspacePage() {
 
           <div
             onMouseDown={startDrag}
-            className="w-[5px] cursor-col-resize z-20 bg-gray-200"
-            aria-hidden
+            className={`w-1 cursor-col-resize z-20 bg-gray-300 hover:bg-blue-400 transition-colors ${
+              isDragging ? "bg-blue-500" : ""
+            }`}
+            aria-label="Resize panels"
           />
 
           <div
-            className="flex-1 min-w-0 overflow-hidden"
+            className="flex-1 min-w-0 overflow-hidden bg-white rounded-l-lg shadow-sm border-l border-gray-100"
             style={{ flexBasis: `${100 - dividerPercent}%` }}
           >
             <Canvas
@@ -493,41 +455,45 @@ export default function WorkspacePage() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden bg-gray-50">
           {activeComponent === "editor" ? (
-            <Editor
-              fileId={fileId}
-              fileData={fileData}
-              onSaveSuccess={handleSaveSuccess}
-              onVersionRestore={handleVersionRestore}
-              windowMode={windowMode}
-              activeComponent="editor"
-              onWindowModeChange={handleWindowModeChange}
-              onActiveComponentChange={handleActiveComponentChange}
-              currentComponent="editor"
-              isFullscreen={true}
-              onSaveHandlerChange={handleEditorSaveHandlerChange}
-              versions={versions}
-              versionsLoading={versionsLoading}
-              onRefreshVersions={fetchVersions}
-            />
+            <div className="h-full bg-white rounded-lg shadow-sm border border-gray-100">
+              <Editor
+                fileId={fileId}
+                fileData={fileData}
+                onSaveSuccess={handleSaveSuccess}
+                onVersionRestore={handleVersionRestore}
+                windowMode={windowMode}
+                activeComponent="editor"
+                onWindowModeChange={handleWindowModeChange}
+                onActiveComponentChange={handleActiveComponentChange}
+                currentComponent="editor"
+                isFullscreen={true}
+                onSaveHandlerChange={handleEditorSaveHandlerChange}
+                versions={versions}
+                versionsLoading={versionsLoading}
+                onRefreshVersions={fetchVersions}
+              />
+            </div>
           ) : (
-            <Canvas
-              fileId={fileId}
-              fileData={fileData}
-              onVersionRestore={handleVersionRestore}
-              windowMode={windowMode}
-              activeComponent="canvas"
-              onWindowModeChange={handleWindowModeChange}
-              onActiveComponentChange={handleActiveComponentChange}
-              currentComponent="canvas"
-              isFullscreen={true}
-              onSaveHandlerChange={handleCanvasSaveHandlerChange}
-              onSaveSuccess={handleSaveSuccess}
-              versions={versions}
-              versionsLoading={versionsLoading}
-              onRefreshVersions={fetchVersions}
-            />
+            <div className="h-full bg-white rounded-lg shadow-sm border border-gray-100">
+              <Canvas
+                fileId={fileId}
+                fileData={fileData}
+                onVersionRestore={handleVersionRestore}
+                windowMode={windowMode}
+                activeComponent="canvas"
+                onWindowModeChange={handleWindowModeChange}
+                onActiveComponentChange={handleActiveComponentChange}
+                currentComponent="canvas"
+                isFullscreen={true}
+                onSaveHandlerChange={handleCanvasSaveHandlerChange}
+                onSaveSuccess={handleSaveSuccess}
+                versions={versions}
+                versionsLoading={versionsLoading}
+                onRefreshVersions={fetchVersions}
+              />
+            </div>
           )}
         </div>
       )}
