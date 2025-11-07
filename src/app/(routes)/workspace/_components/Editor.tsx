@@ -107,6 +107,10 @@ export default function Editor({
   const isApplyingRemoteUpdate = useRef(false);
   const lastSentContent = useRef<string>("");
   const editorDestroyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const editorDataRef = useRef<any>(null);
+  const renderInProgress = useRef(false);
+  const initializationInProgress = useRef(false);
+  const initAttemptRef = useRef(0);
   const isMobile = useIsMobile();
 
   const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
@@ -151,21 +155,31 @@ export default function Editor({
   const canEdit = permissions === "EDIT" || permissions === "ADMIN";
 
   const destroyEditor = useCallback(() => {
+    console.log("🔧 Destroying EditorJS instance...");
+
     if (editorDestroyTimeoutRef.current) {
       clearTimeout(editorDestroyTimeoutRef.current);
     }
 
     if (editorRef.current) {
       try {
-        console.log("🔧 Destroying EditorJS instance...");
         editorRef.current.destroy();
-        editorRef.current = null;
-        isInitialized.current = false;
-        console.log("✅ EditorJS instance destroyed successfully");
       } catch (error) {
         console.error("❌ Error destroying editor:", error);
       }
+      editorRef.current = null;
     }
+
+    isInitialized.current = false;
+    renderInProgress.current = false;
+    initializationInProgress.current = false;
+
+    const editorElement = document.getElementById("editorjs");
+    if (editorElement) {
+      editorElement.innerHTML = "";
+    }
+
+    console.log("✅ EditorJS instance destroyed successfully");
   }, []);
 
   useEffect(() => {
@@ -245,6 +259,7 @@ export default function Editor({
     if (!fileData) {
       console.log("📄 No file data, using default");
       setEditorData(rawDocument);
+      editorDataRef.current = rawDocument;
       return;
     }
 
@@ -279,8 +294,17 @@ export default function Editor({
       initialData = rawDocument;
     }
 
-    setEditorData(initialData);
-    resetLastSentContent();
+    const currentDataString = JSON.stringify(editorDataRef.current);
+    const newDataString = JSON.stringify(initialData);
+
+    if (currentDataString !== newDataString) {
+      console.log("🔄 Editor data changed, updating state");
+      setEditorData(initialData);
+      editorDataRef.current = initialData;
+      resetLastSentContent();
+    } else {
+      console.log("🔄 Editor data unchanged, skipping update");
+    }
   }, [fileData, resetLastSentContent]);
 
   useEffect(() => {
@@ -293,11 +317,22 @@ export default function Editor({
     if (!canEdit) return;
 
     const unsubscribeContent = subscribeToContentUpdates((content, user) => {
-      console.log("🎯 EDITOR: Processing content update from:", user?.name, {
-        blocks: content?.blocks?.length,
-      });
+      console.log("🎯 EDITOR: Processing content update from:", user?.name);
 
-      if (editorRef.current && content && isInitialized.current) {
+      if (
+        editorRef.current &&
+        content &&
+        isInitialized.current &&
+        !isApplyingRemoteContent.current
+      ) {
+        const contentString = JSON.stringify(content);
+        const currentContentString = JSON.stringify(editorDataRef.current);
+
+        if (contentString === currentContentString) {
+          console.log("🔄 EDITOR: Ignoring duplicate content update");
+          return;
+        }
+
         console.log("🎯 EDITOR: Rendering remote content");
         isApplyingRemoteContent.current = true;
 
@@ -306,6 +341,7 @@ export default function Editor({
           .then(() => {
             console.log("✅ EDITOR: Successfully rendered remote content");
             setEditorData(content);
+            editorDataRef.current = content;
           })
           .catch((error) => {
             console.error("❌ EDITOR: Error rendering remote content:", error);
@@ -323,6 +359,14 @@ export default function Editor({
 
       if (editorRef.current && content && isInitialized.current) {
         const contentString = JSON.stringify(content);
+
+        if (contentString === lastSentContent.current) {
+          console.log("🔄 Ignoring own content (already sent)");
+          return;
+        }
+
+        const currentContentString = JSON.stringify(editorDataRef.current);
+
         if (contentString === lastSentContent.current) {
           console.log("🔄 Ignoring own content (already sent)");
           return;
@@ -334,6 +378,7 @@ export default function Editor({
           .then(() => {
             console.log("✅ EDITOR: Successfully applied sync content");
             setEditorData(content);
+            editorDataRef.current = content;
           })
           .catch((error) => {
             console.error("❌ EDITOR: Error applying sync content:", error);
@@ -711,36 +756,17 @@ export default function Editor({
     if (!editorData || !currentUser || typeof window === "undefined") return;
 
     let isMounted = true;
-    let editorInstance: EditorJS | null = null;
+    initializationInProgress.current = true;
 
     const initEditor = async () => {
       try {
-        destroyEditor();
-
-        console.log("🚀 Initializing EditorJS with SAFE tools only...");
-
         const EditorJS = (await import("@editorjs/editorjs")).default;
         const Paragraph = (await import("@editorjs/paragraph")).default;
         const Header = (await import("@editorjs/header")).default;
         const List = (await import("@editorjs/list")).default;
 
-        if (!EditorJS || !Paragraph) {
-          throw new Error("Essential EditorJS tools failed to load");
-        }
-
-        const editorElement = document.getElementById("editorjs");
-        if (editorElement && editorElement.children.length > 1) {
-          console.warn(
-            "⚠️ Editor container already has content, cleaning up..."
-          );
-          editorElement.innerHTML = "";
-        }
-
         const toolsConfig: any = {
-          paragraph: {
-            class: Paragraph,
-            inlineToolbar: true,
-          },
+          paragraph: { class: Paragraph, inlineToolbar: true },
           header: {
             class: Header,
             config: {
@@ -749,10 +775,7 @@ export default function Editor({
               defaultLevel: 2,
             },
           },
-          list: {
-            class: List,
-            inlineToolbar: true,
-          },
+          list: { class: List, inlineToolbar: true },
         };
 
         const safeTools = [
@@ -774,12 +797,6 @@ export default function Editor({
             const toolClass = module.default;
 
             switch (loader.name) {
-              case "checklist":
-                toolsConfig.checklist = {
-                  class: toolClass,
-                  inlineToolbar: true,
-                };
-                break;
               case "code":
                 toolsConfig.code = {
                   class: toolClass,
@@ -829,92 +846,70 @@ export default function Editor({
           }
         }
 
-        console.log("🔄 Creating EditorJS instance...");
-
         const editor = new EditorJS({
           holder: "editorjs",
           tools: toolsConfig,
-          inlineToolbar: ["bold", "italic", "marker", "inlineCode"],
           data: editorData,
           autofocus: false,
           placeholder: "Start writing your notes...",
           onReady: () => {
-            console.log("🎉 Editor.js is ready with safe tools!");
-            isInitialized.current = true;
-          },
-          onChange: async (api: any, event: any) => {
             if (!isMounted) return;
-
-            if (
-              (permissions === "EDIT" || permissions === "ADMIN") &&
-              !isApplyingRemoteContent.current
-            ) {
-              try {
-                const outputData = await api.saver.save();
-
-                if (
-                  outputData &&
-                  outputData.blocks &&
-                  outputData.blocks.length > 0
-                ) {
-                  requestAnimationFrame(() => {
-                    if (isMounted) {
-                      sendContentUpdateImmediate(outputData);
-                      updateLightPresence("EDITING");
-                      sendContentUpdateThrottled(outputData);
-                    }
-                  });
-                }
-              } catch (error) {
-                console.error("❌ Error saving editor content:", error);
+            console.log("✅ EditorJS ready!");
+            isInitialized.current = true;
+            initializationInProgress.current = false;
+            editorRef.current = editor;
+          },
+          onChange: async (api) => {
+            if (!isMounted) return;
+            try {
+              const output = await api.saver.save();
+              if (output?.blocks?.length) {
+                sendContentUpdateImmediate(output);
+                updateLightPresence("EDITING");
+                sendContentUpdateThrottled(output);
               }
+            } catch (e) {
+              console.error("❌ Error during the saving:", e);
             }
           },
         });
 
         await editor.isReady;
+        console.log("🎉 EditorJS initialized successfully");
 
-        if (isMounted) {
-          editorInstance = editor;
-          editorRef.current = editor;
-          const loadedTools = Object.keys(toolsConfig).length;
-          console.log(`✅ Editor initialized with ${loadedTools} safe tools!`);
-        }
+        const count = document.querySelectorAll(".codex-editor").length;
+        if (count > 1) console.warn(`⚠️ Find ${count} instances of EditorJS!`);
+
+        editorRef.current = editor;
       } catch (err) {
-        console.error("💥 Editor initialization failed:", err);
-        toast.error("Failed to initialize editor. Please refresh the page.");
+        console.error("💥 Error during the initialize EditorJS:", err);
+      } finally {
+        initializationInProgress.current = false;
       }
     };
 
-    const initTimer = setTimeout(initEditor, 100);
+    initEditor();
 
     return () => {
       isMounted = false;
-      clearTimeout(initTimer);
 
-      editorDestroyTimeoutRef.current = setTimeout(() => {
-        if (editorInstance && typeof editorInstance.destroy === "function") {
-          try {
-            editorInstance.destroy();
-            console.log("🔧 Editor destroyed successfully");
-          } catch (e) {
-            console.error("Error destroying editor:", e);
-          }
-          editorInstance = null;
+      if (
+        editorRef.current &&
+        typeof editorRef.current.destroy === "function"
+      ) {
+        try {
+          editorRef.current.destroy();
+          console.log("✅ EditorJS destroyed");
+        } catch (err) {
+          console.error("Eror during the destroy:", err);
+        } finally {
           editorRef.current = null;
           isInitialized.current = false;
+          initializationInProgress.current = false;
         }
-      }, 50);
+      }
     };
-  }, [
-    editorData,
-    currentUser,
-    permissions,
-    sendContentUpdateThrottled,
-    sendContentUpdateImmediate,
-    updateLightPresence,
-    destroyEditor,
-  ]);
+  }, [editorData, currentUser]);
 
   const handleEditorMouseMove = useCallback(
     throttle((event: React.MouseEvent) => {
