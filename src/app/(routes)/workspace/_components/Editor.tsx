@@ -599,7 +599,6 @@ export default function Editor({
         setHasUnsavedChanges(false);
         return;
       }
-      к;
 
       console.log("🔄 Saving document to API...");
       const res = await fetch(`/api/files/${fileId}`, {
