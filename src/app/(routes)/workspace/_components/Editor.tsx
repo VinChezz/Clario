@@ -96,6 +96,7 @@ export default function Editor({
   const [showCommentSidebar, setShowCommentSidebar] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const editorRef = useRef<EditorJS | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -110,8 +111,10 @@ export default function Editor({
   const editorDataRef = useRef<any>(null);
   const renderInProgress = useRef(false);
   const initializationInProgress = useRef(false);
-  const initAttemptRef = useRef(0);
   const isMobile = useIsMobile();
+  const lastSavedContent = useRef<string>("");
+  const lastPresenceUpdate = useRef<number>(0);
+  const editingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { emitEvent, subscribe, isConnected } = useSocket(fileId, currentUser);
   const { typingCursors, sendTypingUpdate, subscribeToTypingUpdates } =
@@ -154,6 +157,25 @@ export default function Editor({
 
   const canEdit = permissions === "EDIT" || permissions === "ADMIN";
 
+  useEffect(() => {
+    if (fileData?.document) {
+      lastSavedContent.current = fileData.document;
+    }
+  }, [fileData?.document]);
+
+  useEffect(() => {
+    if (editorDataRef.current && fileData?.document) {
+      const currentContent = JSON.stringify(editorDataRef.current);
+      const savedContent = fileData.document;
+
+      if (currentContent !== savedContent) {
+        setHasUnsavedChanges(true);
+      } else {
+        setHasUnsavedChanges(false);
+      }
+    }
+  }, [editorDataRef.current, fileData?.document]);
+
   const destroyEditor = useCallback(() => {
     console.log("🔧 Destroying EditorJS instance...");
 
@@ -187,6 +209,9 @@ export default function Editor({
       destroyEditor();
       if (mouseMoveTimeoutRef.current) {
         clearTimeout(mouseMoveTimeoutRef.current);
+      }
+      if (editingTimeoutRef.current) {
+        clearTimeout(editingTimeoutRef.current);
       }
     };
   }, [destroyEditor]);
@@ -302,6 +327,9 @@ export default function Editor({
       setEditorData(initialData);
       editorDataRef.current = initialData;
       resetLastSentContent();
+
+      setHasUnsavedChanges(false);
+      lastSavedContent.current = fileData?.document || "";
     } else {
       console.log("🔄 Editor data unchanged, skipping update");
     }
@@ -342,6 +370,27 @@ export default function Editor({
             console.log("✅ EDITOR: Successfully rendered remote content");
             setEditorData(content);
             editorDataRef.current = content;
+
+            const newContentString = JSON.stringify(content);
+            const savedContent = fileData?.document || "{}";
+
+            const normalizeContent = (content: string) => {
+              if (!content || content === '""') return "{}";
+              try {
+                return JSON.stringify(JSON.parse(content));
+              } catch {
+                return "{}";
+              }
+            };
+
+            const normalizedCurrent = normalizeContent(savedContent);
+            const normalizedNew = normalizeContent(newContentString);
+
+            if (normalizedNew !== normalizedCurrent) {
+              setHasUnsavedChanges(true);
+            } else {
+              setHasUnsavedChanges(false);
+            }
           })
           .catch((error) => {
             console.error("❌ EDITOR: Error rendering remote content:", error);
@@ -365,12 +414,6 @@ export default function Editor({
           return;
         }
 
-        const currentContentString = JSON.stringify(editorDataRef.current);
-
-        if (contentString === lastSentContent.current) {
-          console.log("🔄 Ignoring own content (already sent)");
-          return;
-        }
         isApplyingRemoteContent.current = true;
 
         editorRef.current
@@ -379,6 +422,27 @@ export default function Editor({
             console.log("✅ EDITOR: Successfully applied sync content");
             setEditorData(content);
             editorDataRef.current = content;
+
+            const newContentString = JSON.stringify(content);
+            const savedContent = fileData?.document || "{}";
+
+            const normalizeContent = (content: string) => {
+              if (!content || content === '""') return "{}";
+              try {
+                return JSON.stringify(JSON.parse(content));
+              } catch {
+                return "{}";
+              }
+            };
+
+            const normalizedCurrent = normalizeContent(savedContent);
+            const normalizedNew = normalizeContent(newContentString);
+
+            if (normalizedNew !== normalizedCurrent) {
+              setHasUnsavedChanges(true);
+            } else {
+              setHasUnsavedChanges(false);
+            }
           })
           .catch((error) => {
             console.error("❌ EDITOR: Error applying sync content:", error);
@@ -430,6 +494,35 @@ export default function Editor({
     [isConnected, currentUser, permissions, sendContentUpdate]
   );
 
+  const updateEditingPresence = useCallback(() => {
+    if (!currentUser || !canEdit) return;
+
+    const now = Date.now();
+
+    if (now - lastPresenceUpdate.current > 2000) {
+      console.log("✏️ Updating presence to EDITING");
+      updateLightPresence("EDITING");
+
+      updatePresence({
+        status: "EDITING",
+      }).catch(console.error);
+
+      lastPresenceUpdate.current = now;
+    }
+
+    if (editingTimeoutRef.current) {
+      clearTimeout(editingTimeoutRef.current);
+    }
+
+    editingTimeoutRef.current = setTimeout(() => {
+      console.log("👀 Updating presence to VIEWING (idle)");
+      updateLightPresence("VIEWING");
+      updatePresence({
+        status: "VIEWING",
+      }).catch(console.error);
+    }, 3000);
+  }, [currentUser, canEdit, updateLightPresence, updatePresence]);
+
   const handleEditorSave = useCallback(async () => {
     if (!editorRef.current || isSaving.current) {
       console.log("❌ Editor not ready or already saving, skipping save");
@@ -450,40 +543,63 @@ export default function Editor({
 
       const contentString = JSON.stringify(outputData);
 
-      const currentContent = fileData?.document;
-      let hasChanges = true;
+      const normalizeEditorData = (data: any): string => {
+        if (!data || typeof data !== "object") return "{}";
 
-      if (currentContent && currentContent !== '""') {
+        const normalized = {
+          blocks:
+            data.blocks?.map((block: any) => ({
+              id: block.id,
+              type: block.type,
+              data: block.data,
+            })) || [],
+        };
+
+        return JSON.stringify(normalized);
+      };
+
+      let currentContent = "{}";
+      if (fileData?.document && fileData.document !== '""') {
         try {
-          const currentData = JSON.parse(currentContent);
-          const newData = outputData;
-
-          const currentText = currentData.blocks
-            ?.map((block: any) => block.data?.text || "")
-            .join("")
-            .trim();
-          const newText = newData.blocks
-            ?.map((block: any) => block.data?.text || "")
-            .join("")
-            .trim();
-
-          const currentBlocks = JSON.stringify(currentData.blocks);
-          const newBlocks = JSON.stringify(newData.blocks);
-
-          if (currentText === newText && currentBlocks === newBlocks) {
-            console.log(
-              "🔄 No changes detected in document, skipping version creation"
-            );
-            hasChanges = false;
-          }
+          currentContent = fileData.document;
         } catch (e) {
-          console.log("⚠️ Could not compare content, creating version anyway");
+          console.error("❌ Error parsing current document:", e);
         }
       }
 
-      if (!hasChanges) {
+      let normalizedCurrent: string;
+      let normalizedNew: string;
+
+      try {
+        const currentData = currentContent
+          ? JSON.parse(currentContent)
+          : { blocks: [] };
+        normalizedCurrent = normalizeEditorData(currentData);
+      } catch (e) {
+        console.error("❌ Error normalizing current content:", e);
+        normalizedCurrent = "{}";
+      }
+
+      try {
+        normalizedNew = normalizeEditorData(outputData);
+      } catch (e) {
+        console.error("❌ Error normalizing new content:", e);
+        normalizedNew = "{}";
+      }
+
+      console.log("🔍 Content comparison:", {
+        currentLength: normalizedCurrent.length,
+        newLength: normalizedNew.length,
+        hasChanges: normalizedNew !== normalizedCurrent,
+      });
+
+      if (normalizedNew === normalizedCurrent) {
+        console.log("✅ No changes detected, skipping save");
+        toast.info("No changes to save");
+        setHasUnsavedChanges(false);
         return;
       }
+      к;
 
       console.log("🔄 Saving document to API...");
       const res = await fetch(`/api/files/${fileId}`, {
@@ -505,15 +621,21 @@ export default function Editor({
       const updatedFile = await res.json();
       console.log("✅ Document saved successfully! Updated file:", updatedFile);
 
-      try {
-        await createManualVersion({
-          name: `Document - ${new Date().toLocaleString()}`,
-          description: "Manually saved version",
-          content: contentString,
-          type: "document",
-        });
-      } catch (versionError) {
-        console.error("⚠️ Version creation failed:", versionError);
+      lastSavedContent.current = contentString;
+      setHasUnsavedChanges(false);
+
+      if (normalizedNew !== normalizedCurrent) {
+        try {
+          await createManualVersion({
+            name: `Document - ${new Date().toLocaleString()}`,
+            description: "Manually saved version",
+            content: contentString,
+            type: "document",
+          });
+          console.log("📝 Version created for document changes");
+        } catch (versionError) {
+          console.error("⚠️ Version creation failed:", versionError);
+        }
       }
 
       if (onSaveSuccess) {
@@ -521,6 +643,9 @@ export default function Editor({
       }
     } catch (error) {
       console.error("❌ Error saving document:", error);
+      if (windowMode === "split") {
+        toast.error("Failed to save document");
+      }
     } finally {
       isSaving.current = false;
       console.log("🏁 Save process finished");
@@ -550,6 +675,8 @@ export default function Editor({
         console.log("✅ EDITOR: Document version restore completed");
 
         setShowVersionHistory(false);
+
+        setHasUnsavedChanges(false);
 
         if (onSaveSuccess) {
           onSaveSuccess();
@@ -626,11 +753,6 @@ export default function Editor({
         setSelection(newSelection);
 
         if (permissions === "EDIT" || permissions === "ADMIN") {
-          console.log("📤 Sending selection:", {
-            text: selectedText,
-            length: selectedText.length,
-          });
-
           sendSelectionUpdate({
             userId: currentUser.id,
             userColor: generateUserColor(currentUser.id),
@@ -752,14 +874,102 @@ export default function Editor({
     [deleteReply]
   );
 
+  const handleEditorChange = useCallback(async () => {
+    if (!editorRef.current || !canEdit) return;
+
+    try {
+      const output = await editorRef.current.save();
+      if (output?.blocks?.length) {
+        const contentString = JSON.stringify(output);
+
+        const normalizeEditorData = (data: any): string => {
+          if (!data || typeof data !== "object") return "{}";
+
+          const normalized = {
+            blocks:
+              data.blocks?.map((block: any) => ({
+                id: block.id,
+                type: block.type,
+                data: block.data,
+              })) || [],
+          };
+
+          return JSON.stringify(normalized);
+        };
+
+        let savedContent = "{}";
+        if (fileData?.document && fileData.document !== '""') {
+          try {
+            savedContent = fileData.document;
+          } catch (e) {
+            console.error("❌ Error parsing saved document:", e);
+          }
+        }
+
+        let normalizedCurrent: string;
+        let normalizedNew: string;
+
+        try {
+          const currentData = savedContent
+            ? JSON.parse(savedContent)
+            : { blocks: [] };
+          normalizedCurrent = normalizeEditorData(currentData);
+        } catch (e) {
+          console.error("❌ Error normalizing current content:", e);
+          normalizedCurrent = "{}";
+        }
+
+        try {
+          normalizedNew = normalizeEditorData(output);
+        } catch (e) {
+          console.error("❌ Error normalizing new content:", e);
+          normalizedNew = "{}";
+        }
+
+        if (normalizedNew !== normalizedCurrent) {
+          setHasUnsavedChanges(true);
+        } else {
+          setHasUnsavedChanges(false);
+        }
+
+        updateEditingPresence();
+
+        sendContentUpdateImmediate(output);
+        sendContentUpdateThrottled(output);
+      }
+    } catch (e) {
+      console.error("❌ Error during the saving:", e);
+    }
+  }, [
+    canEdit,
+    fileData?.document,
+    sendContentUpdateImmediate,
+    sendContentUpdateThrottled,
+    updateEditingPresence,
+  ]);
+
   useEffect(() => {
-    if (!editorData || !currentUser || typeof window === "undefined") return;
+    if (!editorData || !currentUser || typeof window === "undefined") {
+      console.log("⏳ Waiting for initialization conditions:", {
+        hasEditorData: !!editorData,
+        hasCurrentUser: !!currentUser,
+        isWindow: typeof window !== "undefined",
+      });
+      return;
+    }
+
+    if (initializationInProgress.current || isInitialized.current) {
+      console.log("⏭️ Editor already initializing or initialized, skipping");
+      return;
+    }
 
     let isMounted = true;
     initializationInProgress.current = true;
 
     const initEditor = async () => {
       try {
+        console.log("🚀 Starting EditorJS initialization...");
+
         const EditorJS = (await import("@editorjs/editorjs")).default;
         const Paragraph = (await import("@editorjs/paragraph")).default;
         const Header = (await import("@editorjs/header")).default;
@@ -859,19 +1069,7 @@ export default function Editor({
             initializationInProgress.current = false;
             editorRef.current = editor;
           },
-          onChange: async (api) => {
-            if (!isMounted) return;
-            try {
-              const output = await api.saver.save();
-              if (output?.blocks?.length) {
-                sendContentUpdateImmediate(output);
-                updateLightPresence("EDITING");
-                sendContentUpdateThrottled(output);
-              }
-            } catch (e) {
-              console.error("❌ Error during the saving:", e);
-            }
-          },
+          onChange: handleEditorChange,
         });
 
         await editor.isReady;
@@ -883,7 +1081,6 @@ export default function Editor({
         editorRef.current = editor;
       } catch (err) {
         console.error("💥 Error during the initialize EditorJS:", err);
-      } finally {
         initializationInProgress.current = false;
       }
     };
@@ -892,24 +1089,9 @@ export default function Editor({
 
     return () => {
       isMounted = false;
-
-      if (
-        editorRef.current &&
-        typeof editorRef.current.destroy === "function"
-      ) {
-        try {
-          editorRef.current.destroy();
-          console.log("✅ EditorJS destroyed");
-        } catch (err) {
-          console.error("Eror during the destroy:", err);
-        } finally {
-          editorRef.current = null;
-          isInitialized.current = false;
-          initializationInProgress.current = false;
-        }
-      }
+      console.log("🧹 Cleanup: unmounting editor effect");
     };
-  }, [editorData, currentUser]);
+  }, [editorData, handleEditorChange]);
 
   const handleEditorMouseMove = useCallback(
     throttle((event: React.MouseEvent) => {
@@ -959,7 +1141,14 @@ export default function Editor({
         });
       }, 100);
     }, 20),
-    [currentUser, permissions, sendCursorUpdate, sendTypingUpdate]
+    [
+      currentUser,
+      permissions,
+      sendCursorUpdate,
+      sendTypingUpdate,
+      updatePresence,
+      updateLightPresence,
+    ]
   );
 
   const handleEditorMouseLeave = useCallback(() => {
@@ -981,6 +1170,8 @@ export default function Editor({
     (event: React.KeyboardEvent) => {
       if (!currentUser || !(permissions === "EDIT" || permissions === "ADMIN"))
         return;
+
+      updateEditingPresence();
 
       const editorElement = document.getElementById("editorjs");
       let position = { x: 0, y: 0 };
@@ -1014,8 +1205,25 @@ export default function Editor({
         });
       }, 2000);
     },
-    [currentUser, permissions, sendTypingUpdate]
+    [currentUser, permissions, sendTypingUpdate, updateEditingPresence]
   );
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue =
+          "You have unsaved changes in the document. Are you sure you want to leave?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
 
   return (
     <div className="h-full flex relative">
@@ -1036,6 +1244,8 @@ export default function Editor({
           fetchVersions={onRefreshVersions}
           windowMode={windowMode}
           activeComponent={activeComponent}
+          commentsCount={comments.length}
+          hasUnsavedChanges={hasUnsavedChanges}
         />
 
         <div

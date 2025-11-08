@@ -404,7 +404,19 @@ export default function Canvas({
       const contentString = JSON.stringify(elements);
       const savedContent = fileData?.whiteboard || "[]";
 
-      if (contentString !== savedContent) {
+      const normalizeContent = (content: string) => {
+        if (!content || content === '""' || content === "[]") return "[]";
+        try {
+          return JSON.stringify(JSON.parse(content));
+        } catch {
+          return "[]";
+        }
+      };
+
+      const normalizedCurrent = normalizeContent(savedContent);
+      const normalizedNew = normalizeContent(contentString);
+
+      if (normalizedNew !== normalizedCurrent) {
         console.log("🔄 Auto-saving whiteboard due to significant changes");
 
         fetch(`/api/files/${fileId}`, {
@@ -474,6 +486,32 @@ export default function Canvas({
       const elements = excalidrawRef.current?.getSceneElements() || [];
       const contentString = JSON.stringify(elements);
 
+      const currentContent = fileData?.whiteboard;
+
+      const normalizeContent = (content: string | null | undefined) => {
+        if (!content || content === '""' || content === "[]") return "[]";
+        try {
+          return JSON.stringify(JSON.parse(content));
+        } catch {
+          return "[]";
+        }
+      };
+
+      const normalizedCurrent = normalizeContent(currentContent);
+      const normalizedNew = normalizeContent(contentString);
+
+      console.log("🔍 Content comparison:", {
+        current: normalizedCurrent.length,
+        new: normalizedNew.length,
+        hasChanges: normalizedNew !== normalizedCurrent,
+      });
+
+      if (normalizedNew === normalizedCurrent) {
+        console.log("✅ No changes detected, skipping save");
+        toast.info("No changes to save");
+        return;
+      }
+
       console.log("💾 Saving whiteboard to database...");
       const res = await fetch(`/api/files/${fileId}`, {
         method: "PATCH",
@@ -492,80 +530,9 @@ export default function Canvas({
       lastSavedContent.current = contentString;
       setHasUnsavedChanges(false);
 
-      const currentContent = fileData?.whiteboard;
-      let hasChanges = false;
+      const hasRealChanges = normalizedNew !== normalizedCurrent;
 
-      if (
-        (!currentContent ||
-          currentContent === '""' ||
-          currentContent === "[]") &&
-        elements.length > 0
-      ) {
-        console.log("🆕 First save or empty whiteboard, creating version");
-        hasChanges = true;
-      } else if (
-        currentContent &&
-        currentContent !== '""' &&
-        currentContent !== "[]" &&
-        elements.length === 0
-      ) {
-        console.log("🗑️ Whiteboard cleared, creating version");
-        hasChanges = true;
-      } else if (
-        currentContent &&
-        currentContent !== '""' &&
-        currentContent !== "[]" &&
-        elements.length > 0
-      ) {
-        try {
-          const currentElements = JSON.parse(currentContent);
-
-          if (currentElements.length !== elements.length) {
-            console.log("🔢 Element count changed");
-            hasChanges = true;
-          } else {
-            const hasElementChanges = elements.some(
-              (element: any, index: number) => {
-                const currentElement = currentElements[index];
-                if (!currentElement) return true;
-
-                return (
-                  element.x !== currentElement.x ||
-                  element.y !== currentElement.y ||
-                  element.width !== currentElement.width ||
-                  element.height !== currentElement.height ||
-                  element.angle !== currentElement.angle ||
-                  JSON.stringify(element.points) !==
-                    JSON.stringify(currentElement.points) ||
-                  element.strokeColor !== currentElement.strokeColor ||
-                  element.backgroundColor !== currentElement.backgroundColor ||
-                  element.fillStyle !== currentElement.fillStyle ||
-                  element.strokeWidth !== currentElement.strokeWidth ||
-                  element.roughness !== currentElement.roughness ||
-                  element.opacity !== currentElement.opacity ||
-                  element.text !== currentElement.text ||
-                  element.type !== currentElement.type
-                );
-              }
-            );
-
-            hasChanges = hasElementChanges;
-            console.log(
-              hasChanges
-                ? "🎨 Element properties changed"
-                : "🔄 No changes detected in whiteboard"
-            );
-          }
-        } catch (e) {
-          console.log(
-            "⚠️ Could not compare whiteboard content, creating version anyway",
-            e
-          );
-          hasChanges = true;
-        }
-      }
-
-      if (elements.length > 0) {
+      if (hasRealChanges && elements.length > 0) {
         try {
           await createManualVersion({
             name: `Whiteboard - ${new Date().toLocaleString()}`,
@@ -573,10 +540,11 @@ export default function Canvas({
             content: contentString,
             type: "whiteboard",
           });
+          console.log("📝 Version created for whiteboard changes");
         } catch (versionError) {
           console.error("⚠️ Version creation failed:", versionError);
         }
-      } else {
+      } else if (hasRealChanges && elements.length === 0) {
         try {
           console.log("🆕 Creating empty whiteboard version...");
           await createManualVersion({
@@ -588,6 +556,8 @@ export default function Canvas({
         } catch (versionError) {
           console.error("⚠️ Version creation failed:", versionError);
         }
+      } else {
+        console.log("🔄 No version created - no significant changes");
       }
 
       if (onSaveSuccess) {
