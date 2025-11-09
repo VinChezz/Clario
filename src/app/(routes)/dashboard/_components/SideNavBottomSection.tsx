@@ -1,5 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { Archive, Flag, Github } from "lucide-react";
+import {
+  Archive,
+  Flag,
+  Github,
+  Plus,
+  Zap,
+  Crown,
+  Sparkles,
+} from "lucide-react";
 import React, { useEffect, useState } from "react";
 import {
   Dialog,
@@ -17,10 +25,12 @@ import PricingDialog from "./PricingDialog";
 import { TeamMember } from "@prisma/client";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { useRouter } from "next/navigation";
 
 export default function SideNavBottomSection({
   onFileCreate,
   totalFiles,
+  isLoading,
 }: any) {
   const menuList = [
     {
@@ -42,11 +52,13 @@ export default function SideNavBottomSection({
       path: "",
     },
   ];
+
   const { user }: any = useKindeBrowserClient();
   const [fileInput, setFileInput] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const { activeTeam, setActiveTeam } = useActiveTeam();
+  const { activeTeam } = useActiveTeam();
   const [dbUser, setDbUser] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (user?.email) {
@@ -76,52 +88,114 @@ export default function SideNavBottomSection({
 
   const canCreateFiles =
     isCurrentUserCreator || currentUserMember?.role === "EDIT";
-  return (
-    <div>
-      {menuList.map((menu, index) => (
-        <h2
-          key={index}
-          className="flex gap-2 p-1 px-2 text-[15px]
-        hover:bg-gray-100 rounded-md cursor-pointer font-normal"
-        >
-          <menu.icon className="h-6 w-6" />
-          {menu.name}
-        </h2>
-      ))}
 
-      {/* Add New File Button  */}
+  const usagePercentage = (totalFiles / Constant.MAX_FREE_FILE) * 100;
+
+  const handleUpgradeClick = () => {
+    router.push("/pricing");
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        {menuList.map((menu, index) => (
+          <button
+            key={index}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-linear-to-r hover:from-blue-50 hover:to-indigo-50 rounded-xl transition-all duration-200 hover:shadow-sm border border-transparent hover:border-blue-100"
+          >
+            <menu.icon className="h-4 w-4" />
+            <span>{menu.name}</span>
+          </button>
+        ))}
+      </div>
+
+      <div
+        className="bg-linear-to-br from-purple-600 via-blue-600 to-indigo-700 rounded-2xl p-4 text-white relative overflow-hidden group cursor-pointer transform hover:scale-[1.02] transition-all duration-300 shadow-lg hover:shadow-xl"
+        onClick={handleUpgradeClick}
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <Sparkles className="h-4 w-4 animate-pulse" />
+        </div>
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2">
+            <Crown className="h-5 w-5 text-yellow-300" />
+            <span className="font-bold text-sm">PRO FEATURES</span>
+          </div>
+
+          <h3 className="font-bold text-lg mb-1">Unlock Premium</h3>
+          <p className="text-white/90 text-xs mb-3 leading-relaxed">
+            Get unlimited storage, advanced collaboration, and priority support
+          </p>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-yellow-300" />
+              <span className="font-semibold text-sm">Upgrade Now</span>
+            </div>
+            <div className="bg-white/20 rounded-full px-3 py-1 text-xs font-medium backdrop-blur-sm">
+              $10/mo
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute inset-0 bg-linear-to-br from-white/10 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      </div>
+
       <Dialog>
         <DialogTrigger className="w-full" asChild>
           <Button
-            className="w-full bg-blue-600
-      hover:bg-blue-700 justify-start mt-3"
-            disabled={!canCreateFiles}
+            className="w-full bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 gap-2 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
+            disabled={!canCreateFiles || isLoading}
           >
+            <Plus className="h-4 w-4" />
             New File
           </Button>
         </DialogTrigger>
         {totalFiles < Constant.MAX_FREE_FILE ? (
-          <DialogContent>
+          <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader>
-              <DialogTitle>Create New File</DialogTitle>
-              <DialogDescription>
-                <Input
-                  placeholder="Enter File Name"
-                  className="mt-3"
-                  onChange={(e) => setFileInput(e.target.value)}
-                />
+              <DialogTitle className="text-lg font-semibold">
+                Create New File
+              </DialogTitle>
+              <DialogDescription className="text-gray-600">
+                Give your file a descriptive name to get started
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className="">
+            <div className="space-y-4">
+              <Input
+                placeholder="Enter file name..."
+                className="mt-2 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                onChange={(e) => setFileInput(e.target.value)}
+                value={fileInput}
+                autoFocus
+              />
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>File name must be at least 3 characters long</span>
+              </div>
+            </div>
+            <DialogFooter className="mt-4 gap-2">
               <DialogClose asChild>
                 <Button
-                  type="button"
-                  className="bg-blue-600
-            hover:bg-blue-700"
-                  disabled={!(fileInput && fileInput.length > 3)}
-                  onClick={() => onFileCreate(fileInput)}
+                  variant="outline"
+                  className="rounded-lg border-gray-300 hover:bg-gray-50"
                 >
-                  Create
+                  Cancel
+                </Button>
+              </DialogClose>
+              <DialogClose asChild>
+                <Button
+                  className="bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg shadow-sm"
+                  disabled={!(fileInput && fileInput.length > 3)}
+                  onClick={() => {
+                    onFileCreate(fileInput);
+                    setFileInput("");
+                  }}
+                >
+                  Create File
                 </Button>
               </DialogClose>
             </DialogFooter>
@@ -131,21 +205,50 @@ export default function SideNavBottomSection({
         )}
       </Dialog>
 
-      {/* Progress Bar  */}
-      <div className="h-4 w-full bg-gray-200 rounded-full mt-5">
-        <div
-          className={`h-4  bg-blue-600 rounded-full`}
-          style={{ width: `${(totalFiles / 5) * 100}%` }}
-        ></div>
-      </div>
+      <div className="bg-linear-to-br from-gray-50 to-blue-50 rounded-2xl p-4 space-y-3 border border-gray-100 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700">
+            Storage Used
+          </span>
+          <span className="text-sm font-semibold text-gray-900">
+            {totalFiles}/{Constant.MAX_FREE_FILE}
+          </span>
+        </div>
 
-      <h2 className="text-[12px] mt-3">
-        <strong>{totalFiles}</strong> out of{" "}
-        <strong>{Constant.MAX_FREE_FILE}</strong> files used
-      </h2>
-      <h2 className="text-[12px] mt-1">
-        Upgrade your plan for unlimited access.
-      </h2>
+        <div className="space-y-2">
+          <div className="relative h-2.5 w-full bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ease-out ${
+                usagePercentage >= 100
+                  ? "bg-linear-to-br from-red-500 to-red-600"
+                  : usagePercentage >= 80
+                  ? "bg-linear-to-br from-yellow-500 to-orange-500"
+                  : "bg-linear-to-br from-blue-500 to-indigo-600"
+              }`}
+              style={{ width: `${Math.min(usagePercentage, 100)}%` }}
+            />
+          </div>
+
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>0%</span>
+            <span>100%</span>
+          </div>
+        </div>
+
+        <div className="text-xs text-gray-600">
+          {totalFiles >= Constant.MAX_FREE_FILE ? (
+            <span className="text-red-600 font-medium flex items-center gap-1">
+              <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+              Storage full. Upgrade for unlimited files.
+            </span>
+          ) : (
+            <span className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+              {Constant.MAX_FREE_FILE - totalFiles} files remaining
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

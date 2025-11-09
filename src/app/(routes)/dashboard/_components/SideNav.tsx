@@ -8,6 +8,8 @@ import { FileListContext } from "@/app/_context/FileListContext";
 import SideNavTopSection, { TEAM } from "./SideNavTopSection";
 import SideNavBottomSection from "./SideNavBottomSection";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import { Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function SideNav() {
   const { user }: any = useKindeBrowserClient();
@@ -15,6 +17,7 @@ export default function SideNav() {
   const [totalFiles, setTotalFiles] = useState<number>(0);
   const { fileList_, setFileList_ } = useContext(FileListContext);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (activeTeam) {
@@ -49,6 +52,7 @@ export default function SideNav() {
 
       toast.success("File created successfully!");
       getFiles();
+      setIsMobileMenuOpen(false);
     } catch (err) {
       console.error("File creation error:", err);
       toast.error("Error while creating file");
@@ -102,17 +106,46 @@ export default function SideNav() {
   };
 
   return (
-    <div className="h-screen fixed w-72 border-r border-[1px] p-6 flex flex-col">
-      <div className="flex-1">
-        <SideNavTopSection user={user} setActiveTeamInfo={setActiveTeam} />
-      </div>
-      <div>
-        <SideNavBottomSection
-          totalFiles={totalFiles}
-          onFileCreate={onFileCreate}
-          isLoading={isLoading}
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="lg:hidden fixed top-4 left-4 z-50 bg-white shadow-md rounded-lg"
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+      >
+        {isMobileMenuOpen ? (
+          <X className="h-5 w-5" />
+        ) : (
+          <Menu className="h-5 w-5" />
+        )}
+      </Button>
+
+      {isMobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
         />
+      )}
+
+      <div
+        className={`
+          fixed top-0 left-0 h-screen w-72 bg-white border-r border-gray-200
+          flex flex-col p-6 transition-transform duration-300 ease-in-out z-40
+          ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0
+        `}
+      >
+        <div className="flex-1 overflow-y-auto">
+          <SideNavTopSection user={user} setActiveTeamInfo={setActiveTeam} />
+        </div>
+        <div className="border-t border-gray-100 pt-4">
+          <SideNavBottomSection
+            totalFiles={totalFiles}
+            onFileCreate={onFileCreate}
+            isLoading={isLoading}
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
