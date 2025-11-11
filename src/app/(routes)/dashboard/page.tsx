@@ -15,6 +15,8 @@ import {
   StaggeredLoader,
   StaggeredItem,
 } from "./_components/ContentLoader";
+import GettingStartedTour from "./_components/GettingStartedTour";
+import { TourProvider } from "./_components/TourContext";
 
 export default function Dashboard({
   variant = "light",
@@ -47,97 +49,113 @@ export default function Dashboard({
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 dark:from-gray-900 dark:to-blue-950/30">
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+    <TourProvider>
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 dark:from-gray-900 dark:to-blue-950/30">
+        <GettingStartedTour />
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
 
-      <div className="flex">
-        <div className="flex-1 min-w-0">
-          <Header onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <div className="flex">
+          <div className="flex-1 min-w-0">
+            <Header onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
 
-          <main className="p-6 lg:p-8 max-w-7xl mx-auto">
-            <ContentLoader>
-              <div className="mb-8">
-                <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                  Welcome back{user?.given_name ? `, ${user.given_name}` : ""}!
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 text-lg">
-                  Here are your recent files and documents
-                </p>
-              </div>
-            </ContentLoader>
+            <main className="p-6 lg:p-8 max-w-7xl mx-auto">
+              <ContentLoader>
+                <div className="mb-8">
+                  <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                    Welcome back{user?.given_name ? `, ${user.given_name}` : ""}
+                    !
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-400 text-lg">
+                    Here are your recent files and documents
+                  </p>
+                </div>
+              </ContentLoader>
 
-            <StaggeredLoader>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <StaggeredItem>
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                        <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Total Files
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          24
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </StaggeredItem>
-
-                <StaggeredItem>
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-green-50 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-                        <Users className="h-6 w-6 text-green-600 dark:text-green-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Team Members
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          8
-                        </p>
+              <StaggeredLoader>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <StaggeredItem>
+                    <div
+                      id="total-files-card"
+                      className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                          <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Total Files
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            24
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </StaggeredItem>
+                  </StaggeredItem>
 
-                <StaggeredItem>
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                        <Cloud className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Storage Used
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          65%
-                        </p>
+                  <StaggeredItem>
+                    <div
+                      id="team-members-card"
+                      className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-green-50 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
+                          <Users className="h-6 w-6 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Team Members
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            8
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </StaggeredItem>
-              </div>
-            </StaggeredLoader>
+                  </StaggeredItem>
 
-            <ContentLoader>
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 lg:p-8">
-                <FileList />
-              </div>
-            </ContentLoader>
-          </main>
+                  <StaggeredItem>
+                    <div
+                      id="storage-card"
+                      className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                          <Cloud className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Storage Used
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            65%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </StaggeredItem>
+                </div>
+              </StaggeredLoader>
+
+              <ContentLoader>
+                <div
+                  id="file-list-container"
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 lg:p-8"
+                >
+                  <FileList />
+                </div>
+              </ContentLoader>
+            </main>
+          </div>
         </div>
       </div>
-    </div>
+    </TourProvider>
   );
 }
 
