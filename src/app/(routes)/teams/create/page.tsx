@@ -84,6 +84,8 @@ export default function CreateTeam() {
       console.log("Team created successfully:", data);
       toast.success("Team created successfully!");
 
+      sessionStorage.setItem("new-team-created", "true");
+
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
