@@ -157,6 +157,7 @@ function SideNavTopSection({
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
           <Button
+            id="team-switcher"
             variant="ghost"
             className="w-full h-auto p-3 hover:bg-gray-50 rounded-xl transition-all duration-200 border border-gray-200 hover:border-gray-300"
           >

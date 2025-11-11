@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import {
   Archive,
@@ -147,7 +149,8 @@ export default function SideNavBottomSection({
       <Dialog>
         <DialogTrigger className="w-full" asChild>
           <Button
-            className="w-full bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 gap-2 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
+            id="create-file-button"
+            className="w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 gap-2 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
             disabled={!canCreateFiles || isLoading}
           >
             <Plus className="h-4 w-4" />
@@ -205,7 +208,10 @@ export default function SideNavBottomSection({
         )}
       </Dialog>
 
-      <div className="bg-linear-to-br from-gray-50 to-blue-50 rounded-2xl p-4 space-y-3 border border-gray-100 shadow-sm">
+      <div
+        id="storage-section"
+        className="bg-linear-to-br from-gray-50 to-blue-50 rounded-2xl p-4 space-y-3 border border-gray-100 shadow-sm"
+      >
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">
             Storage Used

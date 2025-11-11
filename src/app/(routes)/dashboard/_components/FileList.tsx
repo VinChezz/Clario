@@ -59,7 +59,6 @@ export default function FileList() {
     if (fileList_) setFileList(fileList_);
   }, [fileList_]);
 
-  // Filter and sort files
   const filteredAndSortedFiles = fileList
     .filter((file) =>
       file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -193,6 +192,7 @@ export default function FileList() {
         <div className="flex items-center gap-3">
           <div className="relative">
             <Input
+              id="search-bar"
               placeholder="Search files..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

@@ -33,9 +33,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import InviteModal from "./invite-button/InviteModal";
-import { TEAM, TeamMember } from "./SideNavTopSection";
+import { TeamMember } from "./SideNavTopSection";
 import { toast } from "sonner";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import { useTour } from "./TourContext";
 
 interface HeaderProps {
   onTeamUpdate?: () => void;
@@ -50,6 +51,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   const [dbUser, setDbUser] = useState<any>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isScrolled, setIsScrolled] = useState(false);
+  const { isTourActive } = useTour();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -195,14 +197,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 transition-all duration-500 backdrop-blur-xl border-b",
-        isScrolled
-          ? "bg-white/80 dark:bg-gray-900/80 border-gray-200/50 dark:border-gray-700/50 shadow-lg shadow-black/5"
-          : "bg-white/60 dark:bg-gray-900/60 border-gray-200/30 dark:border-gray-700/30"
-      )}
-    >
+    <header className="sticky top-0">
       <div className="flex items-center justify-between p-4 lg:px-6">
         <div className="flex items-center gap-4">
           <Button
@@ -216,7 +211,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
           {activeTeam && teamMembers.length > 0 && (
             <Popover>
-              <PopoverTrigger asChild>
+              <PopoverTrigger asChild id="members-check">
                 <Button
                   variant="ghost"
                   className="h-auto p-3 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-700/80 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl transition-all duration-300 hover:scale-105"
@@ -380,6 +375,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
                 <div className="p-4 border-t border-gray-200/50 dark:border-gray-700/50 bg-linear-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20">
                   <Button
+                    id="invite-button"
                     className="w-full gap-3 text-sm h-11 bg-linear-to-br from-blue-600/90 to-indigo-600/90 hover:from-blue-700/90 hover:to-indigo-700/90 text-white backdrop-blur-xl border border-blue-500/30 shadow-2xl transition-all duration-300 hover:scale-105 group relative overflow-hidden"
                     onClick={() => setIsInviteModalOpen(true)}
                     disabled={!activeTeam || !canInvite}
@@ -454,4 +450,6 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   );
 }
 
-const cn = (...classes: string[]) => classes.filter(Boolean).join(" ");
+function cn(...classes: (string | undefined | null | boolean)[]): string {
+  return classes.filter(Boolean).join(" ");
+}
