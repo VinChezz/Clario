@@ -33,6 +33,7 @@ export default function SideNavBottomSection({
   onFileCreate,
   totalFiles,
   isLoading,
+  onAction,
 }: any) {
   const menuList = [
     {
@@ -93,8 +94,14 @@ export default function SideNavBottomSection({
 
   const usagePercentage = (totalFiles / Constant.MAX_FREE_FILE) * 100;
 
+  const handleFileCreate = (fileName: string) => {
+    onFileCreate(fileName);
+    onAction?.();
+  };
+
   const handleUpgradeClick = () => {
     router.push("/pricing");
+    onAction?.();
   };
 
   return (
@@ -104,6 +111,7 @@ export default function SideNavBottomSection({
           <button
             key={index}
             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-linear-to-r hover:from-blue-50 hover:to-indigo-50 rounded-xl transition-all duration-200 hover:shadow-sm border border-transparent hover:border-blue-100"
+            onClick={onAction}
           >
             <menu.icon className="h-4 w-4" />
             <span>{menu.name}</span>
@@ -194,7 +202,7 @@ export default function SideNavBottomSection({
                   className="bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg shadow-sm"
                   disabled={!(fileInput && fileInput.length > 3)}
                   onClick={() => {
-                    onFileCreate(fileInput);
+                    handleFileCreate(fileInput);
                     setFileInput("");
                   }}
                 >
