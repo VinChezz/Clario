@@ -55,11 +55,13 @@ export interface TEAM {
 interface SideNavTopSectionProps {
   user: any;
   setActiveTeamInfo: (team: TEAM) => void;
+  onItemClick?: () => void;
 }
 
 function SideNavTopSection({
   user,
   setActiveTeamInfo,
+  onItemClick,
 }: SideNavTopSectionProps) {
   const menu = [
     {
@@ -127,6 +129,7 @@ function SideNavTopSection({
   const onMenuClick = (item: any) => {
     if (item.path) router.push(item.path);
     setPopoverOpen(false);
+    onItemClick?.();
   };
 
   const isCooperativeTeam = (team: TEAM) => {
@@ -150,6 +153,11 @@ function SideNavTopSection({
       "from-orange-500 to-orange-600",
     ];
     return colors[index % colors.length];
+  };
+
+  const handleFileClick = (fileId: string) => {
+    router.push(`/workspace/${fileId}`);
+    onItemClick?.();
   };
 
   return (
@@ -408,7 +416,7 @@ function SideNavTopSection({
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-all duration-200 group"
-                      onClick={() => router.push(`/workspace/${file.id}`)}
+                      onClick={() => handleFileClick(file.id)}
                     >
                       <div className="w-6 h-6 rounded-md bg-linear-to-br from-gray-400 to-gray-500 flex items-center justify-center">
                         <FileText className="h-3 w-3 text-white" />
