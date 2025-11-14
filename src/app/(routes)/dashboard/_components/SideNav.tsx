@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import React, { useContext, useEffect, useState } from "react";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { toast } from "sonner";
@@ -8,16 +7,24 @@ import { FileListContext } from "@/app/_context/FileListContext";
 import SideNavTopSection, { TEAM } from "./SideNavTopSection";
 import SideNavBottomSection from "./SideNavBottomSection";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
-import { Menu, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export default function SideNav() {
+interface SideNavProps {
+  onCloseSidebar?: () => void;
+  isMobileMenuOpen?: boolean;
+}
+
+export default function SideNav({
+  onCloseSidebar,
+  isMobileMenuOpen,
+}: SideNavProps) {
   const { user }: any = useKindeBrowserClient();
   const { activeTeam, setActiveTeam } = useActiveTeam();
   const [totalFiles, setTotalFiles] = useState<number>(0);
   const { fileList_, setFileList_ } = useContext(FileListContext);
   const [isLoading, setIsLoading] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (activeTeam) {
@@ -52,7 +59,9 @@ export default function SideNav() {
 
       toast.success("File created successfully!");
       getFiles();
-      setIsMobileMenuOpen(false);
+      if (onCloseSidebar) {
+        onCloseSidebar();
+      }
     } catch (err) {
       console.error("File creation error:", err);
       toast.error("Error while creating file");
@@ -107,43 +116,49 @@ export default function SideNav() {
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden fixed top-4 left-4 z-50 bg-white shadow-md rounded-lg"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      >
-        {isMobileMenuOpen ? (
-          <X className="h-5 w-5" />
-        ) : (
-          <Menu className="h-5 w-5" />
-        )}
-      </Button>
-
       {isMobileMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={onCloseSidebar}
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden animate-fadeIn"
         />
       )}
 
       <div
-        className={`
-          fixed top-0 left-0 h-screen w-72 bg-white border-r border-gray-200
-          flex flex-col p-6 transition-transform duration-300 ease-in-out z-40
-          ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0
-        `}
+        className={cn(
+          "fixed top-0 left-0 h-full w-72 bg-white shadow-xl border-r border-gray-200 z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 lg:w-64",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
       >
-        <div className="flex-1 overflow-y-auto">
-          <SideNavTopSection user={user} setActiveTeamInfo={setActiveTeam} />
+        {/* HEADER for mobile */}
+        <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-800 text-base">Menu</h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full hover:bg-gray-100"
+            onClick={onCloseSidebar}
+          >
+            <X className="h-5 w-5 text-gray-600" />
+          </Button>
         </div>
-        <div className="border-t border-gray-100 pt-4">
-          <SideNavBottomSection
-            totalFiles={totalFiles}
-            onFileCreate={onFileCreate}
-            isLoading={isLoading}
-          />
+
+        <div className="h-full flex flex-col overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto">
+            <SideNavTopSection
+              user={user}
+              setActiveTeamInfo={setActiveTeam}
+              onItemClick={onCloseSidebar}
+            />
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <SideNavBottomSection
+              totalFiles={totalFiles}
+              onFileCreate={onFileCreate}
+              isLoading={isLoading}
+              onAction={onCloseSidebar}
+            />
+          </div>
         </div>
       </div>
     </>

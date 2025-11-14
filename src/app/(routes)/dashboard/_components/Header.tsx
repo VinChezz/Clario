@@ -10,7 +10,6 @@ import {
   Eye,
   Trash2,
   Crown,
-  Users,
   Menu,
   Moon,
   Sun,
@@ -37,6 +36,7 @@ import { TeamMember } from "./SideNavTopSection";
 import { toast } from "sonner";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { useTour } from "./TourContext";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface HeaderProps {
   onTeamUpdate?: () => void;
@@ -50,16 +50,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [dbUser, setDbUser] = useState<any>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [isScrolled, setIsScrolled] = useState(false);
-  const { isTourActive } = useTour();
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark";
@@ -104,8 +95,10 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
   const canInvite = currentUserMember?.role === "ADMIN";
 
-  const displayedMembers = teamMembers.slice(0, 3);
-  const extraMembersCount = teamMembers.length - 3;
+  const displayedMembers = isMobile
+    ? teamMembers.slice(0, 1)
+    : teamMembers.slice(0, 3);
+  const extraMembersCount = teamMembers.length - displayedMembers.length;
 
   const updateMemberRole = async (
     memberId: string,
@@ -170,6 +163,16 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
     }
   };
 
+  const handleMenuClick = () => {
+    console.log("📱 Header: Menu button clicked");
+    console.log("📱 Header: onMenuToggle function:", onMenuToggle);
+    if (onMenuToggle) {
+      onMenuToggle();
+    } else {
+      console.error("❌ Header: onMenuToggle is undefined!");
+    }
+  };
+
   const getRoleText = (role: "VIEW" | "EDIT" | "ADMIN") => {
     switch (role) {
       case "ADMIN":
@@ -197,99 +200,95 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0">
-      <div className="flex items-center justify-between p-4 lg:px-6">
-        <div className="flex items-center gap-4">
+    <header className="sticky top-0 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50">
+      <div className="flex items-center justify-between p-4">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-700/80 border border-gray-200/50 dark:border-gray-700/50"
-            onClick={onMenuToggle}
+            className="shrink-0 lg:hidden backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50"
+            onClick={handleMenuClick}
           >
             <Menu className="h-5 w-5" />
           </Button>
 
           {activeTeam && teamMembers.length > 0 && (
             <Popover>
-              <PopoverTrigger asChild id="members-check">
+              <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-auto p-3 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-700/80 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl transition-all duration-300 hover:scale-105"
+                  className="h-auto p-2 lg:p-3 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50 rounded-xl lg:rounded-2xl flex-1 min-w-0"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex -space-x-3">
+                  <div className="flex items-center gap-2 lg:gap-3 w-full min-w-0 backdrop-blur-sm bg-white/50 hover:bg-white/80 rounded-full">
+                    <div className="flex -space-x-2 lg:-space-x-3 shrink-0">
                       {displayedMembers.map((member, index) => (
-                        <div key={`${member.id}-${index}`} className="relative">
-                          <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-sm border-2 border-white/80 dark:border-gray-800/80 shadow-lg flex items-center justify-center">
+                        <div
+                          key={`${member.id}-${index}`}
+                          className="relative rounded-full"
+                        >
+                          <div className="w-9 h-9 lg:w-11 lg:h-11 rounded-xl lg:rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-sm border-2 border-white/80 shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-105 shrink-0">
                             <Image
                               src={member.user.image || "/default-avatar.png"}
                               alt={member.user.name}
-                              width={36}
-                              height={36}
+                              width={isMobile ? 28 : 36}
+                              height={isMobile ? 28 : 36}
                               className="rounded-full"
                             />
                           </div>
-                          <div
-                            className={cn(
-                              "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white/80 dark:border-gray-800/80 backdrop-blur-sm",
-                              member.role === "ADMIN"
-                                ? "bg-linear-to-br from-red-500 to-red-600"
-                                : member.role === "EDIT"
-                                ? "bg-linear-to-br from-blue-500 to-blue-600"
-                                : "bg-linear-to-br from-gray-500 to-gray-600"
-                            )}
-                          />
                         </div>
                       ))}
                       {extraMembersCount > 0 && (
-                        <div className="w-10 h-10 bg-linear-to-br from-gray-100/80 to-gray-200/80 dark:from-gray-700/80 dark:to-gray-600/80 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300 border-2 border-white/80 dark:border-gray-800/80 shadow-lg backdrop-blur-sm">
+                        <div className="w-8 h-8 lg:w-10 lg:h-10 bg-linear-to-br from-gray-100/80 to-gray-200/80 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 border-2 border-white/80 shadow-lg backdrop-blur-sm">
                           +{extraMembersCount}
                         </div>
                       )}
                     </div>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
                         {activeTeam.name}
                       </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                      <p className="text-xs text-gray-600 hidden sm:block">
                         {teamMembers.length} members
                       </p>
                     </div>
                   </div>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-96 p-0 rounded-3xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95">
-                <div className="p-6 border-b border-gray-200/50 dark:border-gray-700/50 bg-linear-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20">
-                  <h3 className="font-bold text-gray-900 dark:text-white text-lg">
+              <PopoverContent
+                className="w-80 lg:w-96 p-0 rounded-3xl shadow-2xl border border-gray-200/50 backdrop-blur-xl bg-white/95"
+                align="start"
+              >
+                <div className="p-4 lg:p-6 border-b border-gray-200/50 bg-linear-to-br from-blue-50/50 to-purple-50/50">
+                  <h3 className="font-bold text-gray-900 text-lg">
                     Team Members
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  <p className="text-sm text-gray-600 mt-1">
                     {teamMembers.length} member
                     {teamMembers.length !== 1 ? "s" : ""} in your team
                   </p>
                 </div>
 
-                <div className="max-h-80 overflow-y-auto">
+                <div className="max-h-60 lg:max-h-80 overflow-y-auto">
                   {teamMembers.map((member, index) => (
                     <div
                       key={`${member.id}-${index}-full`}
-                      className="flex items-center justify-between p-4 hover:bg-gray-50/80 dark:hover:bg-gray-800/80 border-b border-gray-100/50 dark:border-gray-700/50 last:border-b-0 transition-all duration-300 group"
+                      className="flex items-center justify-between p-3 lg:p-4 hover:bg-gray-50/80 border-b border-gray-100/50 last:border-b-0 transition-all duration-300 group"
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="relative">
-                          <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-sm border border-white/50 dark:border-gray-700/50 flex items-center justify-center">
+                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-sm border border-white/50 flex items-center justify-center">
                             <Image
                               src={member.user.image || "/default-avatar.png"}
                               alt={member.user.name}
-                              width={44}
-                              height={44}
+                              width={isMobile ? 36 : 44}
+                              height={isMobile ? 36 : 44}
                               className="rounded-2xl"
                             />
                           </div>
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold truncate text-gray-900 dark:text-white">
+                            <p className="text-sm font-semibold truncate text-gray-900">
                               {member.user.name}
                             </p>
                             {member.userId === activeTeam.createdById && (
@@ -302,7 +301,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                          <p className="text-xs text-gray-500 truncate mt-1">
                             {member.user.email}
                           </p>
                         </div>
@@ -312,7 +311,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                         <Badge
                           variant="secondary"
                           className={cn(
-                            "text-xs py-1.5 px-3 font-medium backdrop-blur-sm",
+                            "text-xs py-1 px-2 font-medium backdrop-blur-sm",
                             getRoleColor(member.role)
                           )}
                         >
@@ -326,14 +325,14 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-700/80 border border-gray-200/50 dark:border-gray-700/50"
+                                  className="h-7 w-7 lg:h-8 lg:w-8 p-0 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50"
                                 >
-                                  <MoreHorizontal className="h-4 w-4" />
+                                  <MoreHorizontal className="h-3 lg:h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
-                                className="rounded-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border border-gray-200/50 dark:border-gray-700/50 shadow-2xl"
+                                className="rounded-2xl backdrop-blur-xl bg-white/95 border border-gray-200/50 shadow-2xl"
                               >
                                 <DropdownMenuItem
                                   onClick={() =>
@@ -373,20 +372,16 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                   ))}
                 </div>
 
-                <div className="p-4 border-t border-gray-200/50 dark:border-gray-700/50 bg-linear-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20">
+                <div className="p-3 lg:p-4 border-t border-gray-200/50 bg-linear-to-br from-blue-50/50 to-purple-50/50">
                   <Button
-                    id="invite-button"
-                    className="w-full gap-3 text-sm h-11 bg-linear-to-br from-blue-600/90 to-indigo-600/90 hover:from-blue-700/90 hover:to-indigo-700/90 text-white backdrop-blur-xl border border-blue-500/30 shadow-2xl transition-all duration-300 hover:scale-105 group relative overflow-hidden"
+                    className="w-full gap-2 text-sm h-10 bg-linear-to-br from-blue-600/90 to-indigo-600/90 hover:from-blue-700/90 hover:to-indigo-700/90 text-white backdrop-blur-xl border border-blue-500/30 transition-all duration-300 group relative overflow-hidden"
                     onClick={() => setIsInviteModalOpen(true)}
                     disabled={!activeTeam || !canInvite}
                   >
-                    <div className="absolute inset-0 bg-linear-to-br from-white/10 to-white/5 backdrop-blur-sm group-hover:from-white/20 group-hover:to-white/10 transition-all duration-500" />
-                    <Send className="h-5 w-5 relative z-10 group-hover:scale-110 transition-transform duration-300" />
+                    <Send className="h-4 w-4 relative z-10" />
                     <span className="relative z-10 font-semibold">
-                      Invite Team Members
+                      Invite Team
                     </span>
-
-                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-linear-to-br from-transparent via-white/20 to-transparent" />
                   </Button>
                 </div>
               </PopoverContent>
@@ -394,48 +389,36 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 lg:gap-3 shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-700/80 border border-gray-200/50 dark:border-gray-700/50 relative"
+            className="h-9 w-9 lg:h-10 lg:w-10 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50 relative"
           >
-            <Bell className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-900"></span>
+            <Bell className="h-4 w-4 lg:h-5 lg:w-5" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 lg:w-3 lg:h-3 bg-red-500 rounded-full border-2 border-white"></span>
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-700/80 border border-gray-200/50 dark:border-gray-700/50 transition-all duration-300 hover:scale-110"
+            className="h-9 w-9 lg:h-10 lg:w-10 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50 transition-all duration-300 hover:scale-110"
             onClick={toggleTheme}
           >
             {theme === "light" ? (
-              <Moon className="h-5 w-5" />
+              <Moon className="h-4 w-4 lg:h-5 lg:w-5" />
             ) : (
-              <Sun className="h-5 w-5" />
+              <Sun className="h-4 w-4 lg:h-5 lg:w-5" />
             )}
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 backdrop-blur-sm bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-700/80 border border-gray-200/50 dark:border-gray-700/50"
+            className="h-9 w-9 lg:h-10 lg:w-10 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50"
           >
-            <Settings className="h-5 w-5" />
+            <Settings className="h-4 w-4 lg:h-5 lg:w-5" />
           </Button>
-
-          {user && (
-            <div className="w-11 h-11 rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-sm border-2 border-white/80 dark:border-gray-800/80 shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-105">
-              <Image
-                src={user?.picture || "/default-avatar.png"}
-                alt="user"
-                width={42}
-                height={42}
-                className="rounded-2xl"
-              />
-            </div>
-          )}
         </div>
       </div>
 
