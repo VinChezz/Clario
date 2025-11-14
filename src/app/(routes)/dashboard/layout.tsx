@@ -99,7 +99,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
             }
           `}
         >
-          <div className="h-full bg-white border-r border-gray-200 overflow-y-auto">
+          <div className="h-full bg-white overflow-y-auto">
             <SideNav
               onCloseSidebar={handleCloseSidebar}
               isMobileMenuOpen={isSidebarOpen}
