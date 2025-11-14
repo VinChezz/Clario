@@ -5,17 +5,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import SideNav from "./_components/SideNav";
 import { FileListContext } from "@/app/_context/FileListContext";
+import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
+import Dashboard from "./page";
 
-function DashboardLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user }: any = useKindeBrowserClient();
   const [fileList_, setFileList_] = useState();
   const [isChecking, setIsChecking] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
 
   const skipTeamCheck = searchParams.get("skipTeamCheck") === "true";
 
@@ -24,7 +26,7 @@ function DashboardLayout({
       if (!skipTeamCheck) {
         checkTeam();
       } else {
-        console.log("⚡ Skipping team check (Back button pressed)");
+        console.log("⚡ Skipping team check");
         setIsChecking(false);
       }
     } else {
@@ -35,8 +37,6 @@ function DashboardLayout({
   const checkTeam = async () => {
     try {
       setIsChecking(true);
-      console.log("🔍 Checking teams for user:", user.email);
-
       const resp = await fetch("/api/teams", {
         method: "GET",
         cache: "no-store",
@@ -44,17 +44,8 @@ function DashboardLayout({
 
       const result = await resp.json();
 
-      console.log("📋 Teams check result:", {
-        status: resp.status,
-        teamsCount: Array.isArray(result) ? result.length : "invalid response",
-        hasTeams: Array.isArray(result) && result.length > 0,
-      });
-
       if (Array.isArray(result) && result.length === 0) {
-        console.log("➡️ No teams found, redirecting to create team");
         router.push("/teams/create");
-      } else {
-        console.log("✅ Teams found, staying on dashboard");
       }
     } catch (err) {
       console.error("❌ Error checking team:", err);
@@ -63,17 +54,64 @@ function DashboardLayout({
     }
   };
 
+  const handleMenuToggle = () => {
+    setIsSidebarOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    if (!isMobile) {
+      setIsSidebarOpen(false);
+    }
+  }, [isMobile]);
+
+  const handleCloseSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
+  const getSidebarWidth = () => {
+    if (isMobile) return "w-72";
+    if (isTablet) return "w-64";
+    return "w-72";
+  };
+
   return (
-    <div>
-      <FileListContext.Provider value={{ fileList_, setFileList_ }}>
-        <div className="grid grid-cols-4">
-          <div className="bg-white h-screen w-72 fixed">
-            <SideNav />
+    <FileListContext.Provider value={{ fileList_, setFileList_ }}>
+      <div className="flex h-screen w-full bg-white">
+        {isMobile && isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
+            onClick={handleCloseSidebar}
+          />
+        )}
+
+        <div
+          className={`
+            fixed lg:relative
+            top-0 left-0
+            h-full
+            z-50
+            transition-all duration-300 ease-in-out
+            ${getSidebarWidth()}
+            ${
+              isSidebarOpen
+                ? "translate-x-0 shadow-2xl"
+                : "-translate-x-full lg:translate-x-0 lg:shadow-none"
+            }
+          `}
+        >
+          <div className="h-full bg-white border-r border-gray-200 overflow-y-auto">
+            <SideNav
+              onCloseSidebar={handleCloseSidebar}
+              isMobileMenuOpen={isSidebarOpen}
+            />
           </div>
-          <div className="col-span-4 ml-72">{children}</div>
         </div>
-      </FileListContext.Provider>
-    </div>
+
+        <div className="flex-1 flex flex-col min-w-0 h-full">
+          <Dashboard onMenuToggle={handleMenuToggle} />
+        </div>
+      </div>
+    </FileListContext.Provider>
   );
 }
 

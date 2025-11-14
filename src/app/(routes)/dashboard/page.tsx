@@ -1,13 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  useKindeBrowserClient,
-  LogoutLink,
-} from "@kinde-oss/kinde-auth-nextjs";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import Header from "./_components/Header";
-import { HeaderProps } from "@/types/header";
-import { TextProps } from "@/types/common";
 import FileList from "./_components/FileList";
 import GradientLoader from "@/app/_loaders/GradientLoader";
 import {
@@ -17,14 +12,19 @@ import {
 } from "./_components/ContentLoader";
 import GettingStartedTour from "./_components/GettingStartedTour";
 import { TourProvider } from "./_components/TourContext";
+import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 
-export default function Dashboard({
-  variant = "light",
-}: HeaderProps & TextProps) {
+interface DashboardProps {
+  onMenuToggle?: () => void;
+}
+
+export default function Dashboard({ onMenuToggle }: DashboardProps) {
   const { user, isLoading } = useKindeBrowserClient();
   const [dbUser, setDbUser] = useState<any>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [contentLoaded, setContentLoaded] = useState(false);
+
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -38,7 +38,6 @@ export default function Dashboard({
         .then((res) => res.json())
         .then((data) => {
           setDbUser(data);
-
           setTimeout(() => setContentLoaded(true), 1000);
         });
     }
@@ -52,46 +51,44 @@ export default function Dashboard({
     <TourProvider>
       <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 dark:from-gray-900 dark:to-blue-950/30">
         <GettingStartedTour />
-        {isSidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
 
-        <div className="flex">
-          <div className="flex-1 min-w-0">
-            <Header onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <div className="flex min-h-screen">
+          <div className="flex-1 flex flex-col min-w-0">
+            <Header onMenuToggle={onMenuToggle} />
 
-            <main className="p-6 lg:p-8 max-w-7xl mx-auto">
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
               <ContentLoader>
-                <div className="mb-8">
-                  <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                <div className="mb-4 sm:mb-6 lg:mb-8">
+                  <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
                     Welcome back{user?.given_name ? `, ${user.given_name}` : ""}
                     !
                   </h1>
-                  <p className="text-gray-600 dark:text-gray-400 text-lg">
+                  <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm lg:text-lg">
                     Here are your recent files and documents
                   </p>
                 </div>
               </ContentLoader>
 
               <StaggeredLoader>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div
+                  className={`
+                  grid gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8
+                  ${isMobile ? "grid-cols-1" : ""}
+                  ${isTablet ? "grid-cols-2" : ""}
+                  ${!isMobile && !isTablet ? "grid-cols-3" : ""}
+                `}
+                >
                   <StaggeredItem>
-                    <div
-                      id="total-files-card"
-                      className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                          <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                          <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
                         </div>
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
                             Total Files
                           </p>
-                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
                             24
                           </p>
                         </div>
@@ -100,19 +97,16 @@ export default function Dashboard({
                   </StaggeredItem>
 
                   <StaggeredItem>
-                    <div
-                      id="team-members-card"
-                      className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-green-50 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-                          <Users className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                          <Users className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
                         </div>
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
                             Team Members
                           </p>
-                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
                             8
                           </p>
                         </div>
@@ -122,20 +116,44 @@ export default function Dashboard({
 
                   <StaggeredItem>
                     <div
-                      id="storage-card"
-                      className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+                      className={`
+                      bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300
+                      ${isMobile ? "col-span-1" : ""}
+                      ${isTablet ? "col-span-2" : ""}
+                      ${!isMobile && !isTablet ? "col-span-1" : ""}
+                    `}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                          <Cloud className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                          <Cloud className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 dark:text-purple-400" />
                         </div>
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
                             Storage Used
                           </p>
-                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                            65%
-                          </p>
+                          <div className="flex items-center gap-3">
+                            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
+                              65%
+                            </p>
+
+                            {isMobile && (
+                              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div
+                                  className="bg-linear-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                                  style={{ width: "65%" }}
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {!isMobile && (
+                            <div className="mt-2 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div
+                                className="bg-linear-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                                style={{ width: "65%" }}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -144,13 +162,18 @@ export default function Dashboard({
               </StaggeredLoader>
 
               <ContentLoader>
-                <div
-                  id="file-list-container"
-                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 lg:p-8"
-                >
+                <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8">
                   <FileList />
                 </div>
               </ContentLoader>
+
+              {isMobile && (
+                <div className="fixed bottom-6 right-6 z-30">
+                  <button className="w-14 h-14 bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-full shadow-2xl flex items-center justify-center text-white transition-all duration-300 hover:scale-110 active:scale-95">
+                    <Plus className="h-6 w-6" />
+                  </button>
+                </div>
+              )}
             </main>
           </div>
         </div>
@@ -203,6 +226,22 @@ const Cloud = ({ className }: { className?: string }) => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4 4 0 003 15z"
+    />
+  </svg>
+);
+
+const Plus = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 4v16m8-8H4"
     />
   </svg>
 );
