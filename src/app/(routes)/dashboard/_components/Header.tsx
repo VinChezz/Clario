@@ -202,7 +202,6 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   return (
     <header className="sticky top-0 backdrop-blur-xl bg-white/10 transition-all duration-300 z-30 rounded-b-3xl">
       <div className="flex items-center justify-between px-14 py-4">
-        {/* Left Section */}
         <div className="flex items-center flex-1 min-w-0">
           <Button
             variant="ghost"
@@ -274,7 +273,6 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                     <div
                       key={`${member.id}-${index}-full`}
                       className="flex items-center justify-between p-4 backdrop-blur-xl bg-white/10 transition-all duration-300 group"
-                      // hover:bg-gray-50/50 border-b border-white/20 last:border-b-0 transition-all
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="relative">
@@ -377,7 +375,6 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                 <div className="p-4 backdrop-blur-xl bg-white/10 transition-all duration-300 rounded-b-3xl">
                   <Button
                     className="w-full gap-2 text-sm h-11 bg-linear-to-br from-indigo-500/90 to-indigo-600/90 hover:from-indigo-600/90 hover:to-indigo-500/90 text-white backdrop-blur-xl bg-white/10 transition-all duration-300 group relative overflow-hidden"
-                    // from-blue-600/90 to-indigo-600/90 hover:from-blue-700/90 hover:to-indigo-700/90
                     onClick={() => setIsInviteModalOpen(true)}
                     disabled={!activeTeam || !canInvite}
                   >
