@@ -200,16 +200,17 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50">
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+    <header className="sticky top-0 backdrop-blur-xl bg-white/10 transition-all duration-300 z-30 rounded-b-3xl">
+      <div className="flex items-center justify-between px-14 py-4">
+        {/* Left Section */}
+        <div className="flex items-center flex-1 min-w-0">
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 lg:hidden backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50"
+            className="shrink-0 lg:hidden backdrop-blur-xl h-14 w-14"
             onClick={handleMenuClick}
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-6 w-6" />
           </Button>
 
           {activeTeam && teamMembers.length > 0 && (
@@ -217,37 +218,37 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
               <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-auto p-2 lg:p-3 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50 rounded-xl lg:rounded-2xl flex-1 min-w-0"
+                  className="h-auto px-4 py-3 rounded-2xl backdrop-blur-xl transition-all duration-300 max-w-[320px] min-h-14"
                 >
-                  <div className="flex items-center gap-2 lg:gap-3 w-full min-w-0 backdrop-blur-sm bg-white/50 hover:bg-white/80 rounded-full">
-                    <div className="flex -space-x-2 lg:-space-x-3 shrink-0">
+                  <div className="flex items-center gap-3 w-full min-w-0">
+                    <div className="flex -space-x-3 shrink-0">
                       {displayedMembers.map((member, index) => (
                         <div
                           key={`${member.id}-${index}`}
                           className="relative rounded-full"
                         >
-                          <div className="w-9 h-9 lg:w-11 lg:h-11 rounded-xl lg:rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-sm border-2 border-white/80 shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-105 shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-xl flex items-center justify-center transition-all duration-300 hover:scale-105 shrink-0">
                             <Image
                               src={member.user.image || "/default-avatar.png"}
                               alt={member.user.name}
-                              width={isMobile ? 28 : 36}
-                              height={isMobile ? 28 : 36}
-                              className="rounded-full"
+                              width={32}
+                              height={32}
+                              className="rounded-xl"
                             />
                           </div>
                         </div>
                       ))}
                       {extraMembersCount > 0 && (
-                        <div className="w-8 h-8 lg:w-10 lg:h-10 bg-linear-to-br from-gray-100/80 to-gray-200/80 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 border-2 border-white/80 shadow-lg backdrop-blur-sm">
+                        <div className="w-10 h-10 bg-linear-to-br from-gray-100/40 to-gray-200/40 rounded-xl flex items-center justify-center text-sm font-medium text-gray-600 backdrop-blur-xl">
                           +{extraMembersCount}
                         </div>
                       )}
                     </div>
                     <div className="text-left min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
+                      <p className="text-base font-semibold text-gray-900 truncate">
                         {activeTeam.name}
                       </p>
-                      <p className="text-xs text-gray-600 hidden sm:block">
+                      <p className="text-sm text-gray-600">
                         {teamMembers.length} members
                       </p>
                     </div>
@@ -255,10 +256,10 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-80 lg:w-96 p-0 rounded-3xl shadow-2xl border border-gray-200/50 backdrop-blur-xl bg-white/95"
+                className="w-85 p-0 rounded-3xl backdrop-blur-xl bg-white/10 transition-all duration-300 z-30"
                 align="start"
               >
-                <div className="p-4 lg:p-6 border-b border-gray-200/50 bg-linear-to-br from-blue-50/50 to-purple-50/50">
+                <div className="p-6 backdrop-blur-xl bg-white/10 transition-all duration-300 rounded-t-3xl">
                   <h3 className="font-bold text-gray-900 text-lg">
                     Team Members
                   </h3>
@@ -268,20 +269,21 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                   </p>
                 </div>
 
-                <div className="max-h-60 lg:max-h-80 overflow-y-auto">
+                <div className="max-h-60 overflow-y-auto">
                   {teamMembers.map((member, index) => (
                     <div
                       key={`${member.id}-${index}-full`}
-                      className="flex items-center justify-between p-3 lg:p-4 hover:bg-gray-50/80 border-b border-gray-100/50 last:border-b-0 transition-all duration-300 group"
+                      className="flex items-center justify-between p-4 backdrop-blur-xl bg-white/10 transition-all duration-300 group"
+                      // hover:bg-gray-50/50 border-b border-white/20 last:border-b-0 transition-all
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="relative">
-                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-sm border border-white/50 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-xl border border-white/50 flex items-center justify-center">
                             <Image
                               src={member.user.image || "/default-avatar.png"}
                               alt={member.user.name}
-                              width={isMobile ? 36 : 44}
-                              height={isMobile ? 36 : 44}
+                              width={40}
+                              height={40}
                               className="rounded-2xl"
                             />
                           </div>
@@ -325,14 +327,14 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 w-7 lg:h-8 lg:w-8 p-0 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50"
+                                  className="h-8 w-8 p-0 backdrop-blur-xl bg-white/30 hover:bg-white/50 border border-white/30 transition-all duration-300"
                                 >
-                                  <MoreHorizontal className="h-3 lg:h-4 w-4" />
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
-                                className="rounded-2xl backdrop-blur-xl bg-white/95 border border-gray-200/50 shadow-2xl"
+                                className="rounded-2xl backdrop-blur-xl bg-white/95 border border-white/20 shadow-2xl"
                               >
                                 <DropdownMenuItem
                                   onClick={() =>
@@ -372,9 +374,10 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                   ))}
                 </div>
 
-                <div className="p-3 lg:p-4 border-t border-gray-200/50 bg-linear-to-br from-blue-50/50 to-purple-50/50">
+                <div className="p-4 backdrop-blur-xl bg-white/10 transition-all duration-300 rounded-b-3xl">
                   <Button
-                    className="w-full gap-2 text-sm h-10 bg-linear-to-br from-blue-600/90 to-indigo-600/90 hover:from-blue-700/90 hover:to-indigo-700/90 text-white backdrop-blur-xl border border-blue-500/30 transition-all duration-300 group relative overflow-hidden"
+                    className="w-full gap-2 text-sm h-11 bg-linear-to-br from-indigo-500/90 to-indigo-600/90 hover:from-indigo-600/90 hover:to-indigo-500/90 text-white backdrop-blur-xl bg-white/10 transition-all duration-300 group relative overflow-hidden"
+                    // from-blue-600/90 to-indigo-600/90 hover:from-blue-700/90 hover:to-indigo-700/90
                     onClick={() => setIsInviteModalOpen(true)}
                     disabled={!activeTeam || !canInvite}
                   >
@@ -389,35 +392,35 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+        <div className="flex items-center gap-4 shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 lg:h-10 lg:w-10 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50 relative"
+            className="h-12 w-12 backdrop-blur-xl transition-all duration-300 hover:scale-110 relative"
           >
-            <Bell className="h-4 w-4 lg:h-5 lg:w-5" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 lg:w-3 lg:h-3 bg-red-500 rounded-full border-2 border-white"></span>
+            <Bell className="h-6 w-6" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white backdrop-blur-sm"></span>
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 lg:h-10 lg:w-10 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50 transition-all duration-300 hover:scale-110"
+            className="h-12 w-12 backdrop-blur-xl transition-all duration-300 hover:scale-110"
             onClick={toggleTheme}
           >
             {theme === "light" ? (
-              <Moon className="h-4 w-4 lg:h-5 lg:w-5" />
+              <Moon className="h-6 w-6" />
             ) : (
-              <Sun className="h-4 w-4 lg:h-5 lg:w-5" />
+              <Sun className="h-6 w-6" />
             )}
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 lg:h-10 lg:w-10 backdrop-blur-sm bg-white/50 hover:bg-white/80 border border-gray-200/50"
+            className="h-12 w-12 backdrop-blur-xl transition-all duration-300 hover:scale-110"
           >
-            <Settings className="h-4 w-4 lg:h-5 lg:w-5" />
+            <Settings className="h-6 w-6" />
           </Button>
         </div>
       </div>
