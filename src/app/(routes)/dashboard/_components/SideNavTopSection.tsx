@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ChevronDown,
   FileText,
@@ -6,10 +8,11 @@ import {
   Settings,
   Users,
   ChevronRight,
-  UsersIcon,
   Crown,
-  Plus,
-  Building,
+  Archive,
+  Flag,
+  History,
+  Star,
 } from "lucide-react";
 import Image from "next/image";
 import React, { useContext, useEffect, useState } from "react";
@@ -56,12 +59,18 @@ interface SideNavTopSectionProps {
   user: any;
   setActiveTeamInfo: (team: TEAM) => void;
   onItemClick?: () => void;
+  isMobile?: boolean;
+  isTablet?: boolean;
+  fileList_?: FILE[];
 }
 
 function SideNavTopSection({
   user,
   setActiveTeamInfo,
   onItemClick,
+  isMobile = false,
+  isTablet = false,
+  fileList_ = [],
 }: SideNavTopSectionProps) {
   const menu = [
     {
@@ -69,29 +78,42 @@ function SideNavTopSection({
       name: "Create Team",
       path: "/teams/create",
       icon: Users,
-      description: "Start a new team collaboration",
+      description: "Start new team",
       color: "text-blue-600",
     },
     {
       id: 2,
       name: "Settings",
-      path: "",
+      path: "/settings",
       icon: Settings,
-      description: "Manage your preferences",
+      description: "Manage preferences",
       color: "text-gray-600",
+    },
+    {
+      id: 3,
+      name: "Recent",
+      icon: History,
+      description: "Recent files",
+      color: "text-indigo-600",
+    },
+    {
+      id: 4,
+      name: "Favorites",
+      icon: Star,
+      description: "Favorite files",
+      color: "text-yellow-600",
     },
   ];
 
   const router = useRouter();
   const [activeTeam, setActiveTeam] = useState<TEAM>();
   const [teamList, setTeamList] = useState<TEAM[]>();
-  const { fileList_ } = useContext(FileListContext);
   const [fileList, setFileList] = useState<FILE[]>([]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   useEffect(() => {
-    if (fileList_) setFileList(fileList_);
+    setFileList(fileList_);
   }, [fileList_]);
 
   useEffect(() => {
@@ -125,6 +147,62 @@ function SideNavTopSection({
       console.error("❌ Error fetching teams:", e.message);
     }
   };
+
+  const getTeamSwitcherSize = () => {
+    if (isMobile)
+      return {
+        padding: "p-3",
+        gap: "gap-3",
+        iconSize: "w-10 h-10",
+        textSize: "text-sm",
+      };
+    if (isTablet)
+      return {
+        padding: "p-3", // Увеличено
+        gap: "gap-3", // Увеличено
+        iconSize: "w-10 h-10", // Увеличено
+        textSize: "text-sm", // Увеличено
+      };
+    return {
+      padding: "p-2",
+      gap: "gap-2",
+      iconSize: "w-8 h-8",
+      textSize: "text-xs",
+    };
+  };
+
+  const getFileItemSize = () => {
+    if (isMobile)
+      return {
+        padding: "p-2.5",
+        gap: "gap-3",
+        iconSize: "w-7 h-7",
+        textSize: "text-sm",
+      };
+    if (isTablet)
+      return {
+        padding: "p-2.5", // Увеличено
+        gap: "gap-3", // Увеличено
+        iconSize: "w-7 h-7", // Увеличено
+        textSize: "text-sm", // Увеличено
+      };
+    return {
+      padding: "p-1.5",
+      gap: "gap-2",
+      iconSize: "w-5 h-5",
+      textSize: "text-xs",
+    };
+  };
+
+  const getQuickAccessSize = () => {
+    if (isMobile) return { buttonClass: "py-4 text-sm", iconSize: "h-4 w-4" };
+    if (isTablet) return { buttonClass: "py-4 text-sm", iconSize: "h-4 w-4" };
+    return { buttonClass: "py-2 text-xs", iconSize: "h-3.5 w-3.5" };
+  };
+
+  const teamSwitcher = getTeamSwitcherSize();
+  const fileItem = getFileItemSize();
+  const quickAccess = getQuickAccessSize();
 
   const onMenuClick = (item: any) => {
     if (item.path) router.push(item.path);
@@ -161,19 +239,22 @@ function SideNavTopSection({
   };
 
   return (
-    <div className="space-y-6 p-4">
+    <div className={cn("space-y-4", isTablet && "space-y-3")}>
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
           <Button
-            id="team-switcher"
             variant="ghost"
-            className="w-full h-auto p-3 hover:bg-gray-50 rounded-xl transition-all duration-200 border border-gray-200 hover:border-gray-300"
+            className={cn(
+              "w-full h-auto hover:bg-gray-50 rounded-xl transition-all duration-200 border border-gray-200 hover:border-gray-300",
+              teamSwitcher.padding
+            )}
           >
-            <div className="flex items-center gap-3 w-full">
+            <div className={cn("flex items-center w-full", teamSwitcher.gap)}>
               <div className="relative">
                 <div
                   className={cn(
-                    "w-12 h-12 rounded-xl bg-linear-to-br flex items-center justify-center shadow-sm",
+                    "rounded-xl bg-linear-to-br flex items-center justify-center shadow-sm",
+                    teamSwitcher.iconSize,
                     activeTeam
                       ? getTeamColor(
                           teamList?.findIndex((t) => t.id === activeTeam.id) ||
@@ -182,167 +263,226 @@ function SideNavTopSection({
                       : "from-gray-400 to-gray-500"
                   )}
                 >
-                  <span className="text-white font-bold text-sm">
+                  <span
+                    className={cn(
+                      "text-white font-bold",
+                      teamSwitcher.textSize
+                    )}
+                  >
                     {activeTeam ? getTeamInitials(activeTeam.name) : "T"}
                   </span>
                 </div>
                 {activeTeam && activeTeam.createdById === user?.id && (
-                  <div className="absolute -top-1 -right-1 bg-yellow-400 rounded-full p-0.5 shadow-sm">
-                    <Crown className="h-3 w-3 text-white" />
+                  <div
+                    className={cn(
+                      "absolute -top-1 -right-1 bg-yellow-400 rounded-full shadow-sm",
+                      isMobile ? "p-1" : "p-0.5"
+                    )}
+                  >
+                    <Crown className={isMobile ? "h-3 w-3" : "h-2 w-2"} />
                   </div>
                 )}
               </div>
 
               <div className="flex-1 min-w-0 text-left">
-                <div className="flex items-center gap-2 mb-1">
-                  <h2 className="font-semibold text-gray-900 truncate text-sm">
+                <div
+                  className={cn("flex items-center mb-0.5", teamSwitcher.gap)}
+                >
+                  <h2
+                    className={cn(
+                      "font-semibold text-gray-900 truncate",
+                      teamSwitcher.textSize
+                    )}
+                  >
                     {activeTeam?.name || "Select Team"}
                   </h2>
                   {activeTeam && isCooperativeTeam(activeTeam) && (
                     <Badge
                       variant="secondary"
-                      className="bg-green-50 text-green-700 border-green-200 text-xs px-2 py-0"
+                      className={cn(
+                        "bg-green-50 text-green-700 border-green-200",
+                        isMobile
+                          ? "text-xs px-2 py-0 h-5"
+                          : "text-[10px] px-1 py-0 h-4"
+                      )}
                     >
-                      <UsersIcon className="h-3 w-3 mr-1" />
                       Team
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 truncate">
+                <p
+                  className={cn(
+                    "text-gray-500 truncate",
+                    isMobile ? "text-xs" : "text-[10px]"
+                  )}
+                >
                   {activeTeam?._count?.members || 0} members
                 </p>
               </div>
 
               <ChevronDown
                 className={cn(
-                  "h-4 w-4 text-gray-400 transition-transform duration-200",
+                  "text-gray-400 transition-transform duration-200 shrink-0",
+                  isMobile ? "h-5 w-5" : "h-4 w-4",
                   popoverOpen && "rotate-180"
                 )}
               />
             </div>
           </Button>
         </PopoverTrigger>
+
         <PopoverContent
-          className="w-80 p-4 rounded-2xl shadow-xl border border-gray-200"
+          className={cn(
+            "rounded-2xl shadow-xl border border-gray-200",
+            isMobile ? "w-80 p-4" : isTablet ? "w-72 p-3" : "w-68 p-3"
+          )}
           align="start"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 text-sm">Teams</h3>
-            <Badge variant="outline" className="text-xs">
+          <div className="flex items-center justify-between mb-3">
+            <h3
+              className={cn(
+                "font-semibold text-gray-900",
+                isMobile ? "text-base" : "text-sm"
+              )}
+            >
+              Teams
+            </h3>
+            <Badge
+              variant="outline"
+              className={isMobile ? "text-sm" : "text-xs"}
+            >
               {teamList?.length || 0}
             </Badge>
           </div>
 
-          <div className="space-y-2 max-h-60 overflow-y-auto">
+          <div className="space-y-1 max-h-48 overflow-y-auto">
             {teamList?.map((team, index) => (
-              <motion.div
+              <div
                 key={team.id}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+                className={cn(
+                  "flex items-center justify-between rounded-xl cursor-pointer transition-all duration-200 border p-2",
+                  activeTeam?.id === team.id
+                    ? "bg-blue-50 border-blue-200"
+                    : "bg-white border-gray-100 hover:bg-gray-50"
+                )}
+                onClick={() => {
+                  setActiveTeam(team);
+                  setPopoverOpen(false);
+                }}
               >
-                <div
-                  className={cn(
-                    "flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 border",
-                    activeTeam?.id === team.id
-                      ? "bg-blue-50 border-blue-200"
-                      : "bg-white border-gray-100 hover:bg-gray-50"
-                  )}
-                  onClick={() => {
-                    setActiveTeam(team);
-                    setPopoverOpen(false);
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "rounded-lg bg-linear-to-br flex items-center justify-center",
+                      isMobile ? "w-10 h-10" : "w-8 h-8",
+                      getTeamColor(index)
+                    )}
+                  >
+                    <span
                       className={cn(
-                        "w-10 h-10 rounded-lg bg-linear-to-br flex items-center justify-center",
-                        getTeamColor(index)
+                        "text-white font-semibold",
+                        isMobile ? "text-sm" : "text-xs"
                       )}
                     >
-                      <span className="text-white font-semibold text-xs">
-                        {getTeamInitials(team.name)}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            "font-medium text-sm",
-                            activeTeam?.id === team.id
-                              ? "text-blue-900"
-                              : "text-gray-900"
-                          )}
-                        >
-                          {team.name}
-                        </span>
-                        {team.createdById === user?.id && (
-                          <Crown className="h-3 w-3 text-yellow-500" />
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        {team._count?.members || 0} members
-                      </p>
-                    </div>
+                      {getTeamInitials(team.name)}
+                    </span>
                   </div>
-
-                  {isCooperativeTeam(team) && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-green-50 text-green-700 text-xs"
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={cn(
+                          "font-medium",
+                          isMobile ? "text-sm" : "text-xs"
+                        )}
+                      >
+                        {team.name}
+                      </span>
+                      {team.createdById === user?.id && (
+                        <Crown className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
+                      )}
+                    </div>
+                    <p
+                      className={cn(
+                        "text-gray-500",
+                        isMobile ? "text-xs" : "text-[10px]"
+                      )}
                     >
-                      Team
-                    </Badge>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <Separator className="my-4" />
-
-          <div className="space-y-2">
-            {menu.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-gray-50 group"
-                onClick={() => onMenuClick(item)}
-              >
-                <div
-                  className={cn(
-                    "w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center group-hover:bg-white transition-colors",
-                    item.color
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-gray-900 text-sm">
-                    {item.name}
-                  </h3>
-                  <p className="text-xs text-gray-500">{item.description}</p>
+                      {team._count?.members || 0} members
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          <Separator className="my-4" />
+          <Separator className="my-3" />
 
-          <div className="space-y-3">
+          <div className="space-y-2">
+            {menu.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center rounded-xl cursor-pointer transition-all duration-200 hover:bg-gray-50 group p-2 gap-2"
+                onClick={() => onMenuClick(item)}
+              >
+                <div
+                  className={cn(
+                    "rounded-lg bg-gray-50 flex items-center justify-center group-hover:bg-white transition-colors",
+                    isMobile ? "w-10 h-10" : "w-8 h-8",
+                    item.color
+                  )}
+                >
+                  <item.icon className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
+                </div>
+                <div className="flex-1">
+                  <h3
+                    className={cn(
+                      "font-medium text-gray-900",
+                      isMobile ? "text-sm" : "text-xs"
+                    )}
+                  >
+                    {item.name}
+                  </h3>
+                  <p
+                    className={cn(
+                      "text-gray-500",
+                      isMobile ? "text-xs" : "text-[10px]"
+                    )}
+                  >
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Separator className="my-3" />
+
+          {/* User info and logout */}
+          <div className="space-y-2">
             {user && (
-              <div className="flex items-center gap-3 p-2">
+              <div className="flex items-center p-2 gap-2">
                 <Image
                   src={user?.picture}
                   alt="user"
-                  width={36}
-                  height={36}
+                  width={isMobile ? 40 : 32}
+                  height={isMobile ? 40 : 32}
                   className="rounded-full border-2 border-white shadow-sm"
                 />
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-sm font-semibold text-gray-900 truncate">
+                  <h2
+                    className={cn(
+                      "font-semibold text-gray-900 truncate",
+                      isMobile ? "text-sm" : "text-xs"
+                    )}
+                  >
                     {user?.given_name} {user?.family_name}
                   </h2>
-                  <h2 className="text-xs text-gray-500 truncate">
+                  <h2
+                    className={cn(
+                      "text-gray-500 truncate",
+                      isMobile ? "text-xs" : "text-[10px]"
+                    )}
+                  >
                     {user?.email}
                   </h2>
                 </div>
@@ -350,32 +490,66 @@ function SideNavTopSection({
             )}
 
             <LogoutLink>
-              <div className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-red-50 group">
-                <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors">
-                  <LogOut className="h-4 w-4 text-red-600" />
+              <div className="flex items-center rounded-xl cursor-pointer transition-all duration-200 hover:bg-red-50 group p-2 gap-2">
+                <div
+                  className={cn(
+                    "rounded-lg bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors",
+                    isMobile ? "w-10 h-10" : "w-8 h-8"
+                  )}
+                >
+                  <LogOut className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
                 </div>
-                <span className="font-medium text-red-600 text-sm">Logout</span>
+                <span
+                  className={cn(
+                    "font-medium text-red-600",
+                    isMobile ? "text-sm" : "text-xs"
+                  )}
+                >
+                  Logout
+                </span>
               </div>
             </LogoutLink>
           </div>
         </PopoverContent>
       </Popover>
 
+      {/* Files Section */}
       <div className="space-y-2">
         <Button
           variant="ghost"
-          className="w-full justify-between items-center p-3 rounded-xl hover:bg-gray-50 transition-all duration-200 group"
+          className={cn(
+            "w-full justify-between items-center hover:bg-gray-50 transition-all duration-200 group",
+            teamSwitcher.padding,
+            isMobile ? "rounded-xl" : "rounded-lg"
+          )}
           onClick={() => setOpen(!open)}
         >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-              <LayoutGrid className="h-4 w-4 text-white" />
+          <div className={cn("flex items-center", teamSwitcher.gap)}>
+            <div
+              className={cn(
+                "rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm",
+                teamSwitcher.iconSize
+              )}
+            >
+              <LayoutGrid
+                className={cn("text-white", isMobile ? "h-5 w-5" : "h-4 w-4")}
+              />
             </div>
             <div className="text-left">
-              <span className="font-semibold text-gray-900 text-sm">
+              <span
+                className={cn(
+                  "font-semibold text-gray-900",
+                  teamSwitcher.textSize
+                )}
+              >
                 All Files
               </span>
-              <p className="text-xs text-gray-500">
+              <p
+                className={cn(
+                  "text-gray-500",
+                  isMobile ? "text-xs" : "text-[10px]"
+                )}
+              >
                 {fileList.length} file{fileList.length !== 1 ? "s" : ""}
               </p>
             </div>
@@ -383,16 +557,17 @@ function SideNavTopSection({
 
           <div
             className={cn(
-              "p-1 rounded-lg transition-all duration-200",
+              "rounded-lg transition-all duration-200",
+              isMobile ? "p-2" : "p-1",
               open
                 ? "bg-blue-100 text-blue-600"
                 : "bg-gray-100 text-gray-400 group-hover:bg-gray-200"
             )}
           >
             {open ? (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
             )}
           </div>
         </Button>
@@ -407,7 +582,12 @@ function SideNavTopSection({
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="ml-4 pl-8 border-l-2 border-gray-100 space-y-1 py-2">
+              <div
+                className={cn(
+                  "border-l-2 border-gray-100 space-y-0.5 py-1",
+                  isMobile ? "ml-4 pl-6" : "ml-3 pl-4"
+                )}
+              >
                 {fileList && fileList.length > 0 ? (
                   fileList.map((file, index) => (
                     <motion.div
@@ -415,17 +595,35 @@ function SideNavTopSection({
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-all duration-200 group"
+                      className={cn(
+                        "flex items-center rounded-lg hover:bg-gray-50 cursor-pointer transition-all duration-200 group",
+                        fileItem.padding,
+                        fileItem.gap
+                      )}
                       onClick={() => handleFileClick(file.id)}
                     >
-                      <div className="w-6 h-6 rounded-md bg-linear-to-br from-gray-400 to-gray-500 flex items-center justify-center">
-                        <FileText className="h-3 w-3 text-white" />
+                      <div
+                        className={cn(
+                          "rounded-md bg-linear-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white",
+                          fileItem.iconSize
+                        )}
+                      >
+                        <FileText
+                          className={isMobile ? "h-4 w-4" : "h-3 w-3"}
+                        />
                       </div>
-                      <span className="text-sm text-gray-700 group-hover:text-gray-900 truncate flex-1">
+                      <span
+                        className={cn(
+                          "text-gray-700 group-hover:text-gray-900 truncate flex-1",
+                          fileItem.textSize
+                        )}
+                      >
                         {file.fileName}
                       </span>
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ChevronRight className="h-3 w-3 text-gray-400" />
+                        <ChevronRight
+                          className={isMobile ? "h-3 w-3" : "h-2 w-2"}
+                        />
                       </div>
                     </motion.div>
                   ))
@@ -433,14 +631,30 @@ function SideNavTopSection({
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100"
+                    className={cn(
+                      "flex items-center rounded-lg bg-gray-50 border border-gray-100",
+                      fileItem.padding,
+                      fileItem.gap
+                    )}
                   >
-                    <div className="w-6 h-6 rounded-md bg-gray-200 flex items-center justify-center">
-                      <FileText className="h-3 w-3 text-gray-400" />
+                    <div
+                      className={cn(
+                        "rounded-md bg-gray-200 flex items-center justify-center",
+                        fileItem.iconSize
+                      )}
+                    >
+                      <FileText className={isMobile ? "h-3 w-3" : "h-2 w-2"} />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">No files yet</p>
-                      <p className="text-xs text-gray-400">
+                      <p className={cn("text-gray-600", fileItem.textSize)}>
+                        No files yet
+                      </p>
+                      <p
+                        className={cn(
+                          "text-gray-400",
+                          isMobile ? "text-xs" : "text-[10px]"
+                        )}
+                      >
                         Create your first file
                       </p>
                     </div>
@@ -450,6 +664,37 @@ function SideNavTopSection({
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      <div className="space-y-2">
+        <h3
+          className={cn(
+            "font-semibold text-gray-900",
+            isMobile ? "text-base" : "text-sm"
+          )}
+        >
+          Quick Access
+        </h3>
+        <div className="grid grid-cols-2 gap-2">
+          {menu.map((item) => (
+            <Button
+              key={item.id}
+              variant="outline"
+              className={cn(
+                "h-auto border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 shadow-sm",
+                quickAccess.buttonClass
+              )}
+              onClick={() => onMenuClick(item)}
+            >
+              <div className="flex flex-col items-center gap-1">
+                <item.icon className={quickAccess.iconSize} />
+                <span className={isMobile ? "text-sm" : "text-xs"}>
+                  {item.name}
+                </span>
+              </div>
+            </Button>
+          ))}
+        </div>
       </div>
     </div>
   );
