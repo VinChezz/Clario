@@ -5,7 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import SideNav from "./_components/SideNav";
 import { FileListContext } from "@/app/_context/FileListContext";
-import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
+import {
+  useIsLargeTablet,
+  useIsMobile,
+  useIsTablet,
+  useIsDesktop,
+} from "@/hooks/useMediaQuery";
 import Dashboard from "./page";
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +23,8 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+  const isLargeTablet = useIsLargeTablet();
+  const isDesktop = useIsDesktop();
 
   const skipTeamCheck = searchParams.get("skipTeamCheck") === "true";
 
@@ -71,12 +78,13 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const getSidebarWidth = () => {
     if (isMobile) return "w-72";
     if (isTablet) return "w-64";
-    return "w-72";
+    if (isLargeTablet) return "w-64";
+    return "w-64";
   };
 
   return (
     <FileListContext.Provider value={{ fileList_, setFileList_ }}>
-      <div className="flex h-screen w-full bg-white">
+      <div className="flex h-screen w-full bg-white overflow-hidden">
         {isMobile && isSidebarOpen && (
           <div
             className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
@@ -86,9 +94,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         <div
           className={`
-            fixed lg:relative
+            fixed lg:static
             top-0 left-0
-            h-full
+            h-screen
             z-50
             transition-all duration-300 ease-in-out
             ${getSidebarWidth()}
@@ -99,7 +107,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
             }
           `}
         >
-          <div className="h-full bg-white overflow-y-auto">
+          <div className="h-full bg-white border-r border-gray-200">
             <SideNav
               onCloseSidebar={handleCloseSidebar}
               isMobileMenuOpen={isSidebarOpen}
@@ -107,8 +115,10 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col min-w-0 h-full">
-          <Dashboard onMenuToggle={handleMenuToggle} />
+        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
+            <Dashboard onMenuToggle={handleMenuToggle} />
+          </div>
         </div>
       </div>
     </FileListContext.Provider>

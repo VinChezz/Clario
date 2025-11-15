@@ -52,11 +52,11 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
       <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 dark:from-gray-900 dark:to-blue-950/30">
         <GettingStartedTour />
 
-        <div className="flex min-h-screen">
+        <div className="flex flex-col min-h-screen">
           <div className="flex-1 flex flex-col min-w-0">
             <Header onMenuToggle={onMenuToggle} />
 
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
               <ContentLoader>
                 <div className="mb-4 sm:mb-6 lg:mb-8">
                   <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
@@ -135,25 +135,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
                             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
                               65%
                             </p>
-
-                            {isMobile && (
-                              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                <div
-                                  className="bg-linear-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
-                                  style={{ width: "65%" }}
-                                />
-                              </div>
-                            )}
                           </div>
-
-                          {!isMobile && (
-                            <div className="mt-2 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                              <div
-                                className="bg-linear-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
-                                style={{ width: "65%" }}
-                              />
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
