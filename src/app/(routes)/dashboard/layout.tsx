@@ -115,7 +115,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col h-screen overflow-hidden pl-10">
+        <div className="flex-1 flex flex-col h-screen overflow-hidden">
           <div className="flex-1 overflow-y-auto">
             <Dashboard onMenuToggle={handleMenuToggle} />
           </div>
