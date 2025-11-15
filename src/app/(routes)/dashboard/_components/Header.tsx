@@ -200,16 +200,24 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 backdrop-blur-xl bg-white/10 transition-all duration-300 z-30 rounded-b-3xl">
-      <div className="flex items-center justify-between px-14 py-4">
+    <header className="sticky top-0 backdrop-blur-xl bg-white/10 transition-all duration-300 z-30">
+      <div
+        className={cn(
+          "flex items-center justify-between py-4 mx-auto max-w-7xl",
+          isMobile ? "px-4" : "px-4"
+        )}
+      >
         <div className="flex items-center flex-1 min-w-0">
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 lg:hidden backdrop-blur-xl h-14 w-14"
+            className={cn(
+              "shrink-0 lg:hidden backdrop-blur-xl transition-all duration-300",
+              isMobile ? "h-10 w-10 mr-2" : "h-12 w-12 mr-3"
+            )}
             onClick={handleMenuClick}
           >
-            <Menu className="h-6 w-6" />
+            <Menu className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
           </Button>
 
           {activeTeam && teamMembers.length > 0 && (
@@ -217,37 +225,63 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
               <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-auto px-4 py-3 rounded-2xl backdrop-blur-xl transition-all duration-300 max-w-[320px] min-h-14"
+                  className={cn(
+                    "h-auto rounded-2xl backdrop-blur-xl transition-all duration-300",
+                    isMobile
+                      ? "px-3 py-2 max-w-[200px] min-h-10"
+                      : "px-4 py-3 max-w-[280px] min-h-12"
+                  )}
                 >
-                  <div className="flex items-center gap-3 w-full min-w-0">
-                    <div className="flex -space-x-3 shrink-0">
+                  <div className="flex items-center gap-2 w-full min-w-0">
+                    <div className="flex -space-x-2 shrink-0">
                       {displayedMembers.map((member, index) => (
                         <div
                           key={`${member.id}-${index}`}
                           className="relative rounded-full"
                         >
-                          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-xl flex items-center justify-center transition-all duration-300 hover:scale-105 shrink-0">
+                          <div
+                            className={cn(
+                              "rounded-xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-xl flex items-center justify-center transition-all duration-300 hover:scale-105 shrink-0",
+                              isMobile ? "w-8 h-8" : "w-10 h-10"
+                            )}
+                          >
                             <Image
                               src={member.user.image || "/default-avatar.png"}
                               alt={member.user.name}
-                              width={32}
-                              height={32}
+                              width={isMobile ? 24 : 32}
+                              height={isMobile ? 24 : 32}
                               className="rounded-xl"
                             />
                           </div>
                         </div>
                       ))}
                       {extraMembersCount > 0 && (
-                        <div className="w-10 h-10 bg-linear-to-br from-gray-100/40 to-gray-200/40 rounded-xl flex items-center justify-center text-sm font-medium text-gray-600 backdrop-blur-xl">
+                        <div
+                          className={cn(
+                            "bg-linear-to-br from-gray-100/40 to-gray-200/40 rounded-xl flex items-center justify-center font-medium text-gray-600 backdrop-blur-xl",
+                            isMobile ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm"
+                          )}
+                        >
                           +{extraMembersCount}
                         </div>
                       )}
                     </div>
                     <div className="text-left min-w-0 flex-1">
-                      <p className="text-base font-semibold text-gray-900 truncate">
+                      <p
+                        className={cn(
+                          "font-semibold text-gray-900 truncate",
+                          isMobile ? "text-sm" : "text-base"
+                        )}
+                      >
                         {activeTeam.name}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p
+                        className={
+                          isMobile
+                            ? "text-xs text-gray-600"
+                            : "text-sm text-gray-600"
+                        }
+                      >
                         {teamMembers.length} members
                       </p>
                     </div>
@@ -389,35 +423,44 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-12 w-12 backdrop-blur-xl transition-all duration-300 hover:scale-110 relative"
+            className={cn(
+              "backdrop-blur-xl transition-all duration-300 hover:scale-110 relative",
+              isMobile ? "h-9 w-9" : "h-11 w-11"
+            )}
           >
-            <Bell className="h-6 w-6" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white backdrop-blur-sm"></span>
+            <Bell className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white backdrop-blur-sm"></span>
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-12 w-12 backdrop-blur-xl transition-all duration-300 hover:scale-110"
+            className={cn(
+              "backdrop-blur-xl transition-all duration-300 hover:scale-110",
+              isMobile ? "h-9 w-9" : "h-11 w-11"
+            )}
             onClick={toggleTheme}
           >
             {theme === "light" ? (
-              <Moon className="h-6 w-6" />
+              <Moon className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
             ) : (
-              <Sun className="h-6 w-6" />
+              <Sun className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
             )}
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-12 w-12 backdrop-blur-xl transition-all duration-300 hover:scale-110"
+            className={cn(
+              "backdrop-blur-xl transition-all duration-300 hover:scale-110",
+              isMobile ? "h-9 w-9" : "h-11 w-11"
+            )}
           >
-            <Settings className="h-6 w-6" />
+            <Settings className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
           </Button>
         </div>
       </div>
