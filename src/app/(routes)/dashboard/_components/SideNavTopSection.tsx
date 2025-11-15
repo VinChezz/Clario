@@ -15,7 +15,7 @@ import {
   Star,
 } from "lucide-react";
 import Image from "next/image";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
   Popover,
   PopoverContent,
@@ -109,12 +109,14 @@ function SideNavTopSection({
   const [activeTeam, setActiveTeam] = useState<TEAM>();
   const [teamList, setTeamList] = useState<TEAM[]>();
   const [fileList, setFileList] = useState<FILE[]>([]);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
+  const stableFileList = useMemo(() => fileList_, [JSON.stringify(fileList_)]);
+
   useEffect(() => {
-    setFileList(fileList_);
-  }, [fileList_]);
+    setFileList(stableFileList);
+  }, [stableFileList]);
 
   useEffect(() => {
     if (user) getTeamList();
@@ -158,10 +160,10 @@ function SideNavTopSection({
       };
     if (isTablet)
       return {
-        padding: "p-3", // Увеличено
-        gap: "gap-3", // Увеличено
-        iconSize: "w-10 h-10", // Увеличено
-        textSize: "text-sm", // Увеличено
+        padding: "p-3",
+        gap: "gap-3",
+        iconSize: "w-10 h-10",
+        textSize: "text-sm",
       };
     return {
       padding: "p-2",
@@ -181,10 +183,10 @@ function SideNavTopSection({
       };
     if (isTablet)
       return {
-        padding: "p-2.5", // Увеличено
-        gap: "gap-3", // Увеличено
-        iconSize: "w-7 h-7", // Увеличено
-        textSize: "text-sm", // Увеличено
+        padding: "p-2.5",
+        gap: "gap-3",
+        iconSize: "w-7 h-7",
+        textSize: "text-sm",
       };
     return {
       padding: "p-1.5",
@@ -457,7 +459,6 @@ function SideNavTopSection({
 
           <Separator className="my-3" />
 
-          {/* User info and logout */}
           <div className="space-y-2">
             {user && (
               <div className="flex items-center p-2 gap-2">
@@ -513,7 +514,6 @@ function SideNavTopSection({
         </PopoverContent>
       </Popover>
 
-      {/* Files Section */}
       <div className="space-y-2">
         <Button
           variant="ghost"
