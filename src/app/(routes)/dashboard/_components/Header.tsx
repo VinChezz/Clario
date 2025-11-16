@@ -224,6 +224,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
             <Popover>
               <PopoverTrigger asChild>
                 <Button
+                  id="members-check"
                   variant="ghost"
                   className={cn(
                     "h-auto rounded-2xl backdrop-blur-xl transition-all duration-300",
