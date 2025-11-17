@@ -97,7 +97,7 @@ export default function SideNav({
   const getSidebarWidth = () => {
     if (isMobile) return "w-80";
     if (isCollapsibleTablet) return "w-68";
-    return "w-70";
+    return "w-74";
   };
 
   const getPadding = () => {
