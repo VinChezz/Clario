@@ -169,7 +169,7 @@ function SideNavTopSection({
       padding: "p-2",
       gap: "gap-2",
       iconSize: "w-8 h-8",
-      textSize: "text-xs",
+      textSize: "text-sm",
     };
   };
 
@@ -192,7 +192,7 @@ function SideNavTopSection({
       padding: "p-1.5",
       gap: "gap-2",
       iconSize: "w-5 h-5",
-      textSize: "text-xs",
+      textSize: "text-sm",
     };
   };
 
@@ -231,6 +231,10 @@ function SideNavTopSection({
       "from-purple-500 to-purple-600",
       "from-green-500 to-green-600",
       "from-orange-500 to-orange-600",
+      "from-rose-500 to-rose-600",
+      "from-cyan-500 to-cyan-600",
+      "from-teal-500 to-teal-600",
+      "from-amber-500 to-amber-600",
     ];
     return colors[index % colors.length];
   };
@@ -245,6 +249,7 @@ function SideNavTopSection({
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
           <Button
+            id="team-switcher"
             variant="ghost"
             className={cn(
               "w-full h-auto hover:bg-gray-50 rounded-xl transition-all duration-200 border border-gray-200 hover:border-gray-300",
@@ -292,7 +297,7 @@ function SideNavTopSection({
                 >
                   <h2
                     className={cn(
-                      "font-semibold text-gray-900 truncate",
+                      "font-semibold text-gray-700 truncate",
                       teamSwitcher.textSize
                     )}
                   >
@@ -343,7 +348,7 @@ function SideNavTopSection({
           <div className="flex items-center justify-between mb-3">
             <h3
               className={cn(
-                "font-semibold text-gray-900",
+                "font-semibold text-text-gray-700",
                 isMobile ? "text-base" : "text-sm"
               )}
             >
@@ -438,7 +443,7 @@ function SideNavTopSection({
                 <div className="flex-1">
                   <h3
                     className={cn(
-                      "font-medium text-gray-900",
+                      "font-medium text-text-gray-700",
                       isMobile ? "text-sm" : "text-xs"
                     )}
                   >
@@ -472,7 +477,7 @@ function SideNavTopSection({
                 <div className="flex-1 min-w-0">
                   <h2
                     className={cn(
-                      "font-semibold text-gray-900 truncate",
+                      "font-semibold text-text-gray-700 truncate",
                       isMobile ? "text-sm" : "text-xs"
                     )}
                   >
@@ -614,7 +619,7 @@ function SideNavTopSection({
                       </div>
                       <span
                         className={cn(
-                          "text-gray-700 group-hover:text-gray-900 truncate flex-1",
+                          "text-gray-700 group-hover:text-text-gray-700 truncate flex-1",
                           fileItem.textSize
                         )}
                       >
@@ -669,7 +674,7 @@ function SideNavTopSection({
       <div className="space-y-2">
         <h3
           className={cn(
-            "font-semibold text-gray-900",
+            "font-semibold text-black",
             isMobile ? "text-base" : "text-sm"
           )}
         >
@@ -681,7 +686,7 @@ function SideNavTopSection({
               key={item.id}
               variant="outline"
               className={cn(
-                "h-auto border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 shadow-sm",
+                "h-auto border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 shadow-sm text-gray-700",
                 quickAccess.buttonClass
               )}
               onClick={() => onMenuClick(item)}
