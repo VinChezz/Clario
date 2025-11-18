@@ -12,9 +12,9 @@ import {
   useIsDesktop,
 } from "@/hooks/useMediaQuery";
 import Dashboard from "./page";
-import { TourProvider } from "./_components/TourContext";
+import { TourProvider } from "../../_context/TourContext";
 import GettingStartedTour from "./_components/GettingStartedTour";
-import { FileDataProvider } from "./_components/FileDataContext";
+import { FileDataProvider } from "../../_context/FileDataContext";
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user }: any = useKindeBrowserClient();

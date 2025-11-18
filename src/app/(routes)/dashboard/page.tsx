@@ -12,7 +12,7 @@ import {
 } from "./_components/ContentLoader";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import Constant from "@/app/_constant/Constant";
-import { useFileData } from "./_components/FileDataContext";
+import { useFileData } from "../../_context/FileDataContext";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 
 interface DashboardProps {
