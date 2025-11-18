@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Archive, Flag, Github, Plus, Crown, Lock } from "lucide-react";
+import { Archive, Flag, Github, Plus, Crown, Lock, Play } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import {
   Dialog,
@@ -21,6 +21,8 @@ import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useTour } from "../../../_context/TourContext";
+import { useFileData } from "../../../_context/FileDataContext";
 
 const StorageIndicator = ({
   totalFiles,
@@ -81,6 +83,7 @@ const StorageIndicator = ({
         `bg-linear-to-br ${status.bgColor} rounded-xl space-y-3 border border-gray-200 shadow-sm`,
         sizing.padding
       )}
+      id="storage-section"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -118,7 +121,7 @@ const StorageIndicator = ({
 
 interface SideNavBottomSectionProps {
   onFileCreate: (fileName: string) => void;
-  totalFiles: number;
+  totalFiles?: number;
   isLoading?: boolean;
   onAction?: () => void;
   isMobile?: boolean;
@@ -140,7 +143,17 @@ export default function SideNavBottomSection({
   const [dbUser, setDbUser] = useState<any>(null);
   const router = useRouter();
 
-  const isStorageFull = totalFiles >= Constant.MAX_FREE_FILE;
+  const { startTour } = useTour();
+
+  const { fileCount, hasFiles, isStorageFull } = useFileData();
+
+  const actualFileCount = fileCount !== undefined ? fileCount : totalFiles || 0;
+  const actualHasFiles =
+    hasFiles !== undefined ? hasFiles : actualFileCount > 0;
+  const actualIsStorageFull =
+    isStorageFull !== undefined
+      ? isStorageFull
+      : actualFileCount >= Constant.MAX_FREE_FILE;
 
   useEffect(() => {
     if (user?.email) {
@@ -183,6 +196,11 @@ export default function SideNavBottomSection({
     onAction?.();
   };
 
+  const handleStartTour = () => {
+    startTour();
+    onAction?.();
+  };
+
   const getButtonSize = () => {
     if (isMobile) return { height: "h-12", text: "text-sm" };
     if (isTablet) return { height: "h-12", text: "text-sm" };
@@ -199,9 +217,24 @@ export default function SideNavBottomSection({
   const upgradeCard = getUpgradeCardSize();
 
   const menuList = [
-    { id: 1, name: "Getting Started", icon: Flag, path: "" },
-    { id: 2, name: "Github", icon: Github, path: "" },
-    { id: 3, name: "Archive", icon: Archive, path: "" },
+    {
+      id: 1,
+      name: "Show Tour",
+      icon: Play,
+      onClick: handleStartTour,
+    },
+    {
+      id: 2,
+      name: "Github",
+      icon: Github,
+      onClick: () => window.open("https://github.com/your-repo", "_blank"),
+    },
+    {
+      id: 3,
+      name: "Archive",
+      icon: Archive,
+      onClick: onAction,
+    },
   ];
 
   return (
@@ -214,7 +247,7 @@ export default function SideNavBottomSection({
               "w-full flex items-center gap-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200",
               isMobile ? "px-4 py-3 text-sm" : "px-4 py-3 text-sm"
             )}
-            onClick={onAction}
+            onClick={menu.onClick}
           >
             <menu.icon className={cn(isMobile ? "h-5 w-5" : "h-5 w-5")} />
             <span>{menu.name}</span>
@@ -266,98 +299,109 @@ export default function SideNavBottomSection({
         </div>
       </div>
 
-      {isStorageFull ? (
-        <Button
-          className={cn(
-            "w-full bg-linear-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 gap-2 shadow-lg cursor-not-allowed relative overflow-hidden",
-            buttonSize.height,
-            buttonSize.text
-          )}
-          disabled
-        >
-          <Lock
-            className={cn("text-white", isMobile ? "h-4 w-4" : "h-3.5 w-3.5")}
-          />
-          <span className="text-white font-semibold">Storage Full</span>
-        </Button>
-      ) : (
-        <Dialog>
-          <DialogTrigger className="w-full" asChild>
+      {actualHasFiles && (
+        <>
+          {actualIsStorageFull ? (
             <Button
               className={cn(
-                "w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 gap-2 shadow-lg hover:shadow-xl transition-all duration-300",
+                "w-full bg-linear-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 gap-2 shadow-lg cursor-not-allowed relative overflow-hidden",
                 buttonSize.height,
                 buttonSize.text
               )}
-              disabled={!canCreateFiles || isLoading}
+              id="storage-full-button"
+              disabled
             >
-              <Plus className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-              New File
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent
-            className={cn(
-              "rounded-xl",
-              isMobile ? "sm:max-w-md" : "sm:max-w-sm"
-            )}
-          >
-            <DialogHeader>
-              <DialogTitle className={cn(isMobile ? "text-lg" : "text-base")}>
-                Create New File
-              </DialogTitle>
-              <DialogDescription
-                className={cn(isMobile ? "text-sm" : "text-xs")}
-              >
-                Give your file a descriptive name
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <Input
-                placeholder="Enter file name..."
+              <Lock
                 className={cn(
-                  "border-gray-300 focus:border-blue-500",
-                  isMobile ? "rounded-lg text-sm" : "rounded-lg text-sm"
+                  "text-white",
+                  isMobile ? "h-4 w-4" : "h-3.5 w-3.5"
                 )}
-                onChange={(e) => setFileInput(e.target.value)}
-                value={fileInput}
-                autoFocus
               />
-            </div>
-
-            <DialogFooter className="gap-2">
-              <DialogClose asChild>
+              <span className="text-white font-semibold">Storage Full</span>
+            </Button>
+          ) : (
+            <Dialog>
+              <DialogTrigger className="w-full" asChild>
                 <Button
-                  variant="outline"
                   className={cn(
-                    "border-gray-300 hover:bg-gray-50",
-                    isMobile ? "text-sm" : "text-xs"
+                    "w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 gap-2 shadow-lg hover:shadow-xl transition-all duration-300",
+                    buttonSize.height,
+                    buttonSize.text
                   )}
+                  disabled={!canCreateFiles || isLoading}
+                  id="create-file-button-sidenav"
                 >
-                  Cancel
+                  <Plus className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                  New File
                 </Button>
-              </DialogClose>
-              <DialogClose asChild>
-                <Button
-                  className="bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                  disabled={!(fileInput && fileInput.length > 3)}
-                  onClick={() => {
-                    handleFileCreate(fileInput);
-                    setFileInput("");
-                  }}
-                  size={isMobile ? "default" : "sm"}
-                >
-                  Create File
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              </DialogTrigger>
+
+              <DialogContent
+                className={cn(
+                  "rounded-xl",
+                  isMobile ? "sm:max-w-md" : "sm:max-w-sm"
+                )}
+              >
+                <DialogHeader>
+                  <DialogTitle
+                    className={cn(isMobile ? "text-lg" : "text-base")}
+                  >
+                    Create New File
+                  </DialogTitle>
+                  <DialogDescription
+                    className={cn(isMobile ? "text-sm" : "text-xs")}
+                  >
+                    Give your file a descriptive name
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <Input
+                    placeholder="Enter file name..."
+                    className={cn(
+                      "border-gray-300 focus:border-blue-500",
+                      isMobile ? "rounded-lg text-sm" : "rounded-lg text-sm"
+                    )}
+                    onChange={(e) => setFileInput(e.target.value)}
+                    value={fileInput}
+                    autoFocus
+                  />
+                </div>
+
+                <DialogFooter className="gap-2">
+                  <DialogClose asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "border-gray-300 hover:bg-gray-50",
+                        isMobile ? "text-sm" : "text-xs"
+                      )}
+                    >
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <DialogClose asChild>
+                    <Button
+                      className="bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                      disabled={!(fileInput && fileInput.length > 3)}
+                      onClick={() => {
+                        handleFileCreate(fileInput);
+                        setFileInput("");
+                      }}
+                      size={isMobile ? "default" : "sm"}
+                    >
+                      Create File
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </>
       )}
 
       <StorageIndicator
-        totalFiles={totalFiles}
+        totalFiles={actualFileCount}
         maxFiles={Constant.MAX_FREE_FILE}
         isMobile={isMobile}
         isTablet={isTablet}

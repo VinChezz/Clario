@@ -35,7 +35,7 @@ import InviteModal from "./invite-button/InviteModal";
 import { TeamMember } from "./SideNavTopSection";
 import { toast } from "sonner";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
-import { useTour } from "./TourContext";
+import { useTour } from "../../../_context/TourContext";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface HeaderProps {

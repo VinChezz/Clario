@@ -1,289 +1,309 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import {
-  X,
-  ArrowRight,
-  FileText,
-  Users,
-  Plus,
-  Search,
-  Zap,
-  Crown,
-  Play,
-  Database,
-} from "lucide-react";
-import { createPortal } from "react-dom";
+import { X, ArrowRight, ChevronLeft } from "lucide-react";
+import { useTour } from "../../../_context/TourContext";
 
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
-import { useTour } from "./TourContext";
-
-interface TourStep {
-  id: number;
-  target: string;
-  title: string;
-  description: string;
-  position: "top" | "bottom" | "left" | "right";
-}
+import { TourStep, tourSteps } from "@/types/tour-steps";
+import { useFileData } from "../../../_context/FileDataContext";
 
 export default function GettingStartedTour() {
-  const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [targetElements, setTargetElements] = useState<{
-    [key: string]: DOMRect | null;
-  }>({});
+  const [targetElements, setTargetElements] = useState<Map<string, DOMRect>>(
+    new Map()
+  );
+  const [isInitialized, setIsInitialized] = useState(false);
   const observerRef = useRef<ResizeObserver | null>(null);
-  const { setIsTourActive } = useTour();
+
+  const {
+    isTourActive,
+    setIsTourActive,
+    startTour,
+    completeTour,
+    hasCompletedTour,
+  } = useTour();
   const { activeTeam } = useActiveTeam();
+  const { hasFiles, isStorageFull, fileCount } = useFileData();
+
+  const filteredSteps = tourSteps.filter(
+    (step) => !step.condition || step.condition(hasFiles, isStorageFull)
+  );
 
   useEffect(() => {
-    setIsTourActive(isOpen);
+    if (!activeTeam?.id || isInitialized) return;
 
-    if (typeof document !== "undefined") {
-      if (isOpen) {
-        document.documentElement.style.setProperty("--tour-active", "1");
-        document.body.classList.add("getting-started-open");
-      } else {
-        document.documentElement.style.setProperty("--tour-active", "0");
-        document.body.classList.remove("getting-started-open");
-      }
+    console.log("🔍 Checking tour conditions:", {
+      activeTeamId: activeTeam.id,
+      hasCompletedTour: hasCompletedTour(activeTeam.id),
+      sessionStorage: sessionStorage.getItem("new-team-created"),
+    });
+
+    const isNewTeam = sessionStorage.getItem("new-team-created") === "true";
+    const hasSeenTour = hasCompletedTour(activeTeam.id);
+
+    if (isNewTeam && !hasSeenTour) {
+      console.log("🎯 Auto-starting tour for new team");
+      setTimeout(() => {
+        setIsTourActive(true);
+        sessionStorage.removeItem("new-team-created");
+        setIsInitialized(true);
+      }, 2000);
+    } else {
+      setIsInitialized(true);
     }
-  }, [isOpen, setIsTourActive]);
+  }, [activeTeam?.id, hasCompletedTour, setIsTourActive, isInitialized]);
 
   useEffect(() => {
     if (!activeTeam?.id) return;
 
-    const hasSeenTourForTeam = localStorage.getItem(
-      `getting-started-tour-completed-${activeTeam.id}`
-    );
     const isNewTeam = sessionStorage.getItem("new-team-created");
+    const hasSeenTour = hasCompletedTour(activeTeam.id);
 
-    if (!hasSeenTourForTeam && isNewTeam) {
+    if (isNewTeam && !hasSeenTour) {
       setTimeout(() => {
-        setIsOpen(true);
+        setIsTourActive(true);
         sessionStorage.removeItem("new-team-created");
-      }, 1000);
+      }, 1500);
     }
-  }, [activeTeam?.id]);
+  }, [activeTeam?.id, hasCompletedTour, setIsTourActive]);
+
+  const updateTargetPositions = useCallback(() => {
+    const elements = new Map<string, DOMRect>();
+
+    filteredSteps.forEach((step) => {
+      const element = document.getElementById(step.target);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        elements.set(
+          step.target,
+          new DOMRect(
+            rect.left + window.scrollX,
+            rect.top + window.scrollY,
+            rect.width,
+            rect.height
+          )
+        );
+      }
+    });
+
+    setTargetElements(elements);
+  }, [filteredSteps]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isTourActive) {
+      setCurrentStep(0);
+      return;
+    }
 
-    const updateTargetPositions = () => {
-      const elements: { [key: string]: DOMRect | null } = {};
-      tourSteps.forEach((step) => {
-        const element = document.getElementById(step.target);
-        elements[step.target] = element
-          ? element.getBoundingClientRect()
-          : null;
-      });
-      setTargetElements(elements);
-    };
+    const timeoutId = setTimeout(updateTargetPositions, 100);
 
     window.addEventListener("resize", updateTargetPositions);
-    updateTargetPositions();
+    window.addEventListener("scroll", updateTargetPositions, { passive: true });
 
     observerRef.current = new ResizeObserver(updateTargetPositions);
-    tourSteps.forEach((step) => {
+
+    filteredSteps.forEach((step) => {
       const element = document.getElementById(step.target);
       if (element && observerRef.current) {
         observerRef.current.observe(element);
       }
     });
 
-    return () => {
-      window.removeEventListener("resize", updateTargetPositions);
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [isOpen, currentStep]);
-
-  const tourSteps: TourStep[] = [
-    {
-      id: 1,
-      target: "members-check",
-      title: "Team Members Hub",
-      description:
-        "Manage your team members, assign roles (Admin, Editor, Viewer) and control access permissions.",
-      position: "bottom",
-    },
-    {
-      id: 2,
-      target: "team-switcher",
-      title: "Your Team Workspace",
-      description:
-        "This is your team dashboard. Switch between teams or manage members here.",
-      position: "bottom",
-    },
-    {
-      id: 3,
-      target: "create-file-button",
-      title: "Create Your First File",
-      description:
-        "Click here to create new documents, whiteboards, or text files.",
-      position: "top",
-    },
-    {
-      id: 4,
-      target: "storage-section",
-      title: "Storage Usage",
-      description:
-        "Keep track of your storage usage. Upgrade to Pro for unlimited files and advanced features.",
-      position: "top",
-    },
-    {
-      id: 5,
-      target: "total-files-card",
-      title: "File Management",
-      description:
-        "Track your total files and documents. Keep an eye on your team's productivity.",
-      position: "top",
-    },
-    {
-      id: 6,
-      target: "team-members-card",
-      title: "Team Size",
-      description:
-        "See how many members are in your team. Grow your collaboration network.",
-      position: "top",
-    },
-    {
-      id: 7,
-      target: "storage-card",
-      title: "Storage Status",
-      description:
-        "Monitor your storage usage. Upgrade your plan if you're running low on space.",
-      position: "top",
-    },
-    {
-      id: 8,
-      target: "file-list-container",
-      title: "Your Files & Documents",
-      description:
-        "All your team's files appear here. Organize them with different views.",
-      position: "left",
-    },
-  ];
-
-  const completeTour = () => {
-    setIsCompleted(true);
-    setIsOpen(false);
-
-    if (activeTeam?.id) {
-      localStorage.setItem(
-        `getting-started-tour-completed-${activeTeam.id}`,
-        "true"
-      );
+    if (observerRef.current && document.body) {
+      observerRef.current.observe(document.body);
     }
-  };
 
-  const skipTour = () => {
-    completeTour();
-  };
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("resize", updateTargetPositions);
+      window.removeEventListener("scroll", updateTargetPositions);
+      observerRef.current?.disconnect();
+    };
+  }, [isTourActive, updateTargetPositions, filteredSteps]);
 
-  const nextStep = () => {
-    if (currentStep < tourSteps.length - 1) {
+  const handleCompleteTour = useCallback(() => {
+    if (activeTeam?.id) {
+      completeTour(activeTeam.id);
+    }
+    setCurrentStep(0);
+    setIsTourActive(false);
+  }, [activeTeam?.id, completeTour, setIsTourActive]);
+
+  const handleSkipTour = useCallback(() => {
+    handleCompleteTour();
+  }, [handleCompleteTour]);
+
+  const handleNextStep = useCallback(() => {
+    if (currentStep < filteredSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      completeTour();
+      handleCompleteTour();
     }
-  };
+  }, [currentStep, handleCompleteTour, filteredSteps.length]);
 
-  const prevStep = () => {
+  const handlePrevStep = useCallback(() => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
-  };
+  }, [currentStep]);
 
-  const currentStepData = tourSteps[currentStep];
-  const targetRect = targetElements[currentStepData.target];
+  useEffect(() => {
+    if (!isTourActive) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleSkipTour();
+      if (e.key === "ArrowRight") handleNextStep();
+      if (e.key === "ArrowLeft") handlePrevStep();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isTourActive, handleSkipTour, handleNextStep, handlePrevStep]);
+
+  const currentStepData = filteredSteps[currentStep];
+  const targetRect = targetElements.get(currentStepData?.target);
+
+  if (!isTourActive || !currentStepData) return null;
 
   return (
     <>
       <AnimatePresence>
-        {isOpen && (
+        {isTourActive && (
           <>
             <motion.div
-              key="overlay"
-              className="fixed inset-0 z-30 bg-black/40"
-              initial={false}
+              key="tour-overlay"
+              className="fixed inset-0 z-100 bg-black/60"
+              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{
-                maskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 100px, black calc(100% - 100px), transparent 100%)",
-              }}
-              onClick={skipTour}
+              transition={{ duration: 0.3 }}
+              onClick={handleSkipTour}
             />
 
             {targetRect && (
               <motion.div
                 key={`highlight-${currentStep}`}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="fixed z-80 border-2 inset-0 bg-linear-to-r from-indigo-300/50 to-indigo-200/25 group-hover:from-white/20 group-hover:to-white/10 transition-all duration-500 rounded-xl shadow-2xl shadow-indigo-400/30 bg-yellow-100/20 pointer-events-none"
-                style={{
-                  top: targetRect.top - 4,
-                  left: targetRect.left - 4,
-                  width: targetRect.width + 8,
-                  height: targetRect.height + 8,
+                className="fixed z-101 pointer-events-none"
+                initial={{
+                  opacity: 0,
+                  scale: 0.95,
                 }}
-              />
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.95,
+                }}
+                transition={{ duration: 0.4 }}
+                style={{
+                  top: targetRect.top - 8,
+                  left: targetRect.left - 8,
+                  width: targetRect.width + 16,
+                  height: targetRect.height + 16,
+                }}
+              >
+                <div
+                  className="absolute inset-0 rounded-lg border-2 border-blue-500"
+                  style={{
+                    boxShadow: `
+                      0 0 0 4px rgba(59, 130, 246, 0.4),
+                      0 0 0 8px rgba(59, 130, 246, 0.2),
+                      0 0 20px rgba(59, 130, 246, 0.3)
+                    `,
+                  }}
+                />
+
+                <motion.div
+                  className="absolute inset-2 rounded-md bg-white/80"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  style={{
+                    background: `
+                      radial-gradient(
+                        ellipse at center,
+                        rgba(165, 180, 252, 0.3) 0%,
+                        rgba(165, 180, 252, 0.15) 50%,
+                        rgba(165, 180, 252, 0.05) 100%
+                      )
+                    `,
+                  }}
+                />
+
+                <motion.div
+                  className="absolute inset-0 rounded-lg border-2 border-blue-400"
+                  initial={{ opacity: 0.5, scale: 1 }}
+                  animate={{ opacity: 0, scale: 1.1 }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    repeatType: "loop",
+                  }}
+                />
+
+                <motion.div
+                  className="absolute inset-0 rounded-lg bg-blue-500/5"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                />
+              </motion.div>
             )}
 
             {targetRect && (
               <motion.div
                 key={`tooltip-${currentStep}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="fixed z-50 bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl border border-gray-200 dark:border-gray-700 max-w-sm"
-                style={getTooltipPosition(currentStepData.position, targetRect)}
+                className="fixed z-102 bg-white dark:bg-gray-900 rounded-xl p-6 shadow-2xl border border-gray-200 dark:border-gray-700 max-w-sm"
+                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                transition={{ duration: 0.3, type: "spring" }}
+                style={getTooltipPosition(currentStepData, targetRect)}
+                onClick={(e) => e.stopPropagation()}
               >
                 <div
-                  className={`absolute w-4 h-4 bg-white dark:bg-gray-900 border-r border-b border-gray-200 dark:border-gray-700 transform rotate-45 ${getArrowPosition(
+                  className={`absolute w-3 h-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 transform rotate-45 ${getArrowPosition(
                     currentStepData.position
                   )}`}
                 />
 
                 <div className="relative z-10">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shrink-0">
                       <span className="text-white text-sm font-bold">
                         {currentStep + 1}
                       </span>
                     </div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white flex-1 text-sm">
                       {currentStepData.title}
                     </h3>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
-                      onClick={skipTour}
+                      className="h-7 w-7"
+                      onClick={handleSkipTour}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3 w-3" />
                     </Button>
                   </div>
 
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 leading-relaxed">
+                  <p className="text-gray-600 dark:text-gray-400 text-xs mb-4 leading-relaxed">
                     {currentStepData.description}
                   </p>
 
                   <div className="flex items-center justify-between">
                     <div className="flex gap-1">
-                      {tourSteps.map((_, index) => (
+                      {filteredSteps.map((_, index) => (
                         <div
                           key={index}
-                          className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                          className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                             index === currentStep
-                              ? "bg-blue-500"
+                              ? "bg-blue-500 w-4"
                               : "bg-gray-300 dark:bg-gray-600"
                           }`}
                         />
@@ -292,19 +312,27 @@ export default function GettingStartedTour() {
 
                     <div className="flex gap-2">
                       {currentStep > 0 && (
-                        <Button variant="outline" size="sm" onClick={prevStep}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePrevStep}
+                          className="h-8 text-xs"
+                        >
+                          <ChevronLeft className="h-3 w-3 mr-1" />
                           Back
                         </Button>
                       )}
                       <Button
                         size="sm"
-                        className="gap-2 bg-blue-600 hover:bg-blue-700"
-                        onClick={nextStep}
+                        className="h-8 gap-1 bg-blue-600 hover:bg-blue-700 text-xs"
+                        onClick={handleNextStep}
                       >
-                        {currentStep === tourSteps.length - 1
-                          ? "Get Started"
+                        {currentStep === filteredSteps.length - 1
+                          ? "Finish"
                           : "Next"}
-                        <ArrowRight className="h-4 w-4" />
+                        {currentStep < filteredSteps.length - 1 && (
+                          <ArrowRight className="h-3 w-3" />
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -318,41 +346,52 @@ export default function GettingStartedTour() {
   );
 }
 
-function getTooltipPosition(position: string, targetRect: DOMRect) {
+function getTooltipPosition(step: TourStep, targetRect: DOMRect) {
   const styles: any = {};
-  const offset = 20;
-  const viewportPadding = 20;
+  const offset = 16;
+  const tooltipWidth = 320;
+  const tooltipHeight = 180;
+  const viewportPadding = 16;
 
-  switch (position) {
+  const horizontalCenter = Math.max(
+    viewportPadding,
+    Math.min(
+      window.innerWidth - viewportPadding - tooltipWidth,
+      targetRect.left + targetRect.width / 2 - tooltipWidth / 2
+    )
+  );
+
+  const verticalCenter =
+    targetRect.top + targetRect.height / 2 - tooltipHeight / 2;
+
+  switch (step.position) {
     case "top":
       styles.bottom = `${window.innerHeight - targetRect.top + offset}px`;
-      styles.left = `${Math.max(
-        viewportPadding,
-        Math.min(
-          window.innerWidth - viewportPadding - 320,
-          targetRect.left + targetRect.width / 2 - 160
-        )
-      )}px`;
+      styles.left = `${horizontalCenter}px`;
       break;
     case "bottom":
       styles.top = `${targetRect.bottom + offset}px`;
-      styles.left = `${Math.max(
-        viewportPadding,
-        Math.min(
-          window.innerWidth - viewportPadding - 320,
-          targetRect.left + targetRect.width / 2 - 160
-        )
-      )}px`;
+      styles.left = `${horizontalCenter}px`;
       break;
     case "left":
-      styles.top = `${targetRect.top + targetRect.height / 2}px`;
+      styles.top = `${Math.max(
+        viewportPadding,
+        Math.min(
+          window.innerHeight - viewportPadding - tooltipHeight,
+          verticalCenter
+        )
+      )}px`;
       styles.right = `${window.innerWidth - targetRect.left + offset}px`;
-      styles.transform = "translateY(-50%)";
       break;
     case "right":
-      styles.top = `${targetRect.top + targetRect.height / 2}px`;
+      styles.top = `${Math.max(
+        viewportPadding,
+        Math.min(
+          window.innerHeight - viewportPadding - tooltipHeight,
+          verticalCenter
+        )
+      )}px`;
       styles.left = `${targetRect.right + offset}px`;
-      styles.transform = "translateY(-50%)";
       break;
   }
 

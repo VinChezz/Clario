@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
-import { useTour } from "./TourContext";
+import { useTour } from "../../../_context/TourContext";
 
 interface TourTriggerProps {
   className?: string;

@@ -49,7 +49,11 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 
 type ViewMode = "grid" | "list" | "table";
 
-export default function FileList() {
+interface FileListProps {
+  files?: FILE[];
+}
+
+export default function FileList({ files }: FileListProps) {
   const { fileList_, setFileList_ } = useContext(FileListContext);
   const [fileList, setFileList] = useState<FILE[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -61,8 +65,21 @@ export default function FileList() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    if (fileList_) setFileList(fileList_);
-  }, [fileList_]);
+    if (files && files.length > 0) {
+      setFileList(files);
+    } else if (fileList_) {
+      setFileList(fileList_);
+    }
+  }, [files, fileList_]);
+
+  useEffect(() => {
+    console.log("📁 FileList Debug:", {
+      filesFromProps: files?.length || 0,
+      filesFromContext: fileList_?.length || 0,
+      currentFileList: fileList.length,
+      hasFiles: fileList.length > 0,
+    });
+  }, [files, fileList_, fileList]);
 
   useEffect(() => {
     if (isMobile && viewMode === "table") {
@@ -207,7 +224,10 @@ export default function FileList() {
             <p className="text-gray-500 mb-6 max-w-md">
               Create your first file to get started with your team workspace
             </p>
-            <Button className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+            <Button
+              className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              id="create-file-button-filelist"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Create New File
             </Button>
