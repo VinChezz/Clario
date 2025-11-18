@@ -10,9 +10,10 @@ import {
   StaggeredLoader,
   StaggeredItem,
 } from "./_components/ContentLoader";
-import GettingStartedTour from "./_components/GettingStartedTour";
-import { TourProvider } from "./_components/TourContext";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
+import Constant from "@/app/_constant/Constant";
+import { useFileData } from "./_components/FileDataContext";
+import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 
 interface DashboardProps {
   onMenuToggle?: () => void;
@@ -22,9 +23,23 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
   const { user, isLoading } = useKindeBrowserClient();
   const [dbUser, setDbUser] = useState<any>(null);
   const [contentLoaded, setContentLoaded] = useState(false);
+  const [fileList, setFileList] = useState<any[]>([]);
+  const { updateFromFileList, fileCount, hasFiles, isStorageFull } =
+    useFileData();
+  const { activeTeam } = useActiveTeam();
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+
+  useEffect(() => {
+    console.log("📊 Dashboard Debug:", {
+      fileListCount: fileList.length,
+      fileCountFromContext: fileCount,
+      hasFiles,
+      isStorageFull,
+      user: user?.email,
+    });
+  }, [fileList, fileCount, hasFiles, isStorageFull, user]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -39,128 +54,182 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
         .then((data) => {
           setDbUser(data);
           setTimeout(() => setContentLoaded(true), 1000);
+        })
+        .catch((error) => {
+          console.error("Failed to load user:", error);
+          setContentLoaded(true);
         });
     }
   }, [user, isLoading]);
+
+  useEffect(() => {
+    const loadFiles = async () => {
+      try {
+        if (!activeTeam?.id) {
+          console.log("❌ No active team found");
+          setFileList([]);
+          updateFromFileList([]);
+          return;
+        }
+
+        console.log("🔄 Loading files for team:", activeTeam.id);
+
+        const response = await fetch(`/api/files?teamId=${activeTeam.id}`);
+
+        console.log("📡 API Response status:", response.status);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const files = await response.json();
+        console.log("📁 Raw files response:", files);
+
+        const filesArray = Array.isArray(files) ? files : [];
+
+        setFileList(filesArray);
+        updateFromFileList(filesArray);
+
+        console.log("✅ Files loaded successfully:", filesArray.length);
+      } catch (error) {
+        console.error("❌ Failed to load files:", error);
+
+        setFileList([]);
+        updateFromFileList([]);
+      }
+    };
+
+    if (user && activeTeam?.id) {
+      loadFiles();
+    } else {
+      setFileList([]);
+      updateFromFileList([]);
+    }
+  }, [user, activeTeam?.id, updateFromFileList]);
 
   if (isLoading || !contentLoaded) {
     return <GradientLoader />;
   }
 
   return (
-    <TourProvider>
-      <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 dark:from-gray-900 dark:to-blue-950/30">
-        <GettingStartedTour />
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 dark:from-gray-900 dark:to-blue-950/30">
+      <div className="flex flex-col min-h-screen">
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header onMenuToggle={onMenuToggle} />
 
-        <div className="flex flex-col min-h-screen">
-          <div className="flex-1 flex flex-col min-w-0">
-            <Header onMenuToggle={onMenuToggle} />
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
+            <ContentLoader>
+              <div className="mb-4 sm:mb-6 lg:mb-8">
+                <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
+                  Welcome back{user?.given_name ? `, ${user.given_name}` : ""}!
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm lg:text-lg">
+                  Here are your recent files and documents
+                </p>
+              </div>
+            </ContentLoader>
 
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
-              <ContentLoader>
-                <div className="mb-4 sm:mb-6 lg:mb-8">
-                  <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    Welcome back{user?.given_name ? `, ${user.given_name}` : ""}
-                    !
-                  </h1>
-                  <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm lg:text-lg">
-                    Here are your recent files and documents
-                  </p>
-                </div>
-              </ContentLoader>
+            <StaggeredLoader>
+              <div
+                className={`
+                grid gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8
+                ${isMobile ? "grid-cols-1" : ""}
+                ${isTablet ? "grid-cols-2" : ""}
+                ${!isMobile && !isTablet ? "grid-cols-3" : ""}
+              `}
+              >
+                <StaggeredItem>
+                  <div
+                    className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300"
+                    id="total-files-card"
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                        <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
+                          Total Files
+                        </p>
+                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
+                          {fileCount}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </StaggeredItem>
 
-              <StaggeredLoader>
-                <div
-                  className={`
-                  grid gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8
-                  ${isMobile ? "grid-cols-1" : ""}
-                  ${isTablet ? "grid-cols-2" : ""}
-                  ${!isMobile && !isTablet ? "grid-cols-3" : ""}
-                `}
-                >
-                  <StaggeredItem>
-                    <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
-                          <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
-                            Total Files
-                          </p>
+                <StaggeredItem>
+                  <div
+                    className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300"
+                    id="team-members-card"
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                        <Users className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
+                          Team Members
+                        </p>
+                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
+                          8
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </StaggeredItem>
+
+                <StaggeredItem>
+                  <div
+                    className={`
+                    bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300
+                    ${isMobile ? "col-span-1" : ""}
+                    ${isTablet ? "col-span-2" : ""}
+                    ${!isMobile && !isTablet ? "col-span-1" : ""}
+                  `}
+                    id="storage-card"
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                        <Cloud className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
+                          Storage Used
+                        </p>
+                        <div className="flex items-center gap-3">
                           <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
-                            24
+                            65%
                           </p>
                         </div>
                       </div>
                     </div>
-                  </StaggeredItem>
+                  </div>
+                </StaggeredItem>
+              </div>
+            </StaggeredLoader>
 
-                  <StaggeredItem>
-                    <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300">
-                      <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
-                          <Users className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
-                            Team Members
-                          </p>
-                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
-                            8
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </StaggeredItem>
+            <ContentLoader>
+              <div
+                className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8"
+                id="file-list-container"
+              >
+                <FileList files={fileList} />
+              </div>
+            </ContentLoader>
 
-                  <StaggeredItem>
-                    <div
-                      className={`
-                      bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300
-                      ${isMobile ? "col-span-1" : ""}
-                      ${isTablet ? "col-span-2" : ""}
-                      ${!isMobile && !isTablet ? "col-span-1" : ""}
-                    `}
-                    >
-                      <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
-                          <Cloud className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
-                            Storage Used
-                          </p>
-                          <div className="flex items-center gap-3">
-                            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
-                              65%
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </StaggeredItem>
-                </div>
-              </StaggeredLoader>
-
-              <ContentLoader>
-                <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8">
-                  <FileList />
-                </div>
-              </ContentLoader>
-
-              {isMobile && (
-                <div className="fixed bottom-6 right-6 z-30">
-                  <button className="w-14 h-14 bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-full shadow-2xl flex items-center justify-center text-white transition-all duration-300 hover:scale-110 active:scale-95">
-                    <Plus className="h-6 w-6" />
-                  </button>
-                </div>
-              )}
-            </main>
-          </div>
+            {isMobile && (
+              <div className="fixed bottom-6 right-6 z-30">
+                <button className="w-14 h-14 bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-full shadow-2xl flex items-center justify-center text-white transition-all duration-300 hover:scale-110 active:scale-95">
+                  <Plus className="h-6 w-6" />
+                </button>
+              </div>
+            )}
+          </main>
         </div>
       </div>
-    </TourProvider>
+    </div>
   );
 }
 
