@@ -30,6 +30,7 @@ import { FILE } from "@/shared/types/file.interface";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useIsDesktop } from "@/hooks/useMediaQuery";
 
 export interface TeamMember {
   id: string;
@@ -113,6 +114,8 @@ function SideNavTopSection({
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   const stableFileList = useMemo(() => fileList_, [JSON.stringify(fileList_)]);
+
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     setFileList(stableFileList);
@@ -283,22 +286,20 @@ function SideNavTopSection({
                   <div
                     className={cn(
                       "absolute -top-1 -right-1 bg-yellow-400 rounded-full shadow-sm",
-                      isMobile ? "p-1" : "p-0.5"
+                      isMobile ? "p-1" : "p-1"
                     )}
                   >
-                    <Crown className={isMobile ? "h-3 w-3" : "h-2 w-2"} />
+                    <Crown className={isMobile ? "h-3 w-3" : "h-3 w-3"} />
                   </div>
                 )}
               </div>
 
               <div className="flex-1 min-w-0 text-left">
-                <div
-                  className={cn("flex items-center mb-0.5", teamSwitcher.gap)}
-                >
+                <div className={cn("flex items-center mb-1", teamSwitcher.gap)}>
                   <h2
                     className={cn(
                       "font-semibold text-gray-700 truncate",
-                      teamSwitcher.textSize
+                      isMobile ? "text-base" : "text-base"
                     )}
                   >
                     {activeTeam?.name || "Select Team"}
@@ -310,7 +311,7 @@ function SideNavTopSection({
                         "bg-green-50 text-green-700 border-green-200",
                         isMobile
                           ? "text-xs px-2 py-0 h-5"
-                          : "text-[10px] px-1 py-0 h-4"
+                          : "text-sm px-3 py-1 h-6"
                       )}
                     >
                       Team
@@ -320,7 +321,7 @@ function SideNavTopSection({
                 <p
                   className={cn(
                     "text-gray-500 truncate",
-                    isMobile ? "text-xs" : "text-[10px]"
+                    isMobile ? "text-xs" : "text-sm"
                   )}
                 >
                   {activeTeam?._count?.members || 0} members
@@ -330,7 +331,7 @@ function SideNavTopSection({
               <ChevronDown
                 className={cn(
                   "text-gray-400 transition-transform duration-200 shrink-0",
-                  isMobile ? "h-5 w-5" : "h-4 w-4",
+                  isMobile ? "h-5 w-5" : "h-6 w-6",
                   popoverOpen && "rotate-180"
                 )}
               />
@@ -340,34 +341,46 @@ function SideNavTopSection({
 
         <PopoverContent
           className={cn(
-            "rounded-2xl shadow-xl border border-gray-200",
-            isMobile ? "w-80 p-4" : isTablet ? "w-72 p-3" : "w-68 p-3"
+            "rounded-2xl shadow-xl border border-gray-200 max-h-[80vh] overflow-hidden flex flex-col",
+            isMobile
+              ? "w-[calc(100vw-2rem)] max-w-[400px] p-3"
+              : isDesktop
+              ? "w-72 p-3"
+              : "w-96 p-6",
+            isTablet && "w-88 p-5"
           )}
           align="start"
+          sideOffset={isMobile ? 8 : 12}
         >
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 shrink-0">
             <h3
               className={cn(
-                "font-semibold text-text-gray-700",
-                isMobile ? "text-base" : "text-sm"
+                "font-semibold text-gray-700",
+                isMobile ? "text-sm" : isDesktop ? "text-sm" : "text-xl"
               )}
             >
               Teams
             </h3>
             <Badge
               variant="outline"
-              className={isMobile ? "text-sm" : "text-xs"}
+              className={
+                isMobile
+                  ? "text-xs"
+                  : isDesktop
+                  ? "text-xs px-2 py-0"
+                  : "text-base px-3 py-1"
+              }
             >
               {teamList?.length || 0}
             </Badge>
           </div>
 
-          <div className="space-y-1 max-h-48 overflow-y-auto">
+          <div className="space-y-2 overflow-y-auto flex-1">
             {teamList?.map((team, index) => (
               <div
                 key={team.id}
                 className={cn(
-                  "flex items-center justify-between rounded-xl cursor-pointer transition-all duration-200 border p-2",
+                  "flex items-center justify-between rounded-lg cursor-pointer transition-all duration-200 border p-3 hover:shadow-sm",
                   activeTeam?.id === team.id
                     ? "bg-blue-50 border-blue-200"
                     : "bg-white border-gray-100 hover:bg-gray-50"
@@ -377,41 +390,61 @@ function SideNavTopSection({
                   setPopoverOpen(false);
                 }}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div
                     className={cn(
-                      "rounded-lg bg-linear-to-br flex items-center justify-center",
-                      isMobile ? "w-10 h-10" : "w-8 h-8",
+                      "rounded-lg bg-linear-to-br flex items-center justify-center shrink-0 shadow-sm",
+                      isMobile
+                        ? "w-10 h-10"
+                        : isDesktop
+                        ? "w-8 h-8"
+                        : "w-14 h-14",
                       getTeamColor(index)
                     )}
                   >
                     <span
                       className={cn(
-                        "text-white font-semibold",
-                        isMobile ? "text-sm" : "text-xs"
+                        "text-white font-bold",
+                        isMobile ? "text-sm" : isDesktop ? "text-xs" : "text-lg"
                       )}
                     >
                       {getTeamInitials(team.name)}
                     </span>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1 mb-0.5">
                       <span
                         className={cn(
-                          "font-medium",
-                          isMobile ? "text-sm" : "text-xs"
+                          "font-semibold truncate",
+                          isMobile
+                            ? "text-sm"
+                            : isDesktop
+                            ? "text-xs"
+                            : "text-lg"
                         )}
                       >
                         {team.name}
                       </span>
                       {team.createdById === user?.id && (
-                        <Crown className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
+                        <Crown
+                          className={
+                            isMobile
+                              ? "h-4 w-4"
+                              : isDesktop
+                              ? "h-3 w-3"
+                              : "h-5 w-5 text-yellow-500"
+                          }
+                        />
                       )}
                     </div>
                     <p
                       className={cn(
-                        "text-gray-500",
-                        isMobile ? "text-xs" : "text-[10px]"
+                        "text-gray-500 truncate",
+                        isMobile
+                          ? "text-xs"
+                          : isDesktop
+                          ? "text-[10px]"
+                          : "text-base"
                       )}
                     >
                       {team._count?.members || 0} members
@@ -421,38 +454,49 @@ function SideNavTopSection({
               </div>
             ))}
           </div>
+          <Separator className="my-3 shrink-0" />
 
-          <Separator className="my-3" />
-
-          <div className="space-y-2">
+          <div className="space-y-2 shrink-0">
             {menu.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center rounded-xl cursor-pointer transition-all duration-200 hover:bg-gray-50 group p-2 gap-2"
+                className="flex items-center rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 group p-3 gap-3 hover:shadow-sm"
                 onClick={() => onMenuClick(item)}
               >
                 <div
                   className={cn(
-                    "rounded-lg bg-gray-50 flex items-center justify-center group-hover:bg-white transition-colors",
-                    isMobile ? "w-10 h-10" : "w-8 h-8",
+                    "rounded-md bg-gray-50 flex items-center justify-center group-hover:bg-white transition-colors shrink-0 shadow-sm",
+                    isMobile
+                      ? "w-10 h-10"
+                      : isDesktop
+                      ? "w-8 h-8"
+                      : "w-12 h-12",
                     item.color
                   )}
                 >
-                  <item.icon className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
+                  <item.icon
+                    className={
+                      isMobile ? "h-5 w-5" : isDesktop ? "h-4 w-4" : "h-6 w-6"
+                    }
+                  />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <h3
                     className={cn(
-                      "font-medium text-text-gray-700",
-                      isMobile ? "text-sm" : "text-xs"
+                      "font-semibold text-gray-700 truncate",
+                      isMobile ? "text-sm" : isDesktop ? "text-xs" : "text-lg"
                     )}
                   >
                     {item.name}
                   </h3>
                   <p
                     className={cn(
-                      "text-gray-500",
-                      isMobile ? "text-xs" : "text-[10px]"
+                      "text-gray-500 truncate",
+                      isMobile
+                        ? "text-xs"
+                        : isDesktop
+                        ? "text-[10px]"
+                        : "text-sm"
                     )}
                   >
                     {item.description}
@@ -461,24 +505,23 @@ function SideNavTopSection({
               </div>
             ))}
           </div>
+          <Separator className="my-3 shrink-0" />
 
-          <Separator className="my-3" />
-
-          <div className="space-y-2">
+          <div className="space-y-2 shrink-0">
             {user && (
-              <div className="flex items-center p-2 gap-2">
+              <div className="flex items-center p-2 gap-3 bg-gray-50 rounded-lg">
                 <Image
                   src={user?.picture}
                   alt="user"
-                  width={isMobile ? 40 : 32}
-                  height={isMobile ? 40 : 32}
-                  className="rounded-full border-2 border-white shadow-sm"
+                  width={isMobile ? 40 : isDesktop ? 32 : 56}
+                  height={isMobile ? 40 : isDesktop ? 32 : 56}
+                  className="rounded-full border border-white shadow-sm shrink-0"
                 />
                 <div className="flex-1 min-w-0">
                   <h2
                     className={cn(
-                      "font-semibold text-text-gray-700 truncate",
-                      isMobile ? "text-sm" : "text-xs"
+                      "font-bold text-gray-700 truncate",
+                      isMobile ? "text-sm" : isDesktop ? "text-xs" : "text-xl"
                     )}
                   >
                     {user?.given_name} {user?.family_name}
@@ -486,7 +529,11 @@ function SideNavTopSection({
                   <h2
                     className={cn(
                       "text-gray-500 truncate",
-                      isMobile ? "text-xs" : "text-[10px]"
+                      isMobile
+                        ? "text-xs"
+                        : isDesktop
+                        ? "text-[10px]"
+                        : "text-base"
                     )}
                   >
                     {user?.email}
@@ -494,21 +541,28 @@ function SideNavTopSection({
                 </div>
               </div>
             )}
-
             <LogoutLink>
-              <div className="flex items-center rounded-xl cursor-pointer transition-all duration-200 hover:bg-red-50 group p-2 gap-2">
+              <div className="flex items-center rounded-lg cursor-pointer transition-all duration-200 hover:bg-red-50 group p-3 gap-3 hover:shadow-sm border border-transparent hover:border-red-200">
                 <div
                   className={cn(
-                    "rounded-lg bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors",
-                    isMobile ? "w-10 h-10" : "w-8 h-8"
+                    "rounded-md bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors shrink-0 shadow-sm",
+                    isMobile ? "w-10 h-10" : isDesktop ? "w-8 h-8" : "w-12 h-12"
                   )}
                 >
-                  <LogOut className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
+                  <LogOut
+                    className={
+                      isMobile
+                        ? "h-5 w-5"
+                        : isDesktop
+                        ? "h-4 w-4"
+                        : "h-6 w-6 text-red-600"
+                    }
+                  />
                 </div>
                 <span
                   className={cn(
-                    "font-medium text-red-600",
-                    isMobile ? "text-sm" : "text-xs"
+                    "font-semibold text-red-600",
+                    isMobile ? "text-sm" : isDesktop ? "text-xs" : "text-lg"
                   )}
                 >
                   Logout
@@ -671,7 +725,7 @@ function SideNavTopSection({
         </AnimatePresence>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <h3
           className={cn(
             "font-semibold text-black",
@@ -680,20 +734,27 @@ function SideNavTopSection({
         >
           Quick Access
         </h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-4">
           {menu.map((item) => (
             <Button
               key={item.id}
               variant="outline"
               className={cn(
-                "h-auto border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 shadow-sm text-gray-700",
+                "h-auto hover:bg-gray-50 transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200 text-gray-700",
                 quickAccess.buttonClass
               )}
               onClick={() => onMenuClick(item)}
             >
-              <div className="flex flex-col items-center gap-1">
-                <item.icon className={quickAccess.iconSize} />
-                <span className={isMobile ? "text-sm" : "text-xs"}>
+              <div className="flex flex-col items-center gap-1.5">
+                <item.icon
+                  className={cn(quickAccess.iconSize, "text-gray-600")}
+                />
+                <span
+                  className={cn(
+                    "font-medium text-gray-700",
+                    isMobile ? "text-sm" : "text-xs"
+                  )}
+                >
                   {item.name}
                 </span>
               </div>
