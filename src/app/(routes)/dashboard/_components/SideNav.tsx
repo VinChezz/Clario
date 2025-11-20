@@ -16,6 +16,7 @@ import {
   useIsLargeTablet,
   useIsDesktop,
 } from "@/hooks/useMediaQuery";
+import Image from "next/image";
 
 interface SideNavProps {
   onCloseSidebar?: () => void;
@@ -101,9 +102,9 @@ export default function SideNav({
   };
 
   const getPadding = () => {
-    if (isMobile) return "p-4";
-    if (isCollapsibleTablet) return "p-4";
-    return "p-4";
+    if (isMobile) return "p-3";
+    if (isCollapsibleTablet) return "p-3";
+    return "p-3";
   };
 
   const getSidebarVisibility = () => {
@@ -113,7 +114,6 @@ export default function SideNav({
     if (isCollapsibleTablet) {
       return isMobileMenuOpen ? "translate-x-0" : "-translate-x-full";
     }
-
     return "translate-x-0";
   };
 
@@ -122,7 +122,7 @@ export default function SideNav({
       {(isMobile || isCollapsibleTablet) && isMobileMenuOpen && (
         <div
           onClick={onCloseSidebar}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-300"
+          className="fixed inset-0 bg-black/40 backdrop-blur-lg z-40 lg:hidden animate-in fade-in duration-300"
         />
       )}
 
@@ -131,29 +131,28 @@ export default function SideNav({
           "fixed top-0 left-0 h-screen bg-white shadow-xl border-r border-gray-200 z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 lg:h-screen flex flex-col",
           getSidebarWidth(),
           getSidebarVisibility(),
-
           isDesktop && "fixed lg:relative"
         )}
       >
         <div
           className={cn(
             "flex items-center justify-between border-b border-gray-100 bg-white/95 backdrop-blur-sm shrink-0",
-            isMobile ? "p-3" : "p-4"
+            isMobile ? "p-3" : "p-3"
           )}
         >
-          <div className="flex items-center gap-2">
-            <div
-              className={cn(
-                "bg-linear-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center",
-                isMobile ? "w-10 h-10" : "w-10 h-10"
-              )}
-            >
-              <Menu
-                className={cn("text-white", isMobile ? "h-5 w-5" : "h-5 w-5")}
+          <div className="flex items-center gap-2 px-2">
+            <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Image
+                src={"/logo-1.png"}
+                alt={"logo"}
+                width={32}
+                height={32}
+                className="rounded-lg"
               />
             </div>
-
-            <h3 className="font-bold text-gray-900 text-lg">Workspace</h3>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+              Clario
+            </div>
           </div>
 
           {(isMobile || isCollapsibleTablet) && (
@@ -161,9 +160,9 @@ export default function SideNav({
               variant="ghost"
               size="icon"
               onClick={onCloseSidebar}
-              className="h-9 w-9"
+              className="h-8 w-8"
             >
-              {!isLargeTablet && <X className="h-5 w-5 text-gray-600" />}
+              {!isLargeTablet && <X className="h-4 w-4 text-gray-600" />}
             </Button>
           )}
         </div>
@@ -173,11 +172,12 @@ export default function SideNav({
             variant="ghost"
             size="icon"
             onClick={onToggleSidebar}
-            className="fixed top-4 left-4 z-40 h-10 w-10 bg-white shadow-lg border border-gray-200 hover:bg-gray-50 lg:hidden"
+            className="fixed top-4 left-4 z-40 h-9 w-9 bg-white shadow-lg border border-gray-200 hover:bg-gray-50 lg:hidden"
           >
-            <Menu className="h-5 w-5 text-gray-700" />
+            <Menu className="h-4 w-4 text-gray-700" />
           </Button>
         )}
+
         <div className="flex-1 flex flex-col min-h-0">
           <div className={cn("flex-1 overflow-y-auto", getPadding())}>
             <SideNavTopSection
