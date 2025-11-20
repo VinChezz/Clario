@@ -14,26 +14,40 @@ export function useMediaQuery(query: string): boolean {
     };
 
     media.addEventListener("change", handler);
-    return () => {
-      media.removeEventListener("change", handler);
-    };
+    return () => media.removeEventListener("change", handler);
   }, [query]);
 
   return matches;
 }
 
 export function useIsMobile(): boolean {
-  return useMediaQuery("(max-width: 799px)");
+  return useMediaQuery("(max-width: 767px)");
 }
 
 export function useIsTablet(): boolean {
-  return useMediaQuery("(min-width: 800px) and (max-width: 1020px)");
+  return useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
 }
 
 export function useIsLargeTablet(): boolean {
-  return useMediaQuery("(min-width: 1021px) and (max-width: 1366px)");
+  return useMediaQuery("(min-width: 1024px) and (max-width: 1400px)");
 }
 
 export function useIsDesktop(): boolean {
-  return useMediaQuery("(min-width: 1367px)");
+  return useMediaQuery("(min-width: 1280px)");
+}
+
+export function useIsHorizontalMobile(): boolean {
+  return useMediaQuery("(max-width: 900px) and (max-height: 500px)");
+}
+
+export function useIsHorizontalTablet(): boolean {
+  return useMediaQuery("(max-width: 1200px) and (max-height: 980px)");
+}
+
+export function useIsSmallMobile(): boolean {
+  return useMediaQuery("(max-width: 380px)");
+}
+
+export function useIsLandscape(): boolean {
+  return useMediaQuery("(orientation: landscape) and (max-height: 600px)");
 }
