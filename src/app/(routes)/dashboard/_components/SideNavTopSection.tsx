@@ -1,36 +1,46 @@
+// Исправленная версия SideNavTopSection.tsx
 "use client";
-
 import {
   ChevronDown,
   FileText,
-  LayoutGrid,
   LogOut,
   Settings,
   Users,
   ChevronRight,
   Crown,
-  Archive,
-  Flag,
   History,
   Star,
+  Search,
+  Plus,
+  Sparkles,
+  Clock,
+  FolderOpen,
+  MoreVertical,
 } from "lucide-react";
 import Image from "next/image";
-import React, { useContext, useEffect, useMemo, useState } from "react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import React, { useEffect, useMemo, useState } from "react";
 import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { FileListContext } from "@/app/_context/FileListContext";
 import { FILE } from "@/shared/types/file.interface";
-import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  useIsMobile,
+  useIsTablet,
+  useIsLargeTablet,
+  useIsHorizontalMobile,
+  useIsHorizontalTablet,
+  useIsLandscape,
+} from "@/hooks/useMediaQuery";
 
 export interface TeamMember {
   id: string;
@@ -65,57 +75,82 @@ interface SideNavTopSectionProps {
   fileList_?: FILE[];
 }
 
+const menu = [
+  {
+    id: 1,
+    name: "Create Team",
+    path: "/teams/create",
+    icon: Users,
+    description: "Start new team",
+    color: "text-blue-600",
+    buttonClass: "hover:border-blue-300 hover:bg-blue-50",
+    textClass: "group-hover:text-blue-700",
+    iconClass: "bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm",
+    iconColor: "text-white", // ✅ Этот цвет должен применяться
+  },
+  {
+    id: 2,
+    name: "Settings",
+    path: "/settings",
+    icon: Settings,
+    description: "Manage preferences",
+    color: "text-gray-600",
+    buttonClass: "hover:border-gray-300 hover:bg-gray-50",
+    textClass: "",
+    iconClass: "bg-gradient-to-br from-gray-100 to-gray-200",
+    iconColor: "text-gray-600", // ✅ Этот цвет должен применяться
+  },
+  {
+    id: 3,
+    name: "Recent",
+    path: "/recent",
+    icon: History,
+    description: "Recent files",
+    color: "text-indigo-600",
+    buttonClass: "hover:border-indigo-300 hover:bg-indigo-50",
+    textClass: "group-hover:text-indigo-700",
+    iconClass: "bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm",
+    iconColor: "text-white", // ✅ Этот цвет должен применяться
+  },
+  {
+    id: 4,
+    name: "Favorites",
+    path: "/favorites",
+    icon: Star,
+    description: "Favorite files",
+    color: "text-yellow-600",
+    buttonClass: "hover:border-amber-300 hover:bg-amber-50",
+    textClass: "group-hover:text-amber-700",
+    iconClass: "bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm",
+    iconColor: "text-white", // ✅ Этот цвет должен применяться
+  },
+];
+
 function SideNavTopSection({
   user,
   setActiveTeamInfo,
   onItemClick,
-  isMobile = false,
-  isTablet = false,
   fileList_ = [],
 }: SideNavTopSectionProps) {
-  const menu = [
-    {
-      id: 1,
-      name: "Create Team",
-      path: "/teams/create",
-      icon: Users,
-      description: "Start new team",
-      color: "text-blue-600",
-    },
-    {
-      id: 2,
-      name: "Settings",
-      path: "/settings",
-      icon: Settings,
-      description: "Manage preferences",
-      color: "text-gray-600",
-    },
-    {
-      id: 3,
-      name: "Recent",
-      icon: History,
-      description: "Recent files",
-      color: "text-indigo-600",
-    },
-    {
-      id: 4,
-      name: "Favorites",
-      icon: Star,
-      description: "Favorite files",
-      color: "text-yellow-600",
-    },
-  ];
-
   const router = useRouter();
   const [activeTeam, setActiveTeam] = useState<TEAM>();
   const [teamList, setTeamList] = useState<TEAM[]>();
   const [fileList, setFileList] = useState<FILE[]>([]);
-  const [open, setOpen] = useState(false);
-  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [teamsModalOpen, setTeamsModalOpen] = useState(false);
+  const [filesModalOpen, setFilesModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [fileFilter, setFileFilter] = useState<"all" | "recent" | "favorites">(
+    "all"
+  );
+
+  const isMobileDevice = useIsMobile();
+  const isTabletDevice = useIsTablet();
+  const isLargeTabletDevice = useIsLargeTablet();
+  const isHorizontalMobileDevice = useIsHorizontalMobile();
+  const isHorizontalTablet = useIsHorizontalTablet();
+  const isLandscapeDevice = useIsLandscape();
 
   const stableFileList = useMemo(() => fileList_, [JSON.stringify(fileList_)]);
-
-  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     setFileList(stableFileList);
@@ -137,12 +172,9 @@ function SideNavTopSection({
           "Content-Type": "application/json",
         },
       });
-
       if (!res.ok) {
-        const errorText = await res.text();
         throw new Error(`failed to fetch teams: ${res.status}`);
       }
-
       const data: TEAM[] = await res.json();
       setTeamList(data);
       if (data.length > 0) {
@@ -151,72 +183,6 @@ function SideNavTopSection({
     } catch (e: any) {
       console.error("❌ Error fetching teams:", e.message);
     }
-  };
-
-  const getTeamSwitcherSize = () => {
-    if (isMobile)
-      return {
-        padding: "p-3",
-        gap: "gap-3",
-        iconSize: "w-10 h-10",
-        textSize: "text-sm",
-      };
-    if (isTablet)
-      return {
-        padding: "p-3",
-        gap: "gap-3",
-        iconSize: "w-10 h-10",
-        textSize: "text-sm",
-      };
-    return {
-      padding: "p-2",
-      gap: "gap-2",
-      iconSize: "w-8 h-8",
-      textSize: "text-sm",
-    };
-  };
-
-  const getFileItemSize = () => {
-    if (isMobile)
-      return {
-        padding: "p-2.5",
-        gap: "gap-3",
-        iconSize: "w-7 h-7",
-        textSize: "text-sm",
-      };
-    if (isTablet)
-      return {
-        padding: "p-2.5",
-        gap: "gap-3",
-        iconSize: "w-7 h-7",
-        textSize: "text-sm",
-      };
-    return {
-      padding: "p-1.5",
-      gap: "gap-2",
-      iconSize: "w-5 h-5",
-      textSize: "text-sm",
-    };
-  };
-
-  const getQuickAccessSize = () => {
-    if (isMobile) return { buttonClass: "py-4 text-sm", iconSize: "h-4 w-4" };
-    if (isTablet) return { buttonClass: "py-4 text-sm", iconSize: "h-4 w-4" };
-    return { buttonClass: "py-2 text-xs", iconSize: "h-3.5 w-3.5" };
-  };
-
-  const teamSwitcher = getTeamSwitcherSize();
-  const fileItem = getFileItemSize();
-  const quickAccess = getQuickAccessSize();
-
-  const onMenuClick = (item: any) => {
-    if (item.path) router.push(item.path);
-    setPopoverOpen(false);
-    onItemClick?.();
-  };
-
-  const isCooperativeTeam = (team: TEAM) => {
-    return team._count?.members && team._count.members > 3;
   };
 
   const getTeamInitials = (name: string) => {
@@ -237,531 +203,701 @@ function SideNavTopSection({
       "from-rose-500 to-rose-600",
       "from-cyan-500 to-cyan-600",
       "from-teal-500 to-teal-600",
-      "from-amber-500 to-amber-600",
+      "from-pink-500 to-pink-600",
     ];
     return colors[index % colors.length];
   };
 
   const handleFileClick = (fileId: string) => {
     router.push(`/workspace/${fileId}`);
+    setFilesModalOpen(false);
     onItemClick?.();
   };
 
+  const handleTeamSelect = (team: TEAM) => {
+    setActiveTeam(team);
+    setTeamsModalOpen(false);
+    setSearchQuery("");
+  };
+
+  const handleQuickAction = (path: string) => {
+    router.push(path);
+    setTeamsModalOpen(false);
+    onItemClick?.();
+  };
+
+  const onMenuClick = (item: any) => {
+    if (item.path) {
+      router.push(item.path);
+    }
+    onItemClick?.();
+  };
+
+  const filteredTeams = teamList?.filter((team) =>
+    team.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredFiles = fileList.filter((file) => {
+    const matchesSearch = file.fileName
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    if (fileFilter === "all") return matchesSearch;
+    if (fileFilter === "recent") return matchesSearch;
+    if (fileFilter === "favorites") return matchesSearch;
+    return matchesSearch;
+  });
+
+  const getButtonSize = () => {
+    if (isHorizontalMobileDevice || isLandscapeDevice)
+      return {
+        height: "h-11",
+        text: "text-xs",
+        icon: "h-3.5 w-3.5",
+        padding: "px-2.5 py-2",
+        gap: "gap-1.5",
+        spacing: "space-y-2",
+        avatarSize: "w-8 h-8 text-xs",
+        crownSize: "h-3 w-3",
+        chevronSize: "h-3.5 w-3.5",
+      };
+    if (isHorizontalTablet) {
+      return {
+        height: "h-13",
+        text: "text-sm",
+        icon: "h-3.5 w-3.5",
+        padding: "px-2.5 py-2",
+        gap: "gap-1.5",
+        spacing: "space-y-2",
+        avatarSize: "w-9 h-9 text-sm",
+        crownSize: "h-3 w-3",
+        chevronSize: "h-3.5 w-3.5",
+      };
+    }
+    if (isMobileDevice)
+      return {
+        height: "h-15",
+        text: "text-sm",
+        icon: "h-4 w-4",
+        padding: "px-3 py-2.5",
+        gap: "gap-2",
+        spacing: "space-y-4",
+        avatarSize: "w-9 h-9 text-sm",
+        crownSize: "h-3 w-3",
+        chevronSize: "h-4 w-4",
+      };
+    if (isTabletDevice)
+      return {
+        height: "h-13",
+        text: "text-base",
+        icon: "h-4 w-4",
+        padding: "px-3 py-2.5",
+        gap: "gap-2",
+        spacing: "space-y-2.5",
+        avatarSize: "w-10 h-10 text-base",
+        crownSize: "h-3.5 w-3.5",
+        chevronSize: "h-4 w-4",
+      };
+    if (isLargeTabletDevice)
+      return {
+        height: "h-12",
+        text: "text-xl",
+        icon: "h-6 w-6",
+        padding: "px-4 py-4",
+        gap: "gap-3",
+        spacing: "space-y-8",
+        avatarSize: "w-10 h-10 text-base",
+        crownSize: "h-3.5 w-3.5",
+        chevronSize: "h-4 w-4",
+      };
+    return {
+      height: "h-10",
+      text: "text-sm",
+      icon: "h-5 w-5",
+      padding: "px-3 py-3",
+      gap: "gap-2",
+      spacing: "space-y-2",
+      avatarSize: "w-10 h-10 text-sm",
+      crownSize: "h-3.5 w-3.5",
+      chevronSize: "h-4 w-4",
+    };
+  };
+
+  const getQuickAccessSize = () => {
+    if (isHorizontalMobileDevice || isLandscapeDevice)
+      return {
+        buttonClass: "p-2",
+        iconSize: "h-4 w-4",
+        gridCols: "grid-cols-2",
+        gap: "gap-1.5",
+        textSize: "text-xs",
+      };
+    if (isHorizontalTablet) {
+      return {
+        buttonClass: "p-3.5",
+        iconSize: "h-4 w-4",
+        gridCols: "grid-cols-2",
+        gap: "gap-1.5",
+        textSize: "text-sm",
+      };
+    }
+    if (isMobileDevice)
+      return {
+        buttonClass: "p-3",
+        iconSize: "h-4 w-4",
+        gridCols: "grid-cols-1",
+        gap: "gap-3",
+        textSize: "text-sm",
+      };
+    if (isTabletDevice)
+      return {
+        buttonClass: "p-2",
+        iconSize: "h-4 w-4",
+        gridCols: "grid-cols-2",
+        gap: "gap-2",
+        textSize: "text-sm",
+      };
+    if (isLargeTabletDevice)
+      return {
+        buttonClass: "p-3",
+        iconSize: "h-6 w-6",
+        gridCols: "grid-cols-2",
+        gap: "gap-3",
+        textSize: "text-base",
+      };
+    return {
+      buttonClass: "p-4",
+      iconSize: "h-4 w-4",
+      gridCols: "grid-cols-2",
+      gap: "gap-3",
+      textSize: "text-sm",
+    };
+  };
+
+  const getModalSizes = () => {
+    if (isHorizontalMobileDevice || isLandscapeDevice)
+      return {
+        teams: "max-w-[85vw]",
+        files: "max-w-[85vw]",
+        title: "text-lg",
+        inputHeight: "h-9",
+        teamAvatar: "w-8 h-8 text-xs",
+        fileGrid: "grid-cols-1",
+      };
+    if (isHorizontalTablet) {
+      return {
+        teams: "max-w-[80vw]",
+        files: "max-w-[80vw]",
+        title: "text-lg",
+        inputHeight: "h-9",
+        teamAvatar: "w-8 h-8 text-sm",
+        fileGrid: "grid-cols-2",
+      };
+    }
+    if (isMobileDevice)
+      return {
+        teams: "max-w-[95vw]",
+        files: "max-w-[115vw]",
+        title: "text-xl",
+        inputHeight: "h-10",
+        teamAvatar: "w-9 h-9 text-xs",
+        fileGrid: "grid-cols-2",
+      };
+    if (isTabletDevice)
+      return {
+        teams: "max-w-md",
+        files: "max-w-2xl",
+        title: "text-lg",
+        inputHeight: "h-10",
+        teamAvatar: "w-10 h-10 text-sm",
+        fileGrid: "grid-cols-2",
+      };
+    if (isLargeTabletDevice)
+      return {
+        teams: "max-w-lg",
+        files: "max-w-3xl",
+        title: "text-2xl",
+        teamText: "text-xl",
+        inputHeight: "h-12",
+        teamAvatar: "w-12 h-12 text-base",
+        fileGrid: "grid-cols-3",
+      };
+    return {
+      teams: "max-w-lg",
+      files: "max-w-4xl",
+      title: "text-lg",
+      inputHeight: "h-8",
+      teamAvatar: "w-10 h-10 text-sm",
+      fileGrid: "grid-cols-3",
+    };
+  };
+
+  const getSpacing = () => {
+    if (isHorizontalMobileDevice || isLandscapeDevice) return "gap-2";
+    if (isHorizontalTablet) return "gap-2";
+    if (isMobileDevice) return "gap-4";
+    if (isTabletDevice) return "gap-2.5";
+    if (isLargeTabletDevice) return "gap-5";
+    return "gap-4";
+  };
+
+  const buttonSize = getButtonSize();
+  const quickAccess = getQuickAccessSize();
+  const modalSizes = getModalSizes();
+  const spacing = getSpacing();
+
   return (
-    <div className={cn("space-y-4", isTablet && "space-y-3")}>
-      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            id="team-switcher"
-            variant="ghost"
+    <div className={cn("flex flex-col", spacing)}>
+      <button
+        onClick={() => setTeamsModalOpen(true)}
+        className={cn(
+          "group flex items-center w-full rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:shadow-md transition-all duration-200",
+          buttonSize.padding,
+          buttonSize.gap
+        )}
+      >
+        <div
+          className={cn(
+            "rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold shadow-sm",
+            buttonSize.avatarSize,
+            activeTeam && teamList
+              ? getTeamColor(
+                  teamList.findIndex((t) => t.id === activeTeam.id) || 0
+                )
+              : "from-gray-400 to-gray-500"
+          )}
+        >
+          {activeTeam ? getTeamInitials(activeTeam.name) : "T"}
+        </div>
+        <div className="flex-1 text-left min-w-0">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            {activeTeam?.createdById === user?.id && (
+              <Crown
+                className={cn("text-amber-500 shrink-0", buttonSize.crownSize)}
+              />
+            )}
+            <span
+              className={cn(
+                "font-semibold text-gray-900 truncate",
+                buttonSize.text
+              )}
+            >
+              {activeTeam?.name || "Select Team"}
+            </span>
+          </div>
+          <span
             className={cn(
-              "w-full h-auto hover:bg-gray-50 rounded-xl transition-all duration-200 border border-gray-200 hover:border-gray-300",
-              teamSwitcher.padding
+              "text-gray-500",
+              isHorizontalMobileDevice ||
+                isLandscapeDevice ||
+                isHorizontalTablet
+                ? "text-[10px]"
+                : "text-xs"
             )}
           >
-            <div className={cn("flex items-center w-full", teamSwitcher.gap)}>
-              <div className="relative">
-                <div
-                  className={cn(
-                    "rounded-xl bg-linear-to-br flex items-center justify-center shadow-sm",
-                    teamSwitcher.iconSize,
-                    activeTeam
-                      ? getTeamColor(
-                          teamList?.findIndex((t) => t.id === activeTeam.id) ||
-                            0
-                        )
-                      : "from-gray-400 to-gray-500"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "text-white font-bold",
-                      teamSwitcher.textSize
-                    )}
-                  >
-                    {activeTeam ? getTeamInitials(activeTeam.name) : "T"}
-                  </span>
-                </div>
-                {activeTeam && activeTeam.createdById === user?.id && (
-                  <div
-                    className={cn(
-                      "absolute -top-1 -right-1 bg-yellow-400 rounded-full shadow-sm",
-                      isMobile ? "p-1" : "p-1"
-                    )}
-                  >
-                    <Crown className={isMobile ? "h-3 w-3" : "h-3 w-3"} />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0 text-left">
-                <div className={cn("flex items-center mb-1", teamSwitcher.gap)}>
-                  <h2
-                    className={cn(
-                      "font-semibold text-gray-700 truncate",
-                      isMobile ? "text-base" : "text-base"
-                    )}
-                  >
-                    {activeTeam?.name || "Select Team"}
-                  </h2>
-                  {activeTeam && isCooperativeTeam(activeTeam) && (
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        "bg-green-50 text-green-700 border-green-200",
-                        isMobile
-                          ? "text-xs px-2 py-0 h-5"
-                          : "text-sm px-3 py-1 h-6"
-                      )}
-                    >
-                      Team
-                    </Badge>
-                  )}
-                </div>
-                <p
-                  className={cn(
-                    "text-gray-500 truncate",
-                    isMobile ? "text-xs" : "text-sm"
-                  )}
-                >
-                  {activeTeam?._count?.members || 0} members
-                </p>
-              </div>
-
-              <ChevronDown
-                className={cn(
-                  "text-gray-400 transition-transform duration-200 shrink-0",
-                  isMobile ? "h-5 w-5" : "h-6 w-6",
-                  popoverOpen && "rotate-180"
-                )}
-              />
-            </div>
-          </Button>
-        </PopoverTrigger>
-
-        <PopoverContent
+            {activeTeam?._count?.members || 0} members
+          </span>
+        </div>
+        <ChevronRight
           className={cn(
-            "rounded-2xl shadow-xl border border-gray-200 max-h-[80vh] overflow-hidden flex flex-col",
-            isMobile
-              ? "w-[calc(100vw-2rem)] max-w-[400px] p-3"
-              : isDesktop
-              ? "w-72 p-3"
-              : "w-96 p-6",
-            isTablet && "w-88 p-5"
+            "text-gray-400 group-hover:text-gray-600 transition-colors shrink-0",
+            buttonSize.chevronSize
           )}
-          align="start"
-          sideOffset={isMobile ? 8 : 12}
+        />
+      </button>
+
+      <button
+        onClick={() => setFilesModalOpen(true)}
+        className={cn(
+          "group flex items-center w-full rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:shadow-md transition-all duration-200",
+          buttonSize.padding,
+          buttonSize.gap
+        )}
+      >
+        <div
+          className={cn(
+            "rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm",
+            buttonSize.avatarSize
+          )}
         >
-          <div className="flex items-center justify-between mb-3 shrink-0">
-            <h3
-              className={cn(
-                "font-semibold text-gray-700",
-                isMobile ? "text-sm" : isDesktop ? "text-sm" : "text-xl"
-              )}
-            >
-              Teams
-            </h3>
-            <Badge
-              variant="outline"
-              className={
-                isMobile
-                  ? "text-xs"
-                  : isDesktop
-                  ? "text-xs px-2 py-0"
-                  : "text-base px-3 py-1"
-              }
-            >
-              {teamList?.length || 0}
-            </Badge>
-          </div>
-
-          <div className="space-y-2 overflow-y-auto flex-1">
-            {teamList?.map((team, index) => (
-              <div
-                key={team.id}
-                className={cn(
-                  "flex items-center justify-between rounded-lg cursor-pointer transition-all duration-200 border p-3 hover:shadow-sm",
-                  activeTeam?.id === team.id
-                    ? "bg-blue-50 border-blue-200"
-                    : "bg-white border-gray-100 hover:bg-gray-50"
-                )}
-                onClick={() => {
-                  setActiveTeam(team);
-                  setPopoverOpen(false);
-                }}
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div
-                    className={cn(
-                      "rounded-lg bg-linear-to-br flex items-center justify-center shrink-0 shadow-sm",
-                      isMobile
-                        ? "w-10 h-10"
-                        : isDesktop
-                        ? "w-8 h-8"
-                        : "w-14 h-14",
-                      getTeamColor(index)
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "text-white font-bold",
-                        isMobile ? "text-sm" : isDesktop ? "text-xs" : "text-lg"
-                      )}
-                    >
-                      {getTeamInitials(team.name)}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <span
-                        className={cn(
-                          "font-semibold truncate",
-                          isMobile
-                            ? "text-sm"
-                            : isDesktop
-                            ? "text-xs"
-                            : "text-lg"
-                        )}
-                      >
-                        {team.name}
-                      </span>
-                      {team.createdById === user?.id && (
-                        <Crown
-                          className={
-                            isMobile
-                              ? "h-4 w-4"
-                              : isDesktop
-                              ? "h-3 w-3"
-                              : "h-5 w-5 text-yellow-500"
-                          }
-                        />
-                      )}
-                    </div>
-                    <p
-                      className={cn(
-                        "text-gray-500 truncate",
-                        isMobile
-                          ? "text-xs"
-                          : isDesktop
-                          ? "text-[10px]"
-                          : "text-base"
-                      )}
-                    >
-                      {team._count?.members || 0} members
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Separator className="my-3 shrink-0" />
-
-          <div className="space-y-2 shrink-0">
-            {menu.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 group p-3 gap-3 hover:shadow-sm"
-                onClick={() => onMenuClick(item)}
-              >
-                <div
-                  className={cn(
-                    "rounded-md bg-gray-50 flex items-center justify-center group-hover:bg-white transition-colors shrink-0 shadow-sm",
-                    isMobile
-                      ? "w-10 h-10"
-                      : isDesktop
-                      ? "w-8 h-8"
-                      : "w-12 h-12",
-                    item.color
-                  )}
-                >
-                  <item.icon
-                    className={
-                      isMobile ? "h-5 w-5" : isDesktop ? "h-4 w-4" : "h-6 w-6"
-                    }
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3
-                    className={cn(
-                      "font-semibold text-gray-700 truncate",
-                      isMobile ? "text-sm" : isDesktop ? "text-xs" : "text-lg"
-                    )}
-                  >
-                    {item.name}
-                  </h3>
-                  <p
-                    className={cn(
-                      "text-gray-500 truncate",
-                      isMobile
-                        ? "text-xs"
-                        : isDesktop
-                        ? "text-[10px]"
-                        : "text-sm"
-                    )}
-                  >
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Separator className="my-3 shrink-0" />
-
-          <div className="space-y-2 shrink-0">
-            {user && (
-              <div className="flex items-center p-2 gap-3 bg-gray-50 rounded-lg">
-                <Image
-                  src={user?.picture}
-                  alt="user"
-                  width={isMobile ? 40 : isDesktop ? 32 : 56}
-                  height={isMobile ? 40 : isDesktop ? 32 : 56}
-                  className="rounded-full border border-white shadow-sm shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <h2
-                    className={cn(
-                      "font-bold text-gray-700 truncate",
-                      isMobile ? "text-sm" : isDesktop ? "text-xs" : "text-xl"
-                    )}
-                  >
-                    {user?.given_name} {user?.family_name}
-                  </h2>
-                  <h2
-                    className={cn(
-                      "text-gray-500 truncate",
-                      isMobile
-                        ? "text-xs"
-                        : isDesktop
-                        ? "text-[10px]"
-                        : "text-base"
-                    )}
-                  >
-                    {user?.email}
-                  </h2>
-                </div>
-              </div>
+          <FileText className={cn("text-white", buttonSize.icon)} />
+        </div>
+        <div className="flex-1 text-left min-w-0">
+          <span
+            className={cn(
+              "font-semibold text-gray-900 block mb-0.5",
+              buttonSize.text
             )}
-            <LogoutLink>
-              <div className="flex items-center rounded-lg cursor-pointer transition-all duration-200 hover:bg-red-50 group p-3 gap-3 hover:shadow-sm border border-transparent hover:border-red-200">
-                <div
-                  className={cn(
-                    "rounded-md bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors shrink-0 shadow-sm",
-                    isMobile ? "w-10 h-10" : isDesktop ? "w-8 h-8" : "w-12 h-12"
-                  )}
-                >
-                  <LogOut
-                    className={
-                      isMobile
-                        ? "h-5 w-5"
-                        : isDesktop
-                        ? "h-4 w-4"
-                        : "h-6 w-6 text-red-600"
-                    }
-                  />
-                </div>
-                <span
-                  className={cn(
-                    "font-semibold text-red-600",
-                    isMobile ? "text-sm" : isDesktop ? "text-xs" : "text-lg"
-                  )}
-                >
-                  Logout
-                </span>
-              </div>
-            </LogoutLink>
-          </div>
-        </PopoverContent>
-      </Popover>
-
-      <div className="space-y-2">
-        <Button
-          variant="ghost"
+          >
+            All Files
+          </span>
+          <p
+            className={cn(
+              "text-gray-500",
+              isHorizontalMobileDevice ||
+                isLandscapeDevice ||
+                isHorizontalTablet
+                ? "text-[10px]"
+                : "text-xs"
+            )}
+          >
+            {fileList.length} files
+          </p>
+        </div>
+        <ChevronRight
           className={cn(
-            "w-full justify-between items-center hover:bg-gray-50 transition-all duration-200 group",
-            teamSwitcher.padding,
-            isMobile ? "rounded-xl" : "rounded-lg"
+            "text-gray-400 group-hover:text-gray-600 transition-colors shrink-0",
+            buttonSize.chevronSize
           )}
-          onClick={() => setOpen(!open)}
-        >
-          <div className={cn("flex items-center", teamSwitcher.gap)}>
+        />
+      </button>
+
+      {/* Quick Access Section */}
+      <div className={cn("grid", quickAccess.gridCols, quickAccess.gap)}>
+        {menu.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => onMenuClick(item)}
+            className={cn(
+              "flex items-center rounded-xl border border-gray-200 transition-all group text-left w-full min-w-0",
+              item.buttonClass,
+              quickAccess.buttonClass,
+              quickAccess.gap
+            )}
+          >
             <div
               className={cn(
-                "rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm",
-                teamSwitcher.iconSize
+                "rounded-lg flex items-center justify-center shrink-0",
+                item.iconClass,
+                isHorizontalMobileDevice ||
+                  isLandscapeDevice ||
+                  isHorizontalTablet
+                  ? "w-8 h-8"
+                  : "w-10 h-10"
               )}
             >
-              <LayoutGrid
-                className={cn("text-white", isMobile ? "h-5 w-5" : "h-4 w-4")}
-              />
+              <item.icon className={cn(quickAccess.iconSize, item.iconColor)} />
             </div>
-            <div className="text-left">
+            <div className="flex-1 min-w-0">
               <span
                 className={cn(
-                  "font-semibold text-gray-900",
-                  teamSwitcher.textSize
+                  "font-medium text-gray-700 block truncate",
+                  quickAccess.textSize,
+                  item.textClass
                 )}
               >
-                All Files
+                {item.name}
               </span>
-              <p
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Teams Modal */}
+      <Dialog open={teamsModalOpen} onOpenChange={setTeamsModalOpen}>
+        <DialogContent
+          className={cn(
+            "p-0 gap-0 overflow-hidden rounded-2xl",
+            modalSizes.teams
+          )}
+        >
+          <DialogHeader className="p-5 pb-4 border-b bg-gradient-to-br from-gray-50 to-white">
+            <DialogTitle
+              className={cn("font-bold text-gray-900", modalSizes.title)}
+            >
+              Teams
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-5 pb-4">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search teams..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
-                  "text-gray-500",
-                  isMobile ? "text-xs" : "text-[10px]"
+                  "pl-10 text-sm border-gray-200 focus:border-blue-500 rounded-xl",
+                  modalSizes.inputHeight
                 )}
-              >
-                {fileList.length} file{fileList.length !== 1 ? "s" : ""}
-              </p>
+              />
             </div>
           </div>
 
           <div
             className={cn(
-              "rounded-lg transition-all duration-200",
-              isMobile ? "p-2" : "p-1",
-              open
-                ? "bg-blue-100 text-blue-600"
-                : "bg-gray-100 text-gray-400 group-hover:bg-gray-200"
+              "overflow-y-auto p-5 pt-4",
+              isHorizontalMobileDevice ||
+                isLandscapeDevice ||
+                isHorizontalTablet
+                ? "max-h-48"
+                : "max-h-72"
             )}
           >
-            {open ? (
-              <ChevronDown className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
-            ) : (
-              <ChevronRight className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
-            )}
-          </div>
-        </Button>
-
-        <AnimatePresence initial={false}>
-          {open && (
-            <motion.div
-              key="file-list"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="overflow-hidden"
-            >
-              <div
-                className={cn(
-                  "border-l-2 border-gray-100 space-y-0.5 py-1",
-                  isMobile ? "ml-4 pl-6" : "ml-3 pl-4"
-                )}
-              >
-                {fileList && fileList.length > 0 ? (
-                  fileList.map((file, index) => (
-                    <motion.div
-                      key={file.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className={cn(
-                        "flex items-center rounded-lg hover:bg-gray-50 cursor-pointer transition-all duration-200 group",
-                        fileItem.padding,
-                        fileItem.gap
-                      )}
-                      onClick={() => handleFileClick(file.id)}
-                    >
-                      <div
-                        className={cn(
-                          "rounded-md bg-linear-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white",
-                          fileItem.iconSize
-                        )}
-                      >
-                        <FileText
-                          className={isMobile ? "h-4 w-4" : "h-3 w-3"}
-                        />
-                      </div>
-                      <span
-                        className={cn(
-                          "text-gray-700 group-hover:text-text-gray-700 truncate flex-1",
-                          fileItem.textSize
-                        )}
-                      >
-                        {file.fileName}
-                      </span>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ChevronRight
-                          className={isMobile ? "h-3 w-3" : "h-2 w-2"}
-                        />
-                      </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+            <div className="space-y-2">
+              {filteredTeams && filteredTeams.length > 0 ? (
+                filteredTeams.map((team, index) => (
+                  <button
+                    key={team.id}
+                    onClick={() => handleTeamSelect(team)}
                     className={cn(
-                      "flex items-center rounded-lg bg-gray-50 border border-gray-100",
-                      fileItem.padding,
-                      fileItem.gap
+                      "w-full flex items-center gap-3 p-3 rounded-xl transition-all",
+                      activeTeam?.id === team.id
+                        ? "bg-blue-50 border-2 border-blue-300 shadow-sm"
+                        : "hover:bg-gray-50 border-2 border-transparent hover:border-gray-200"
                     )}
                   >
                     <div
                       className={cn(
-                        "rounded-md bg-gray-200 flex items-center justify-center",
-                        fileItem.iconSize
+                        "rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold shadow-sm",
+                        modalSizes.teamAvatar,
+                        getTeamColor(index)
                       )}
                     >
-                      <FileText className={isMobile ? "h-3 w-3" : "h-2 w-2"} />
+                      {getTeamInitials(team.name)}
                     </div>
-                    <div>
-                      <p className={cn("text-gray-600", fileItem.textSize)}>
-                        No files yet
-                      </p>
-                      <p
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        {team.createdById === user?.id && (
+                          <Crown
+                            className={cn(
+                              "h-3.5 w-3.5 text-amber-500 shrink-0",
+                              buttonSize.crownSize
+                            )}
+                          />
+                        )}
+                        <span
+                          className={cn(
+                            "font-semibold text-gray-900 truncate",
+                            buttonSize.text
+                          )}
+                        >
+                          {team.name}
+                        </span>
+                      </div>
+                      <span
                         className={cn(
-                          "text-gray-400",
-                          isMobile ? "text-xs" : "text-[10px]"
+                          "text-gray-500",
+                          isHorizontalMobileDevice ||
+                            isLandscapeDevice ||
+                            isHorizontalTablet
+                            ? "text-[10px]"
+                            : "text-xs"
                         )}
                       >
-                        Create your first file
-                      </p>
+                        {team._count?.members || 0} members
+                      </span>
                     </div>
-                  </motion.div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className="space-y-2.5">
-        <h3
-          className={cn(
-            "font-semibold text-black",
-            isMobile ? "text-base" : "text-sm"
-          )}
-        >
-          Quick Access
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          {menu.map((item) => (
-            <Button
-              key={item.id}
-              variant="outline"
-              className={cn(
-                "h-auto hover:bg-gray-50 transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200 text-gray-700",
-                quickAccess.buttonClass
+                    {activeTeam?.id === team.id && (
+                      <div className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                    )}
+                  </button>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm font-medium">No teams found</p>
+                </div>
               )}
-              onClick={() => onMenuClick(item)}
+            </div>
+          </div>
+
+          <Separator className="mx-5" />
+
+          <div className="p-5">
+            <div
+              className={cn(
+                "grid gap-2.5",
+                isHorizontalMobileDevice ||
+                  isLandscapeDevice ||
+                  isHorizontalTablet
+                  ? "grid-cols-1"
+                  : "grid-cols-2"
+              )}
             >
-              <div className="flex flex-col items-center gap-1.5">
-                <item.icon
-                  className={cn(quickAccess.iconSize, "text-gray-600")}
-                />
-                <span
+              {menu.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleQuickAction(item.path!)}
                   className={cn(
-                    "font-medium text-gray-700",
-                    isMobile ? "text-sm" : "text-xs"
+                    "flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 transition-all group",
+                    item.buttonClass
                   )}
                 >
-                  {item.name}
-                </span>
+                  <div
+                    className={cn(
+                      "w-9 h-9 rounded-lg flex items-center justify-center",
+                      item.iconClass
+                    )}
+                  >
+                    {/* ИСПРАВЛЕНИЕ: добавлен item.iconColor */}
+                    <item.icon
+                      className={cn(quickAccess.iconSize, item.iconColor)}
+                    />
+                  </div>
+                  <span
+                    className={cn(
+                      "text-sm font-medium text-gray-700",
+                      quickAccess.textSize
+                    )}
+                  >
+                    {item.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Separator className="mx-5" />
+
+          <div className="p-5 bg-gray-50">
+            {user && (
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl mb-2.5 shadow-sm border border-gray-200">
+                <Image
+                  src={user?.picture}
+                  alt="user"
+                  width={36}
+                  height={36}
+                  className="rounded-full ring-2 ring-gray-100"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-lg text-gray-900 truncate">
+                    {user?.given_name} {user?.family_name}
+                  </p>
+                  <p className="text-sm text-gray-500 truncate">
+                    {user?.email}
+                  </p>
+                </div>
               </div>
-            </Button>
-          ))}
-        </div>
-      </div>
+            )}
+            <LogoutLink>
+              <button className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-all border border-red-200">
+                <LogOut className="h-4 w-4" />
+                <span className="text-sm font-semibold">Logout</span>
+              </button>
+            </LogoutLink>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Files Modal */}
+      <Dialog open={filesModalOpen} onOpenChange={setFilesModalOpen}>
+        <DialogContent
+          className={cn(
+            "p-2 gap-0 overflow-hidden rounded-2xl",
+            modalSizes.files
+          )}
+        >
+          <DialogHeader className="px-6 pt-5 pb-4 border-b bg-gradient-to-br from-indigo-50 to-purple-50">
+            <div className="flex items-center justify-between">
+              <DialogTitle
+                className={cn("font-bold text-gray-900", modalSizes.title)}
+              >
+                Files
+              </DialogTitle>
+              <Badge
+                variant="secondary"
+                className="text-xs font-semibold bg-white shadow-sm px-3 py-1"
+              >
+                {filteredFiles.length}
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <div className="p-5 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={cn(
+                  "pl-10 text-sm border-gray-200 focus:border-indigo-500 rounded-xl",
+                  modalSizes.inputHeight
+                )}
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button
+                onClick={() => setFileFilter("all")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
+                  fileFilter === "all"
+                    ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                <FolderOpen className="h-3.5 w-3.5" />
+                All Files
+              </button>
+              <button
+                onClick={() => setFileFilter("recent")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
+                  fileFilter === "recent"
+                    ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                <Clock className="h-3.5 w-3.5" />
+                Recent
+              </button>
+              <button
+                onClick={() => setFileFilter("favorites")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
+                  fileFilter === "favorites"
+                    ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                <Star className="h-3.5 w-3.5" />
+                Favorites
+              </button>
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              "overflow-y-auto p-5 pt-1",
+              isHorizontalMobileDevice ||
+                isLandscapeDevice ||
+                isHorizontalTablet
+                ? "max-h-48"
+                : "max-h-[480px]"
+            )}
+          >
+            {filteredFiles && filteredFiles.length > 0 ? (
+              <div className={cn("grid gap-3", modalSizes.fileGrid)}>
+                {filteredFiles.map((file) => (
+                  <button
+                    key={file.id}
+                    onClick={() => handleFileClick(file.id)}
+                    className="group flex flex-col rounded-xl border border-gray-200 bg-white hover:bg-gradient-to-br hover:from-indigo-50 hover:via-purple-50 hover:to-pink-50 hover:border-indigo-200 hover:shadow-md hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                  >
+                    <div className="w-full aspect-video bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center group-hover:from-transparent group-hover:to-transparent transition-all">
+                      <FileText className="h-8 w-8 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                    </div>
+                    <div className="p-3">
+                      <p className="font-semibold text-sm text-gray-900 truncate mb-1">
+                        {file.fileName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(file.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-400">
+                <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                <p className="text-sm font-semibold mb-1">No files yet</p>
+                <p className="text-xs">Create your first file to get started</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

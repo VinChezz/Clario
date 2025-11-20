@@ -1,3 +1,4 @@
+// components/SideNavBottomSection.tsx (оптимизированная версия)
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -23,17 +24,31 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useTour } from "../../../_context/TourContext";
 import { useFileData } from "../../../_context/FileDataContext";
+import {
+  useIsMobile,
+  useIsTablet,
+  useIsLargeTablet,
+  useIsHorizontalMobile,
+  useIsLandscape,
+  useIsHorizontalTablet,
+} from "@/hooks/useMediaQuery";
 
 const StorageIndicator = ({
   totalFiles,
   maxFiles,
   isMobile = false,
   isTablet = false,
+  isLargeTablet = false,
+  isHorizontalMobile = false,
+  isLandscape = false,
 }: {
   totalFiles: number;
   maxFiles: number;
   isMobile?: boolean;
   isTablet?: boolean;
+  isLargeTablet?: boolean;
+  isHorizontalMobile?: boolean;
+  isLandscape?: boolean;
 }) => {
   const usagePercentage = (totalFiles / maxFiles) * 100;
   const remainingFiles = maxFiles - totalFiles;
@@ -65,52 +80,87 @@ const StorageIndicator = ({
 
   const status = getStorageStatus();
 
-  const getSizing = () => {
-    if (isMobile)
-      return { padding: "p-4", text: "text-sm", subtext: "text-xs" };
-    if (isTablet)
-      return { padding: "p-4", text: "text-sm", subtext: "text-xs" };
-    return { padding: "p-3", text: "text-xs", subtext: "text-[10px]" };
+  const getStorageSize = () => {
+    if (isHorizontalMobile || isLandscape) return "p-2 space-y-1.5";
+    if (isMobile) return "p-2 space-y-2";
+    if (isTablet) return "p-3 space-y-2";
+    if (isLargeTablet) return "p-3 space-y-2.5";
+    return "p-2 space-y-2";
   };
 
-  const sizing = getSizing();
+  const storageSize = getStorageSize();
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
-        `bg-linear-to-br ${status.bgColor} rounded-xl space-y-3 border border-gray-200 shadow-sm`,
-        sizing.padding
+        `bg-gradient-to-br ${status.bgColor} rounded-xl border border-gray-200 shadow-sm`,
+        storageSize
       )}
       id="storage-section"
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={cn("font-semibold text-gray-900", sizing.text)}>
-            Storage
-          </span>
-        </div>
-        <span className={cn("font-bold text-gray-900", sizing.text)}>
+        <span
+          className={cn(
+            "font-semibold text-gray-900",
+            isHorizontalMobile || isLandscape
+              ? "text-xs"
+              : isTablet
+              ? "text-xs"
+              : "text-sm"
+          )}
+        >
+          Storage
+        </span>
+        <span
+          className={cn(
+            "font-bold text-gray-900",
+            isHorizontalMobile || isLandscape
+              ? "text-xs"
+              : isTablet
+              ? "text-xs"
+              : "text-sm"
+          )}
+        >
           {totalFiles}/{maxFiles}
         </span>
       </div>
 
-      <div className="space-y-2">
-        <div className="relative h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+      <div className="space-y-1.5">
+        <div className="relative h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${Math.min(usagePercentage, 100)}%` }}
             transition={{ duration: 1, ease: "easeOut" }}
-            className={`h-full rounded-full bg-linear-to-r ${status.color}`}
+            className={`h-full rounded-full bg-gradient-to-r ${status.color}`}
           />
         </div>
 
         <div className="flex justify-between items-center">
-          <span className={cn("font-medium", status.textColor, sizing.subtext)}>
+          <span
+            className={cn(
+              "font-medium",
+              status.textColor,
+              isHorizontalMobile || isLandscape
+                ? "text-[9px]"
+                : isTablet
+                ? "text-[10px]"
+                : "text-xs"
+            )}
+          >
             {status.message}
           </span>
-          <span className={cn("text-gray-500", sizing.subtext)}>
+          <span
+            className={cn(
+              "text-gray-500",
+              isHorizontalMobile || isLandscape
+                ? "text-[9px]"
+                : isTablet
+                ? "text-[10px]"
+                : "text-xs"
+            )}
+          >
             {Math.round(usagePercentage)}%
           </span>
         </div>
@@ -133,8 +183,6 @@ export default function SideNavBottomSection({
   totalFiles,
   isLoading = false,
   onAction,
-  isMobile = false,
-  isTablet = false,
 }: SideNavBottomSectionProps) {
   const { user }: any = useKindeBrowserClient();
   const [fileInput, setFileInput] = useState("");
@@ -144,8 +192,14 @@ export default function SideNavBottomSection({
   const router = useRouter();
 
   const { startTour } = useTour();
-
   const { fileCount, hasFiles, isStorageFull } = useFileData();
+
+  const isMobileDevice = useIsMobile();
+  const isTabletDevice = useIsTablet();
+  const isLargeTabletDevice = useIsLargeTablet();
+  const isHorizontalMobileDevice = useIsHorizontalMobile();
+  const isHorizontalTablet = useIsHorizontalTablet();
+  const isLandscapeDevice = useIsLandscape();
 
   const actualFileCount = fileCount !== undefined ? fileCount : totalFiles || 0;
   const actualHasFiles =
@@ -201,21 +255,6 @@ export default function SideNavBottomSection({
     onAction?.();
   };
 
-  const getButtonSize = () => {
-    if (isMobile) return { height: "h-12", text: "text-sm" };
-    if (isTablet) return { height: "h-12", text: "text-sm" };
-    return { height: "h-9", text: "text-xs" };
-  };
-
-  const getUpgradeCardSize = () => {
-    if (isMobile) return { padding: "p-4", text: "text-sm" };
-    if (isTablet) return { padding: "p-4", text: "text-sm" };
-    return { padding: "p-3", text: "text-xs" };
-  };
-
-  const buttonSize = getButtonSize();
-  const upgradeCard = getUpgradeCardSize();
-
   const menuList = [
     {
       id: 1,
@@ -237,27 +276,143 @@ export default function SideNavBottomSection({
     },
   ];
 
+  const getButtonSize = () => {
+    if (isHorizontalMobileDevice || isLandscapeDevice)
+      return {
+        height: "h-9",
+        text: "text-xs",
+        icon: "h-3.5 w-3.5",
+        padding: "px-2.5 py-2",
+        gap: "gap-1.5",
+        spacing: "space-y-2",
+      };
+    if (isHorizontalTablet) {
+      return {
+        height: "h-9",
+        text: "text-base",
+        icon: "h-3.5 w-3.5",
+        padding: "px-2.5 py-2",
+        gap: "gap-1.5",
+        spacing: "space-y-2",
+      };
+    }
+    if (isMobileDevice)
+      return {
+        height: "h-14",
+        text: "text-base",
+        icon: "h-4 w-4",
+        padding: "px-3 py-2.5",
+        gap: "gap-2",
+        spacing: "space-y-2",
+      };
+    if (isTabletDevice)
+      return {
+        height: "h-11",
+        text: "text-sm",
+        icon: "h-4 w-4",
+        padding: "px-3 py-2.5",
+        gap: "gap-2",
+        spacing: "space-y-2.5",
+      };
+    if (isLargeTabletDevice)
+      return {
+        height: "h-13",
+        text: "text-lg",
+        icon: "h-5 w-5",
+        padding: "px-4 py-2.5",
+        gap: "gap-3",
+        spacing: "space-y-4",
+      };
+    return {
+      height: "h-10",
+      text: "text-sm",
+      icon: "h-5 w-5",
+      padding: "px-3 py-3",
+      gap: "gap-2",
+      spacing: "space-y-2",
+    };
+  };
+
+  const getUpgradeCardSize = () => {
+    if (isHorizontalMobileDevice || isLandscapeDevice)
+      return {
+        padding: "p-2.5",
+        title: "text-sm",
+        desc: "text-xs",
+        badge: "text-[10px]",
+      };
+    if (isHorizontalTablet) {
+      return {
+        padding: "px-3 py-2.5",
+        title: "text-sm",
+        desc: "text-xs",
+        badge: "text-[8px]",
+      };
+    }
+    if (isMobileDevice)
+      return {
+        padding: "p-3.5",
+        title: "text-base",
+        desc: "text-sm",
+        badge: "text-xs",
+      };
+    if (isTabletDevice)
+      return {
+        padding: "p-3",
+        title: "text-base",
+        desc: "text-sm",
+        badge: "text-xs",
+      };
+    if (isLargeTabletDevice)
+      return {
+        padding: "p-4",
+        title: "text-lg",
+        desc: "text-base",
+        badge: "text-sm",
+      };
+    return {
+      padding: "p-3",
+      title: "text-base",
+      desc: "text-sm",
+      badge: "text-xs",
+    };
+  };
+
+  const getSpacing = () => {
+    if (isHorizontalMobileDevice || isLandscapeDevice) return "space-y-3";
+    if (isMobileDevice) return "space-y-4";
+    if (isTabletDevice) return "space-y-3.5";
+    if (isLargeTabletDevice) return "space-y-4";
+    return "space-y-3";
+  };
+
+  const buttonSize = getButtonSize();
+  const upgradeCard = getUpgradeCardSize();
+  const spacing = getSpacing();
+
   return (
-    <div className={cn("space-y-4", isTablet && "space-y-4")}>
-      <div className="space-y-2">
+    <div className={cn(spacing)}>
+      <div className={cn("space-y-0.5", buttonSize.spacing)}>
         {menuList.map((menu) => (
           <button
             key={menu.id}
             className={cn(
-              "w-full flex items-center gap-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200",
-              isMobile ? "px-4 py-3 text-sm" : "px-4 py-3 text-sm"
+              "w-full flex items-center text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200",
+              buttonSize.padding,
+              buttonSize.text,
+              buttonSize.gap
             )}
             onClick={menu.onClick}
           >
-            <menu.icon className={cn(isMobile ? "h-5 w-5" : "h-5 w-5")} />
-            <span>{menu.name}</span>
+            <menu.icon className={buttonSize.icon} />
+            <span className="font-medium">{menu.name}</span>
           </button>
         ))}
       </div>
 
       <div
         className={cn(
-          "bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+          "bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
           upgradeCard.padding
         )}
         onClick={handleUpgradeClick}
@@ -265,34 +420,72 @@ export default function SideNavBottomSection({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
 
         <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-2">
-            <Crown className="h-4 w-4 text-yellow-300" />
-            <span className={cn("font-bold", upgradeCard.text)}>
+          <div
+            className={cn(
+              "flex items-center gap-2 mb-2",
+              (isHorizontalMobileDevice || isLandscapeDevice) && "mb-1",
+              isLargeTabletDevice && "mb-3"
+            )}
+          >
+            <Crown
+              className={cn(
+                "text-yellow-300",
+                isHorizontalMobileDevice || isLandscapeDevice
+                  ? "h-3.5 w-3.5"
+                  : isLargeTabletDevice
+                  ? "h-5 w-5"
+                  : "h-4 w-4"
+              )}
+            />
+            <span
+              className={cn(
+                "font-bold",
+                isHorizontalMobileDevice || isLandscapeDevice
+                  ? "text-xs"
+                  : isLargeTabletDevice
+                  ? "text-base"
+                  : "text-sm"
+              )}
+            >
               PRO FEATURES
             </span>
           </div>
 
-          <h3
-            className={cn("font-bold mb-1", isMobile ? "text-lg" : "text-base")}
-          >
+          <h3 className={cn("font-bold mb-1", upgradeCard.title)}>
             Unlock Premium
           </h3>
           <p
             className={cn(
               "text-white/90 mb-3 leading-relaxed",
-              isMobile ? "text-sm" : "text-xs"
+              upgradeCard.desc
             )}
           >
             Get unlimited storage & features
           </p>
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={cn("font-semibold", upgradeCard.text)}>
-                Upgrade Now
-              </span>
-            </div>
-            <div className="bg-white/20 rounded-full px-2 py-1 text-xs font-medium backdrop-blur-sm">
+            <span
+              className={cn(
+                "font-semibold",
+                isHorizontalMobileDevice || isLandscapeDevice
+                  ? "text-xs"
+                  : isLargeTabletDevice
+                  ? "text-base"
+                  : "text-sm"
+              )}
+            >
+              Upgrade Now
+            </span>
+            <div
+              className={cn(
+                "bg-white/20 rounded-full font-medium backdrop-blur-sm",
+                isHorizontalMobileDevice || isLandscapeDevice
+                  ? "px-2 py-1 text-[10px]"
+                  : isLargeTabletDevice
+                  ? "px-3 py-1.5 text-sm"
+                  : "px-2 py-1 text-xs"
+              )}
+            >
               $10/mo
             </div>
           </div>
@@ -304,19 +497,15 @@ export default function SideNavBottomSection({
           {actualIsStorageFull ? (
             <Button
               className={cn(
-                "w-full bg-linear-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 gap-2 shadow-lg cursor-not-allowed relative overflow-hidden",
+                "w-full bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 shadow-lg cursor-not-allowed relative overflow-hidden",
                 buttonSize.height,
-                buttonSize.text
+                buttonSize.text,
+                buttonSize.gap
               )}
               id="storage-full-button"
               disabled
             >
-              <Lock
-                className={cn(
-                  "text-white",
-                  isMobile ? "h-4 w-4" : "h-3.5 w-3.5"
-                )}
-              />
+              <Lock className={cn("text-white", buttonSize.icon)} />
               <span className="text-white font-semibold">Storage Full</span>
             </Button>
           ) : (
@@ -324,14 +513,15 @@ export default function SideNavBottomSection({
               <DialogTrigger className="w-full" asChild>
                 <Button
                   className={cn(
-                    "w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 gap-2 shadow-lg hover:shadow-xl transition-all duration-300",
+                    "w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300",
                     buttonSize.height,
-                    buttonSize.text
+                    buttonSize.text,
+                    buttonSize.gap
                   )}
                   disabled={!canCreateFiles || isLoading}
                   id="create-file-button-sidenav"
                 >
-                  <Plus className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                  <Plus className={buttonSize.icon} />
                   New File
                 </Button>
               </DialogTrigger>
@@ -339,17 +529,36 @@ export default function SideNavBottomSection({
               <DialogContent
                 className={cn(
                   "rounded-xl",
-                  isMobile ? "sm:max-w-md" : "sm:max-w-sm"
+                  isHorizontalMobileDevice || isLandscapeDevice
+                    ? "sm:max-w-xs"
+                    : isMobileDevice
+                    ? "sm:max-w-sm"
+                    : "sm:max-w-lg",
+                  isLargeTabletDevice && "sm:max-w-lg"
                 )}
               >
                 <DialogHeader>
                   <DialogTitle
-                    className={cn(isMobile ? "text-lg" : "text-base")}
+                    className={cn(
+                      isHorizontalMobileDevice || isLandscapeDevice
+                        ? "text-base"
+                        : isMobileDevice
+                        ? "text-lg"
+                        : "text-xl",
+                      isLargeTabletDevice && "text-2xl"
+                    )}
                   >
                     Create New File
                   </DialogTitle>
                   <DialogDescription
-                    className={cn(isMobile ? "text-sm" : "text-xs")}
+                    className={cn(
+                      isHorizontalMobileDevice || isLandscapeDevice
+                        ? "text-xs"
+                        : isMobileDevice
+                        ? "text-sm"
+                        : "text-base",
+                      isLargeTabletDevice && "text-lg"
+                    )}
                   >
                     Give your file a descriptive name
                   </DialogDescription>
@@ -359,8 +568,13 @@ export default function SideNavBottomSection({
                   <Input
                     placeholder="Enter file name..."
                     className={cn(
-                      "border-gray-300 focus:border-blue-500",
-                      isMobile ? "rounded-lg text-sm" : "rounded-lg text-sm"
+                      "border-gray-300 focus:border-blue-500 rounded-lg",
+                      isHorizontalMobileDevice || isLandscapeDevice
+                        ? "text-xs h-9"
+                        : isMobileDevice
+                        ? "text-sm h-10"
+                        : "text-base h-12",
+                      isLargeTabletDevice && "text-lg h-14"
                     )}
                     onChange={(e) => setFileInput(e.target.value)}
                     value={fileInput}
@@ -368,13 +582,25 @@ export default function SideNavBottomSection({
                   />
                 </div>
 
-                <DialogFooter className="gap-2">
+                <DialogFooter
+                  className={cn(
+                    "gap-3",
+                    (isHorizontalMobileDevice || isLandscapeDevice) && "gap-2",
+                    isTabletDevice && "gap-2",
+                    isLargeTabletDevice && "gap-4"
+                  )}
+                >
                   <DialogClose asChild>
                     <Button
                       variant="outline"
                       className={cn(
                         "border-gray-300 hover:bg-gray-50",
-                        isMobile ? "text-sm" : "text-xs"
+                        isHorizontalMobileDevice || isLandscapeDevice
+                          ? "text-xs h-8"
+                          : isMobileDevice
+                          ? "text-sm h-9"
+                          : "text-base h-11",
+                        isLargeTabletDevice && "text-lg h-12"
                       )}
                     >
                       Cancel
@@ -382,13 +608,20 @@ export default function SideNavBottomSection({
                   </DialogClose>
                   <DialogClose asChild>
                     <Button
-                      className="bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                      className={cn(
+                        "bg-gradient-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700",
+                        isHorizontalMobileDevice || isLandscapeDevice
+                          ? "text-xs h-8"
+                          : isMobileDevice
+                          ? "text-sm h-9"
+                          : "text-base h-11",
+                        isLargeTabletDevice && "text-lg h-12"
+                      )}
                       disabled={!(fileInput && fileInput.length > 3)}
                       onClick={() => {
                         handleFileCreate(fileInput);
                         setFileInput("");
                       }}
-                      size={isMobile ? "default" : "sm"}
                     >
                       Create File
                     </Button>
@@ -403,8 +636,11 @@ export default function SideNavBottomSection({
       <StorageIndicator
         totalFiles={actualFileCount}
         maxFiles={Constant.MAX_FREE_FILE}
-        isMobile={isMobile}
-        isTablet={isTablet}
+        isMobile={isMobileDevice}
+        isTablet={isTabletDevice}
+        isLargeTablet={isLargeTabletDevice}
+        isHorizontalMobile={isHorizontalMobileDevice}
+        isLandscape={isLandscapeDevice}
       />
     </div>
   );
