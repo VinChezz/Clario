@@ -51,3 +51,25 @@ export function useIsSmallMobile(): boolean {
 export function useIsLandscape(): boolean {
   return useMediaQuery("(orientation: landscape) and (max-height: 600px)");
 }
+
+export function useWindowHeight(): number | null {
+  const [windowHeight, setWindowHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const updateHeight = () => {
+      setWindowHeight(window.innerHeight);
+    };
+
+    updateHeight();
+
+    window.addEventListener("resize", updateHeight);
+    window.addEventListener("orientationchange", updateHeight);
+
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("orientationchange", updateHeight);
+    };
+  }, []);
+
+  return windowHeight;
+}
