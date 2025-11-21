@@ -4,6 +4,11 @@ export interface TourStep {
   title: string;
   description: string;
   position: "top" | "bottom" | "left" | "right";
+  responsivePosition?: {
+    mobile?: "top" | "bottom" | "left" | "right";
+    tablet?: "top" | "bottom" | "left" | "right";
+    desktop?: "top" | "bottom" | "left" | "right";
+  };
   condition?: (hasFiles: boolean, isStorageFull?: boolean) => boolean;
 }
 
@@ -50,7 +55,7 @@ export const tourSteps: TourStep[] = [
     title: "Create Your First File",
     description:
       "Click here to create new documents, whiteboards, or text files.",
-    position: "bottom",
+    position: "top",
     condition: (hasFiles, isStorageFull) => !hasFiles && !isStorageFull,
   },
 
@@ -63,7 +68,6 @@ export const tourSteps: TourStep[] = [
     position: "right",
     condition: (hasFiles, isStorageFull) => {
       const result = hasFiles && !isStorageFull;
-      console.log("🔍 Step 4 Condition:", { hasFiles, isStorageFull, result });
       return result;
     },
   },
@@ -77,7 +81,6 @@ export const tourSteps: TourStep[] = [
     position: "right",
     condition: (hasFiles, isStorageFull) => {
       const result = Boolean(hasFiles && isStorageFull);
-      console.log("🔍 Step 5 Condition:", { hasFiles, isStorageFull, result });
       return result;
     },
   },
@@ -121,5 +124,10 @@ export const tourSteps: TourStep[] = [
     description:
       "All your team's files appear here. Organize them with different views.",
     position: "left",
+    responsivePosition: {
+      mobile: "top",
+      tablet: "top",
+      desktop: "left",
+    },
   },
 ];

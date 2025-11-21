@@ -9,6 +9,11 @@ import { useTour } from "../../../_context/TourContext";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { TourStep, tourSteps } from "@/types/tour-steps";
 import { useFileData } from "../../../_context/FileDataContext";
+import {
+  useIsDesktop,
+  useIsMobile,
+  useIsHorizontalTablet,
+} from "@/hooks/useMediaQuery";
 
 export default function GettingStartedTour() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -27,6 +32,28 @@ export default function GettingStartedTour() {
   } = useTour();
   const { activeTeam } = useActiveTeam();
   const { hasFiles, isStorageFull, fileCount } = useFileData();
+
+  const isMobile = useIsMobile();
+  const IsHorizontalTablet = useIsHorizontalTablet();
+  const isDesktop = useIsDesktop();
+
+  const getResponsivePosition = useCallback(
+    (step: TourStep): "top" | "bottom" | "left" | "right" => {
+      if (step.responsivePosition) {
+        if (isMobile && step.responsivePosition.mobile) {
+          return step.responsivePosition.mobile;
+        }
+        if (IsHorizontalTablet && step.responsivePosition.tablet) {
+          return step.responsivePosition.tablet;
+        }
+        if (isDesktop && step.responsivePosition.desktop) {
+          return step.responsivePosition.desktop;
+        }
+      }
+      return step.position;
+    },
+    [isMobile, IsHorizontalTablet, isDesktop]
+  );
 
   const filteredSteps = tourSteps.filter(
     (step) => !step.condition || step.condition(hasFiles, isStorageFull)
@@ -168,6 +195,10 @@ export default function GettingStartedTour() {
 
   if (!isTourActive || !currentStepData) return null;
 
+  const currentStepPosition = currentStepData
+    ? getResponsivePosition(currentStepData)
+    : "bottom";
+
   return (
     <>
       <AnimatePresence>
@@ -263,12 +294,16 @@ export default function GettingStartedTour() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: -10 }}
                 transition={{ duration: 0.3, type: "spring" }}
-                style={getTooltipPosition(currentStepData, targetRect)}
+                style={getTooltipPosition(
+                  currentStepData,
+                  targetRect,
+                  currentStepPosition
+                )}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
                   className={`absolute w-3 h-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 transform rotate-45 ${getArrowPosition(
-                    currentStepData.position
+                    currentStepPosition
                   )}`}
                 />
 
@@ -346,7 +381,11 @@ export default function GettingStartedTour() {
   );
 }
 
-function getTooltipPosition(step: TourStep, targetRect: DOMRect) {
+function getTooltipPosition(
+  step: TourStep,
+  targetRect: DOMRect,
+  position: "top" | "bottom" | "left" | "right"
+) {
   const styles: any = {};
   const offset = 16;
   const tooltipWidth = 320;
@@ -364,7 +403,7 @@ function getTooltipPosition(step: TourStep, targetRect: DOMRect) {
   const verticalCenter =
     targetRect.top + targetRect.height / 2 - tooltipHeight / 2;
 
-  switch (step.position) {
+  switch (position) {
     case "top":
       styles.bottom = `${window.innerHeight - targetRect.top + offset}px`;
       styles.left = `${horizontalCenter}px`;
