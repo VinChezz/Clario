@@ -37,7 +37,7 @@ export function useIsDesktop(): boolean {
 }
 
 export function useIsHorizontalMobile(): boolean {
-  return useMediaQuery("(max-width: 900px) and (max-height: 500px)");
+  return useMediaQuery("(max-width: 950px) and (max-height: 600px)");
 }
 
 export function useIsHorizontalTablet(): boolean {
