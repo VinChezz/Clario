@@ -1,4 +1,3 @@
-// components/SideNavBottomSection.tsx (оптимизированная версия)
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -95,7 +94,7 @@ const StorageIndicator = ({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
-        `bg-gradient-to-br ${status.bgColor} rounded-xl border border-gray-200 shadow-sm`,
+        `bg-linear-to-br ${status.bgColor} rounded-xl border border-gray-200 shadow-sm`,
         storageSize
       )}
       id="storage-section"
@@ -133,7 +132,7 @@ const StorageIndicator = ({
             initial={{ width: 0 }}
             animate={{ width: `${Math.min(usagePercentage, 100)}%` }}
             transition={{ duration: 1, ease: "easeOut" }}
-            className={`h-full rounded-full bg-gradient-to-r ${status.color}`}
+            className={`h-full rounded-full bg-linear-to-r ${status.color}`}
           />
         </div>
 
@@ -176,6 +175,7 @@ interface SideNavBottomSectionProps {
   onAction?: () => void;
   isMobile?: boolean;
   isTablet?: boolean;
+  windowHeight?: number | null;
 }
 
 export default function SideNavBottomSection({
@@ -183,6 +183,7 @@ export default function SideNavBottomSection({
   totalFiles,
   isLoading = false,
   onAction,
+  windowHeight,
 }: SideNavBottomSectionProps) {
   const { user }: any = useKindeBrowserClient();
   const [fileInput, setFileInput] = useState("");
@@ -277,6 +278,15 @@ export default function SideNavBottomSection({
   ];
 
   const getButtonSize = () => {
+    if (isMobileDevice)
+      return {
+        height: "h-10",
+        text: "text-sm",
+        icon: "h-4 w-4",
+        padding: "px-3 py-2.5",
+        gap: "gap-2",
+        spacing: "space-y-2",
+      };
     if (isHorizontalMobileDevice || isLandscapeDevice)
       return {
         height: "h-9",
@@ -289,22 +299,13 @@ export default function SideNavBottomSection({
     if (isHorizontalTablet) {
       return {
         height: "h-9",
-        text: "text-base",
+        text: "text-sm",
         icon: "h-3.5 w-3.5",
         padding: "px-2.5 py-2",
         gap: "gap-1.5",
-        spacing: "space-y-2",
+        spacing: "space-y-4",
       };
     }
-    if (isMobileDevice)
-      return {
-        height: "h-14",
-        text: "text-base",
-        icon: "h-4 w-4",
-        padding: "px-3 py-2.5",
-        gap: "gap-2",
-        spacing: "space-y-2",
-      };
     if (isTabletDevice)
       return {
         height: "h-11",
@@ -334,6 +335,13 @@ export default function SideNavBottomSection({
   };
 
   const getUpgradeCardSize = () => {
+    if (isMobileDevice)
+      return {
+        padding: "p-2.5",
+        title: "text-sm",
+        desc: "text-xs",
+        badge: "text-xs",
+      };
     if (isHorizontalMobileDevice || isLandscapeDevice)
       return {
         padding: "p-2.5",
@@ -343,19 +351,12 @@ export default function SideNavBottomSection({
       };
     if (isHorizontalTablet) {
       return {
-        padding: "px-3 py-2.5",
+        padding: "px-3 py-2",
         title: "text-sm",
         desc: "text-xs",
         badge: "text-[8px]",
       };
     }
-    if (isMobileDevice)
-      return {
-        padding: "p-3.5",
-        title: "text-base",
-        desc: "text-sm",
-        badge: "text-xs",
-      };
     if (isTabletDevice)
       return {
         padding: "p-3",
@@ -371,7 +372,7 @@ export default function SideNavBottomSection({
         badge: "text-sm",
       };
     return {
-      padding: "p-3",
+      padding: "p-2.5",
       title: "text-base",
       desc: "text-sm",
       badge: "text-xs",
@@ -380,7 +381,7 @@ export default function SideNavBottomSection({
 
   const getSpacing = () => {
     if (isHorizontalMobileDevice || isLandscapeDevice) return "space-y-3";
-    if (isMobileDevice) return "space-y-4";
+    if (isMobileDevice) return "space-y-2";
     if (isTabletDevice) return "space-y-3.5";
     if (isLargeTabletDevice) return "space-y-4";
     return "space-y-3";
@@ -391,257 +392,272 @@ export default function SideNavBottomSection({
   const spacing = getSpacing();
 
   return (
-    <div className={cn(spacing)}>
-      <div className={cn("space-y-0.5", buttonSize.spacing)}>
-        {menuList.map((menu) => (
-          <button
-            key={menu.id}
-            className={cn(
-              "w-full flex items-center text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200",
-              buttonSize.padding,
-              buttonSize.text,
-              buttonSize.gap
-            )}
-            onClick={menu.onClick}
-          >
-            <menu.icon className={buttonSize.icon} />
-            <span className="font-medium">{menu.name}</span>
-          </button>
-        ))}
-      </div>
+    <div
+      className={cn(
+        "flex flex-col justify-between",
 
-      <div
-        className={cn(
-          "bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
-          upgradeCard.padding
-        )}
-        onClick={handleUpgradeClick}
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
-
-        <div className="relative z-10">
-          <div
-            className={cn(
-              "flex items-center gap-2 mb-2",
-              (isHorizontalMobileDevice || isLandscapeDevice) && "mb-1",
-              isLargeTabletDevice && "mb-3"
-            )}
-          >
-            <Crown
+        isMobileDevice || isHorizontalMobileDevice || isLandscapeDevice
+          ? "overflow-hidden"
+          : "overflow-visible"
+      )}
+    >
+      <div className={cn("flex-1", spacing)}>
+        <div className={cn("space-y-0.5", buttonSize.spacing)}>
+          {menuList.map((menu) => (
+            <button
+              key={menu.id}
               className={cn(
-                "text-yellow-300",
-                isHorizontalMobileDevice || isLandscapeDevice
-                  ? "h-3.5 w-3.5"
-                  : isLargeTabletDevice
-                  ? "h-5 w-5"
-                  : "h-4 w-4"
-              )}
-            />
-            <span
-              className={cn(
-                "font-bold",
-                isHorizontalMobileDevice || isLandscapeDevice
-                  ? "text-xs"
-                  : isLargeTabletDevice
-                  ? "text-base"
-                  : "text-sm"
-              )}
-            >
-              PRO FEATURES
-            </span>
-          </div>
-
-          <h3 className={cn("font-bold mb-1", upgradeCard.title)}>
-            Unlock Premium
-          </h3>
-          <p
-            className={cn(
-              "text-white/90 mb-3 leading-relaxed",
-              upgradeCard.desc
-            )}
-          >
-            Get unlimited storage & features
-          </p>
-
-          <div className="flex items-center justify-between">
-            <span
-              className={cn(
-                "font-semibold",
-                isHorizontalMobileDevice || isLandscapeDevice
-                  ? "text-xs"
-                  : isLargeTabletDevice
-                  ? "text-base"
-                  : "text-sm"
-              )}
-            >
-              Upgrade Now
-            </span>
-            <div
-              className={cn(
-                "bg-white/20 rounded-full font-medium backdrop-blur-sm",
-                isHorizontalMobileDevice || isLandscapeDevice
-                  ? "px-2 py-1 text-[10px]"
-                  : isLargeTabletDevice
-                  ? "px-3 py-1.5 text-sm"
-                  : "px-2 py-1 text-xs"
-              )}
-            >
-              $10/mo
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {actualHasFiles && (
-        <>
-          {actualIsStorageFull ? (
-            <Button
-              className={cn(
-                "w-full bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 shadow-lg cursor-not-allowed relative overflow-hidden",
-                buttonSize.height,
+                "w-full flex items-center text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200",
+                buttonSize.padding,
                 buttonSize.text,
                 buttonSize.gap
               )}
-              id="storage-full-button"
-              disabled
+              onClick={menu.onClick}
             >
-              <Lock className={cn("text-white", buttonSize.icon)} />
-              <span className="text-white font-semibold">Storage Full</span>
-            </Button>
-          ) : (
-            <Dialog>
-              <DialogTrigger className="w-full" asChild>
-                <Button
-                  className={cn(
-                    "w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300",
-                    buttonSize.height,
-                    buttonSize.text,
-                    buttonSize.gap
-                  )}
-                  disabled={!canCreateFiles || isLoading}
-                  id="create-file-button-sidenav"
-                >
-                  <Plus className={buttonSize.icon} />
-                  New File
-                </Button>
-              </DialogTrigger>
+              <menu.icon className={buttonSize.icon} />
+              <span className="font-medium">{menu.name}</span>
+            </button>
+          ))}
+        </div>
 
-              <DialogContent
+        <div
+          className={cn(
+            "bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+            upgradeCard.padding
+          )}
+          onClick={handleUpgradeClick}
+        >
+          <div className="absolute inset-0 bg-[radial-linear(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+
+          <div className="relative z-10">
+            <div
+              className={cn(
+                "flex items-center gap-2 mb-2",
+                (isHorizontalMobileDevice || isLandscapeDevice) && "mb-1",
+                isLargeTabletDevice && "mb-3"
+              )}
+            >
+              <Crown
                 className={cn(
-                  "rounded-xl",
+                  "text-yellow-300",
                   isHorizontalMobileDevice || isLandscapeDevice
-                    ? "sm:max-w-xs"
-                    : isMobileDevice
-                    ? "sm:max-w-sm"
-                    : "sm:max-w-lg",
-                  isLargeTabletDevice && "sm:max-w-lg"
+                    ? "h-3.5 w-3.5"
+                    : isLargeTabletDevice
+                    ? "h-5 w-5"
+                    : "h-4 w-4"
+                )}
+              />
+              <span
+                className={cn(
+                  "font-bold",
+                  isHorizontalMobileDevice || isLandscapeDevice
+                    ? "text-xs"
+                    : isLargeTabletDevice
+                    ? "text-base"
+                    : "text-sm"
                 )}
               >
-                <DialogHeader>
-                  <DialogTitle
-                    className={cn(
-                      isHorizontalMobileDevice || isLandscapeDevice
-                        ? "text-base"
-                        : isMobileDevice
-                        ? "text-lg"
-                        : "text-xl",
-                      isLargeTabletDevice && "text-2xl"
-                    )}
-                  >
-                    Create New File
-                  </DialogTitle>
-                  <DialogDescription
-                    className={cn(
-                      isHorizontalMobileDevice || isLandscapeDevice
-                        ? "text-xs"
-                        : isMobileDevice
-                        ? "text-sm"
-                        : "text-base",
-                      isLargeTabletDevice && "text-lg"
-                    )}
-                  >
-                    Give your file a descriptive name
-                  </DialogDescription>
-                </DialogHeader>
+                PRO FEATURES
+              </span>
+            </div>
 
-                <div className="space-y-4">
-                  <Input
-                    placeholder="Enter file name..."
-                    className={cn(
-                      "border-gray-300 focus:border-blue-500 rounded-lg",
-                      isHorizontalMobileDevice || isLandscapeDevice
-                        ? "text-xs h-9"
-                        : isMobileDevice
-                        ? "text-sm h-10"
-                        : "text-base h-12",
-                      isLargeTabletDevice && "text-lg h-14"
-                    )}
-                    onChange={(e) => setFileInput(e.target.value)}
-                    value={fileInput}
-                    autoFocus
-                  />
-                </div>
+            <h3 className={cn("font-bold mb-1", upgradeCard.title)}>
+              Unlock Premium
+            </h3>
+            <p
+              className={cn(
+                "text-white/90 mb-3 leading-relaxed",
+                upgradeCard.desc
+              )}
+            >
+              Get unlimited storage & features
+            </p>
 
-                <DialogFooter
+            <div className="flex items-center justify-between">
+              <span
+                className={cn(
+                  "font-semibold",
+                  isHorizontalMobileDevice || isLandscapeDevice
+                    ? "text-xs"
+                    : isLargeTabletDevice
+                    ? "text-base"
+                    : "text-sm"
+                )}
+              >
+                Upgrade Now
+              </span>
+              <div
+                className={cn(
+                  "bg-white/20 rounded-full font-medium backdrop-blur-sm",
+                  isHorizontalMobileDevice || isLandscapeDevice
+                    ? "px-2 py-1 text-[10px]"
+                    : isLargeTabletDevice
+                    ? "px-3 py-1.5 text-sm"
+                    : "px-2 py-1 text-xs"
+                )}
+              >
+                $10/mo
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {actualHasFiles && (
+          <>
+            {actualIsStorageFull ? (
+              <Button
+                className={cn(
+                  "w-full bg-linear-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 shadow-lg cursor-not-allowed relative overflow-hidden",
+                  buttonSize.height,
+                  buttonSize.text,
+                  buttonSize.gap
+                )}
+                id="storage-full-button"
+                disabled
+              >
+                <Lock className={cn("text-white", buttonSize.icon)} />
+                <span className="text-white font-semibold">Storage Full</span>
+              </Button>
+            ) : (
+              <Dialog>
+                <DialogTrigger className="w-full" asChild>
+                  <Button
+                    className={cn(
+                      "w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300",
+                      buttonSize.height,
+                      buttonSize.text,
+                      buttonSize.gap
+                    )}
+                    disabled={!canCreateFiles || isLoading}
+                    id="create-file-button-sidenav"
+                  >
+                    <Plus className={buttonSize.icon} />
+                    New File
+                  </Button>
+                </DialogTrigger>
+
+                <DialogContent
                   className={cn(
-                    "gap-3",
-                    (isHorizontalMobileDevice || isLandscapeDevice) && "gap-2",
-                    isTabletDevice && "gap-2",
-                    isLargeTabletDevice && "gap-4"
+                    "rounded-xl",
+                    isHorizontalMobileDevice || isLandscapeDevice
+                      ? "sm:max-w-xs"
+                      : isMobileDevice
+                      ? "sm:max-w-sm"
+                      : "sm:max-w-lg",
+                    isLargeTabletDevice && "sm:max-w-lg"
                   )}
                 >
-                  <DialogClose asChild>
-                    <Button
-                      variant="outline"
+                  <DialogHeader>
+                    <DialogTitle
                       className={cn(
-                        "border-gray-300 hover:bg-gray-50",
                         isHorizontalMobileDevice || isLandscapeDevice
-                          ? "text-xs h-8"
+                          ? "text-base"
                           : isMobileDevice
-                          ? "text-sm h-9"
-                          : "text-base h-11",
-                        isLargeTabletDevice && "text-lg h-12"
+                          ? "text-lg"
+                          : "text-xl",
+                        isLargeTabletDevice && "text-2xl"
                       )}
                     >
-                      Cancel
-                    </Button>
-                  </DialogClose>
-                  <DialogClose asChild>
-                    <Button
+                      Create New File
+                    </DialogTitle>
+                    <DialogDescription
                       className={cn(
-                        "bg-gradient-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700",
                         isHorizontalMobileDevice || isLandscapeDevice
-                          ? "text-xs h-8"
+                          ? "text-xs"
                           : isMobileDevice
-                          ? "text-sm h-9"
-                          : "text-base h-11",
-                        isLargeTabletDevice && "text-lg h-12"
+                          ? "text-sm"
+                          : "text-base",
+                        isLargeTabletDevice && "text-lg"
                       )}
-                      disabled={!(fileInput && fileInput.length > 3)}
-                      onClick={() => {
-                        handleFileCreate(fileInput);
-                        setFileInput("");
-                      }}
                     >
-                      Create File
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
-        </>
-      )}
+                      Give your file a descriptive name
+                    </DialogDescription>
+                  </DialogHeader>
 
-      <StorageIndicator
-        totalFiles={actualFileCount}
-        maxFiles={Constant.MAX_FREE_FILE}
-        isMobile={isMobileDevice}
-        isTablet={isTabletDevice}
-        isLargeTablet={isLargeTabletDevice}
-        isHorizontalMobile={isHorizontalMobileDevice}
-        isLandscape={isLandscapeDevice}
-      />
+                  <div className="space-y-4">
+                    <Input
+                      placeholder="Enter file name..."
+                      className={cn(
+                        "border-gray-300 focus:border-blue-500 rounded-lg",
+                        isHorizontalMobileDevice || isLandscapeDevice
+                          ? "text-xs h-9"
+                          : isMobileDevice
+                          ? "text-sm h-10"
+                          : "text-base h-12",
+                        isLargeTabletDevice && "text-lg h-14"
+                      )}
+                      onChange={(e) => setFileInput(e.target.value)}
+                      value={fileInput}
+                      autoFocus
+                    />
+                  </div>
+
+                  <DialogFooter
+                    className={cn(
+                      "gap-3",
+                      (isHorizontalMobileDevice || isLandscapeDevice) &&
+                        "gap-2",
+                      isTabletDevice && "gap-2",
+                      isLargeTabletDevice && "gap-4"
+                    )}
+                  >
+                    <DialogClose asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "border-gray-300 hover:bg-gray-50",
+                          isHorizontalMobileDevice || isLandscapeDevice
+                            ? "text-xs h-8"
+                            : isMobileDevice
+                            ? "text-sm h-9"
+                            : "text-base h-11",
+                          isLargeTabletDevice && "text-lg h-12"
+                        )}
+                      >
+                        Cancel
+                      </Button>
+                    </DialogClose>
+                    <DialogClose asChild>
+                      <Button
+                        className={cn(
+                          "bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700",
+                          isHorizontalMobileDevice || isLandscapeDevice
+                            ? "text-xs h-8"
+                            : isMobileDevice
+                            ? "text-sm h-9"
+                            : "text-base h-11",
+                          isLargeTabletDevice && "text-lg h-12"
+                        )}
+                        disabled={!(fileInput && fileInput.length > 3)}
+                        onClick={() => {
+                          handleFileCreate(fileInput);
+                          setFileInput("");
+                        }}
+                      >
+                        Create File
+                      </Button>
+                    </DialogClose>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="pt-3">
+        {!isMobileDevice && !isHorizontalMobileDevice && (
+          <StorageIndicator
+            totalFiles={actualFileCount}
+            maxFiles={Constant.MAX_FREE_FILE}
+            isMobile={isMobileDevice}
+            isTablet={isTabletDevice}
+            isLargeTablet={isLargeTabletDevice}
+            isHorizontalMobile={isHorizontalMobileDevice}
+            isLandscape={isLandscapeDevice}
+          />
+        )}
+      </div>
     </div>
   );
 }

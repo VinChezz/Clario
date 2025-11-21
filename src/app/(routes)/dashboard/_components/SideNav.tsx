@@ -15,6 +15,7 @@ import {
   useIsTablet,
   useIsLargeTablet,
   useIsDesktop,
+  useWindowHeight,
 } from "@/hooks/useMediaQuery";
 import Image from "next/image";
 
@@ -39,6 +40,7 @@ export default function SideNav({
   const isTablet = useIsTablet();
   const isLargeTablet = useIsLargeTablet();
   const isDesktop = useIsDesktop();
+  const windowHeight = useWindowHeight();
 
   const isCollapsibleTablet = isTablet || isLargeTablet;
 
@@ -98,12 +100,17 @@ export default function SideNav({
   const getSidebarWidth = () => {
     if (isMobile) return "w-80";
     if (isCollapsibleTablet) return "w-68";
-    return "w-74";
+    return "w-78";
+  };
+
+  const getSidebarHeight = () => {
+    if (isMobile || isCollapsibleTablet) {
+      return "h-screen";
+    }
+    return "h-screen";
   };
 
   const getPadding = () => {
-    if (isMobile) return "p-3";
-    if (isCollapsibleTablet) return "p-3";
     return "p-3";
   };
 
@@ -128,16 +135,22 @@ export default function SideNav({
 
       <div
         className={cn(
-          "fixed top-0 left-0 h-screen bg-white shadow-xl border-r border-gray-200 z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 lg:h-screen flex flex-col",
+          "fixed top-0 left-0 bg-white shadow-xl border-r border-gray-200 z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 flex flex-col",
           getSidebarWidth(),
+          getSidebarHeight(),
           getSidebarVisibility(),
           isDesktop && "fixed lg:relative"
         )}
+        style={
+          (isMobile || isCollapsibleTablet) && windowHeight
+            ? { height: `${windowHeight}px` }
+            : {}
+        }
       >
         <div
           className={cn(
             "flex items-center justify-between border-b border-gray-100 bg-white/95 backdrop-blur-sm shrink-0",
-            isMobile ? "p-3" : "p-3"
+            "p-3"
           )}
         >
           <div className="flex items-center gap-2 px-2">
@@ -178,7 +191,7 @@ export default function SideNav({
           </Button>
         )}
 
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className={cn("flex-1 overflow-y-auto", getPadding())}>
             <SideNavTopSection
               user={user}
@@ -203,6 +216,7 @@ export default function SideNav({
               onAction={onCloseSidebar}
               isMobile={isMobile}
               isTablet={isCollapsibleTablet}
+              windowHeight={windowHeight}
             />
           </div>
         </div>

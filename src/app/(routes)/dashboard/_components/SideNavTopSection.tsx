@@ -1,4 +1,3 @@
-// Исправленная версия SideNavTopSection.tsx
 "use client";
 import {
   ChevronDown,
@@ -11,18 +10,15 @@ import {
   History,
   Star,
   Search,
-  Plus,
   Sparkles,
   Clock,
   FolderOpen,
-  MoreVertical,
 } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useMemo, useState } from "react";
 import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { FILE } from "@/shared/types/file.interface";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -86,7 +82,7 @@ const menu = [
     buttonClass: "hover:border-blue-300 hover:bg-blue-50",
     textClass: "group-hover:text-blue-700",
     iconClass: "bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm",
-    iconColor: "text-white", // ✅ Этот цвет должен применяться
+    iconColor: "text-white",
   },
   {
     id: 2,
@@ -98,7 +94,7 @@ const menu = [
     buttonClass: "hover:border-gray-300 hover:bg-gray-50",
     textClass: "",
     iconClass: "bg-gradient-to-br from-gray-100 to-gray-200",
-    iconColor: "text-gray-600", // ✅ Этот цвет должен применяться
+    iconColor: "text-gray-600",
   },
   {
     id: 3,
@@ -110,7 +106,7 @@ const menu = [
     buttonClass: "hover:border-indigo-300 hover:bg-indigo-50",
     textClass: "group-hover:text-indigo-700",
     iconClass: "bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm",
-    iconColor: "text-white", // ✅ Этот цвет должен применяться
+    iconColor: "text-white",
   },
   {
     id: 4,
@@ -122,7 +118,7 @@ const menu = [
     buttonClass: "hover:border-amber-300 hover:bg-amber-50",
     textClass: "group-hover:text-amber-700",
     iconClass: "bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm",
-    iconColor: "text-white", // ✅ Этот цвет должен применяться
+    iconColor: "text-white",
   },
 ];
 
@@ -248,6 +244,18 @@ function SideNavTopSection({
   });
 
   const getButtonSize = () => {
+    if (isMobileDevice)
+      return {
+        height: "h-15",
+        text: "text-sm",
+        icon: "h-4 w-4",
+        padding: "px-3 py-2.5",
+        gap: "gap-2",
+        spacing: "space-y-4",
+        avatarSize: "w-9 h-9 text-sm",
+        crownSize: "h-3 w-3",
+        chevronSize: "h-4 w-4",
+      };
     if (isHorizontalMobileDevice || isLandscapeDevice)
       return {
         height: "h-11",
@@ -273,18 +281,7 @@ function SideNavTopSection({
         chevronSize: "h-3.5 w-3.5",
       };
     }
-    if (isMobileDevice)
-      return {
-        height: "h-15",
-        text: "text-sm",
-        icon: "h-4 w-4",
-        padding: "px-3 py-2.5",
-        gap: "gap-2",
-        spacing: "space-y-4",
-        avatarSize: "w-9 h-9 text-sm",
-        crownSize: "h-3 w-3",
-        chevronSize: "h-4 w-4",
-      };
+
     if (isTabletDevice)
       return {
         height: "h-13",
@@ -323,6 +320,14 @@ function SideNavTopSection({
   };
 
   const getQuickAccessSize = () => {
+    if (isMobileDevice)
+      return {
+        buttonClass: "p-3",
+        iconSize: "h-4 w-4",
+        gridCols: "grid-cols-2",
+        gap: "gap-3",
+        textSize: "text-sm",
+      };
     if (isHorizontalMobileDevice || isLandscapeDevice)
       return {
         buttonClass: "p-2",
@@ -333,21 +338,14 @@ function SideNavTopSection({
       };
     if (isHorizontalTablet) {
       return {
-        buttonClass: "p-3.5",
+        buttonClass: "p-2",
         iconSize: "h-4 w-4",
         gridCols: "grid-cols-2",
         gap: "gap-1.5",
         textSize: "text-sm",
       };
     }
-    if (isMobileDevice)
-      return {
-        buttonClass: "p-3",
-        iconSize: "h-4 w-4",
-        gridCols: "grid-cols-1",
-        gap: "gap-3",
-        textSize: "text-sm",
-      };
+
     if (isTabletDevice)
       return {
         buttonClass: "p-2",
@@ -368,12 +366,29 @@ function SideNavTopSection({
       buttonClass: "p-4",
       iconSize: "h-4 w-4",
       gridCols: "grid-cols-2",
-      gap: "gap-3",
+      gap: "gap-2",
       textSize: "text-sm",
     };
   };
 
   const getModalSizes = () => {
+    if (isMobileDevice)
+      return {
+        teams: "max-w-[95vw] max-h-[87vh]",
+        files: "max-w-[95vw] max-h-[90vh]",
+        title: "text-base",
+        inputHeight: "h-7",
+        teamAvatar: "w-10 h-10 text-xs",
+        fileGrid: "grid-cols-2",
+        contentPadding: "p-3.5",
+        teamItemPadding: "p-2",
+        headerPadding: "px-3.5 pt-3.5 pb-3",
+        searchPadding: "px-3.5 pb-3",
+        teamsPadding: "px-3.5 pt-0",
+        quickAccessPadding: "px-3.5",
+        userPadding: "px-3.5",
+        separatorMargin: "mx-3.5",
+      };
     if (isHorizontalMobileDevice || isLandscapeDevice)
       return {
         teams: "max-w-[85vw]",
@@ -382,6 +397,14 @@ function SideNavTopSection({
         inputHeight: "h-9",
         teamAvatar: "w-8 h-8 text-xs",
         fileGrid: "grid-cols-1",
+        contentPadding: "p-3",
+        teamItemPadding: "p-2",
+        headerPadding: "px-3 pt-3 pb-2",
+        searchPadding: "px-3 pb-2",
+        teamsPadding: "px-3 pt-0",
+        quickAccessPadding: "px-3",
+        userPadding: "px-3",
+        separatorMargin: "mx-3",
       };
     if (isHorizontalTablet) {
       return {
@@ -391,17 +414,16 @@ function SideNavTopSection({
         inputHeight: "h-9",
         teamAvatar: "w-8 h-8 text-sm",
         fileGrid: "grid-cols-2",
+        contentPadding: "p-4",
+        teamItemPadding: "p-3",
+        headerPadding: "px-4 pt-4 pb-3",
+        searchPadding: "px-4 pb-3",
+        teamsPadding: "px-4 pt-0",
+        quickAccessPadding: "px-4",
+        userPadding: "px-4",
+        separatorMargin: "mx-4",
       };
     }
-    if (isMobileDevice)
-      return {
-        teams: "max-w-[95vw]",
-        files: "max-w-[115vw]",
-        title: "text-xl",
-        inputHeight: "h-10",
-        teamAvatar: "w-9 h-9 text-xs",
-        fileGrid: "grid-cols-2",
-      };
     if (isTabletDevice)
       return {
         teams: "max-w-md",
@@ -410,6 +432,14 @@ function SideNavTopSection({
         inputHeight: "h-10",
         teamAvatar: "w-10 h-10 text-sm",
         fileGrid: "grid-cols-2",
+        contentPadding: "p-5",
+        teamItemPadding: "p-3",
+        headerPadding: "px-5 pt-5 pb-4",
+        searchPadding: "px-5 pb-4",
+        teamsPadding: "px-5 pt-0",
+        quickAccessPadding: "px-5",
+        userPadding: "px-5",
+        separatorMargin: "mx-5",
       };
     if (isLargeTabletDevice)
       return {
@@ -420,14 +450,31 @@ function SideNavTopSection({
         inputHeight: "h-12",
         teamAvatar: "w-12 h-12 text-base",
         fileGrid: "grid-cols-3",
+        contentPadding: "p-6",
+        teamItemPadding: "p-4",
+        headerPadding: "px-6 pt-6 pb-5",
+        searchPadding: "px-6 pb-5",
+        teamsPadding: "px-6 pt-0",
+        quickAccessPadding: "px-6",
+        userPadding: "px-6",
+        separatorMargin: "mx-6",
       };
+
     return {
       teams: "max-w-lg",
       files: "max-w-4xl",
-      title: "text-lg",
+      title: "text-xl",
       inputHeight: "h-8",
       teamAvatar: "w-10 h-10 text-sm",
       fileGrid: "grid-cols-3",
+      contentPadding: "p-4",
+      teamItemPadding: "p-3",
+      headerPadding: "px-6 pt-6 pb-4",
+      searchPadding: "px-4 pb-4",
+      teamsPadding: "px-6 pt-0",
+      quickAccessPadding: "px-6",
+      userPadding: "px-6",
+      separatorMargin: "mx-4",
     };
   };
 
@@ -437,7 +484,7 @@ function SideNavTopSection({
     if (isMobileDevice) return "gap-4";
     if (isTabletDevice) return "gap-2.5";
     if (isLargeTabletDevice) return "gap-5";
-    return "gap-4";
+    return "gap-2";
   };
 
   const buttonSize = getButtonSize();
@@ -454,10 +501,11 @@ function SideNavTopSection({
           buttonSize.padding,
           buttonSize.gap
         )}
+        id="team-switcher"
       >
         <div
           className={cn(
-            "rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold shadow-sm",
+            "rounded-xl bg-linear-to-br flex items-center justify-center text-white font-bold shadow-sm",
             buttonSize.avatarSize,
             activeTeam && teamList
               ? getTeamColor(
@@ -512,10 +560,11 @@ function SideNavTopSection({
           buttonSize.padding,
           buttonSize.gap
         )}
+        id="all-files"
       >
         <div
           className={cn(
-            "rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm",
+            "rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm",
             buttonSize.avatarSize
           )}
         >
@@ -551,8 +600,10 @@ function SideNavTopSection({
         />
       </button>
 
-      {/* Quick Access Section */}
-      <div className={cn("grid", quickAccess.gridCols, quickAccess.gap)}>
+      <div
+        className={cn("grid", quickAccess.gridCols, quickAccess.gap)}
+        id="quick-access-section"
+      >
         {menu.map((item) => (
           <button
             key={item.id}
@@ -592,15 +643,21 @@ function SideNavTopSection({
         ))}
       </div>
 
-      {/* Teams Modal */}
       <Dialog open={teamsModalOpen} onOpenChange={setTeamsModalOpen}>
         <DialogContent
           className={cn(
-            "p-0 gap-0 overflow-hidden rounded-2xl",
+            "p-0 gap-0 overflow-hidden rounded-2xl flex flex-col",
             modalSizes.teams
           )}
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <DialogHeader className="p-5 pb-4 border-b bg-gradient-to-br from-gray-50 to-white">
+          <DialogHeader
+            className={cn(
+              "border-b bg-linear-to-br from-gray-50 to-white",
+              modalSizes.contentPadding,
+              "pb-3"
+            )}
+          >
             <DialogTitle
               className={cn("font-bold text-gray-900", modalSizes.title)}
             >
@@ -608,7 +665,7 @@ function SideNavTopSection({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="p-5 pb-4">
+          <div className={cn("shrink-0", modalSizes.contentPadding, "pb-3")}>
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
@@ -625,12 +682,9 @@ function SideNavTopSection({
 
           <div
             className={cn(
-              "overflow-y-auto p-5 pt-4",
-              isHorizontalMobileDevice ||
-                isLandscapeDevice ||
-                isHorizontalTablet
-                ? "max-h-48"
-                : "max-h-72"
+              "overflow-y-auto flex-1",
+              modalSizes.contentPadding,
+              "pt-0"
             )}
           >
             <div className="space-y-2">
@@ -640,7 +694,8 @@ function SideNavTopSection({
                     key={team.id}
                     onClick={() => handleTeamSelect(team)}
                     className={cn(
-                      "w-full flex items-center gap-3 p-3 rounded-xl transition-all",
+                      "w-full flex items-center gap-3 rounded-xl transition-all",
+                      modalSizes.teamItemPadding,
                       activeTeam?.id === team.id
                         ? "bg-blue-50 border-2 border-blue-300 shadow-sm"
                         : "hover:bg-gray-50 border-2 border-transparent hover:border-gray-200"
@@ -648,7 +703,7 @@ function SideNavTopSection({
                   >
                     <div
                       className={cn(
-                        "rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold shadow-sm",
+                        "rounded-xl bg-linear-to-br flex items-center justify-center text-white font-bold shadow-sm",
                         modalSizes.teamAvatar,
                         getTeamColor(index)
                       )}
@@ -703,7 +758,7 @@ function SideNavTopSection({
 
           <Separator className="mx-5" />
 
-          <div className="p-5">
+          <div className={cn("shrink-0", modalSizes.contentPadding)}>
             <div
               className={cn(
                 "grid gap-2.5",
@@ -719,17 +774,16 @@ function SideNavTopSection({
                   key={item.id}
                   onClick={() => handleQuickAction(item.path!)}
                   className={cn(
-                    "flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 transition-all group",
+                    "flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 transition-all group",
                     item.buttonClass
                   )}
                 >
                   <div
                     className={cn(
-                      "w-9 h-9 rounded-lg flex items-center justify-center",
+                      "w-8 h-8 rounded-lg flex items-center justify-center",
                       item.iconClass
                     )}
                   >
-                    {/* ИСПРАВЛЕНИЕ: добавлен item.iconColor */}
                     <item.icon
                       className={cn(quickAccess.iconSize, item.iconColor)}
                     />
@@ -749,7 +803,9 @@ function SideNavTopSection({
 
           <Separator className="mx-5" />
 
-          <div className="p-5 bg-gray-50">
+          <div
+            className={cn("fshrink-0 bg-gray-50", modalSizes.contentPadding)}
+          >
             {user && (
               <div className="flex items-center gap-3 p-3 bg-white rounded-xl mb-2.5 shadow-sm border border-gray-200">
                 <Image
@@ -760,17 +816,17 @@ function SideNavTopSection({
                   className="rounded-full ring-2 ring-gray-100"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-lg text-gray-900 truncate">
+                  <p className="font-semibold text-sm text-gray-900 truncate">
                     {user?.given_name} {user?.family_name}
                   </p>
-                  <p className="text-sm text-gray-500 truncate">
+                  <p className="text-xs text-gray-500 truncate">
                     {user?.email}
                   </p>
                 </div>
               </div>
             )}
             <LogoutLink>
-              <button className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-all border border-red-200">
+              <button className="w-full flex items-center justify-center gap-2 p-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-all border border-red-200">
                 <LogOut className="h-4 w-4" />
                 <span className="text-sm font-semibold">Logout</span>
               </button>
@@ -779,15 +835,15 @@ function SideNavTopSection({
         </DialogContent>
       </Dialog>
 
-      {/* Files Modal */}
       <Dialog open={filesModalOpen} onOpenChange={setFilesModalOpen}>
         <DialogContent
           className={cn(
             "p-2 gap-0 overflow-hidden rounded-2xl",
             modalSizes.files
           )}
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <DialogHeader className="px-6 pt-5 pb-4 border-b bg-gradient-to-br from-indigo-50 to-purple-50">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b">
             <div className="flex items-center justify-between">
               <DialogTitle
                 className={cn("font-bold text-gray-900", modalSizes.title)}
@@ -822,7 +878,7 @@ function SideNavTopSection({
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
                   fileFilter === "all"
-                    ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md"
+                    ? "bg-linear-to-br from-blue-500 to-indigo-600 text-white shadow-md"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 )}
               >
@@ -834,7 +890,7 @@ function SideNavTopSection({
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
                   fileFilter === "recent"
-                    ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md"
+                    ? "bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-md"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 )}
               >
@@ -846,7 +902,7 @@ function SideNavTopSection({
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
                   fileFilter === "favorites"
-                    ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md"
+                    ? "bg-linear-to-br from-amber-500 to-orange-600 text-white shadow-md"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 )}
               >
@@ -872,9 +928,9 @@ function SideNavTopSection({
                   <button
                     key={file.id}
                     onClick={() => handleFileClick(file.id)}
-                    className="group flex flex-col rounded-xl border border-gray-200 bg-white hover:bg-gradient-to-br hover:from-indigo-50 hover:via-purple-50 hover:to-pink-50 hover:border-indigo-200 hover:shadow-md hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                    className="group flex flex-col rounded-xl border border-gray-200 bg-white hover:bg-linear-to-br hover:from-indigo-50 hover:via-purple-50 hover:to-pink-50 hover:border-indigo-200 hover:shadow-md hover:-translate-y-1 transition-all duration-300 overflow-hidden"
                   >
-                    <div className="w-full aspect-video bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center group-hover:from-transparent group-hover:to-transparent transition-all">
+                    <div className="w-full aspect-video bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center group-hover:from-transparent group-hover:to-transparent transition-all">
                       <FileText className="h-8 w-8 text-gray-400 group-hover:text-indigo-600 transition-colors" />
                     </div>
                     <div className="p-3">
