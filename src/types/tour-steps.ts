@@ -16,6 +16,7 @@ export const tourSteps: TourStep[] = [
       "Manage your team members, assign roles (Admin, Editor, Viewer) and control access permissions.",
     position: "bottom",
   },
+
   {
     id: 2,
     target: "team-switcher",
@@ -27,6 +28,24 @@ export const tourSteps: TourStep[] = [
 
   {
     id: 3,
+    target: "all-files",
+    title: "Your Files",
+    description:
+      "Access all your team files in one place. View, organize, and manage your documents, diagrams, and collaborative work. Click here to browse through all your files and see an overview of your team's documentation.",
+    position: "bottom",
+  },
+
+  {
+    id: 4,
+    target: "quick-access-section",
+    title: "Quick Access",
+    description:
+      "Quickly navigate to frequently used sections. Create new teams, adjust settings, view recent files, or access your favorites with just one click.",
+    position: "right",
+  },
+
+  {
+    id: 5,
     target: "create-file-button-filelist",
     title: "Create Your First File",
     description:
@@ -36,7 +55,7 @@ export const tourSteps: TourStep[] = [
   },
 
   {
-    id: 4,
+    id: 6,
     target: "create-file-button-sidenav",
     title: "Create New File",
     description:
@@ -50,7 +69,7 @@ export const tourSteps: TourStep[] = [
   },
 
   {
-    id: 5,
+    id: 7,
     target: "storage-full-button",
     title: "Storage Limit Reached",
     description:
@@ -64,7 +83,7 @@ export const tourSteps: TourStep[] = [
   },
 
   {
-    id: 6,
+    id: 8,
     target: "storage-section",
     title: "Storage Usage",
     description:
@@ -72,7 +91,7 @@ export const tourSteps: TourStep[] = [
     position: "top",
   },
   {
-    id: 7,
+    id: 9,
     target: "total-files-card",
     title: "File Management",
     description:
@@ -80,7 +99,7 @@ export const tourSteps: TourStep[] = [
     position: "top",
   },
   {
-    id: 8,
+    id: 10,
     target: "team-members-card",
     title: "Team Size",
     description:
@@ -88,7 +107,7 @@ export const tourSteps: TourStep[] = [
     position: "top",
   },
   {
-    id: 9,
+    id: 11,
     target: "storage-card",
     title: "Storage Status",
     description:
@@ -96,7 +115,7 @@ export const tourSteps: TourStep[] = [
     position: "top",
   },
   {
-    id: 10,
+    id: 12,
     target: "file-list-container",
     title: "Your Files & Documents",
     description:
