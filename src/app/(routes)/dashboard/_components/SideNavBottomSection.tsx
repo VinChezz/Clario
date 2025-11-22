@@ -391,9 +391,9 @@ export default function SideNavBottomSection({
         height: "h-9",
         text: "text-xs",
         icon: "h-3.5 w-3.5",
-        padding: "px-2.5 py-2",
+        padding: "px-2.5 py-1.5",
         gap: "gap-1.5",
-        spacing: "space-y-2",
+        spacing: "space-y-1",
       };
     if (isHorizontalTablet) {
       return {
@@ -443,10 +443,10 @@ export default function SideNavBottomSection({
       };
     if (isHorizontalMobileDevice || isLandscapeDevice)
       return {
-        padding: "p-2.5",
-        title: "text-sm",
+        padding: "p-1.5",
+        title: "text-xs",
         desc: "text-xs",
-        badge: "text-[10px]",
+        badge: "text-[8px]",
       };
     if (isHorizontalTablet) {
       return {
@@ -479,7 +479,7 @@ export default function SideNavBottomSection({
   };
 
   const getSpacing = () => {
-    if (isHorizontalMobileDevice || isLandscapeDevice) return "space-y-3";
+    if (isHorizontalMobileDevice || isLandscapeDevice) return "space-y-1";
     if (isMobileDevice) return "space-y-2";
     if (isTabletDevice) return "space-y-3.5";
     if (isLargeTabletDevice) return "space-y-4";
@@ -519,53 +519,21 @@ export default function SideNavBottomSection({
             ))}
           </div>
 
-          <div
-            className={cn(
-              "bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
-              upgradeCard.padding
-            )}
-            onClick={handleUpgradeClick}
-          >
-            <div className="absolute inset-0 bg-[radial-linear(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
-
-            <div className="relative z-10">
-              <div
-                className={cn(
-                  "flex items-center gap-2 mb-2",
-                  (isHorizontalMobileDevice || isLandscapeDevice) && "mb-1",
-                  isLargeTabletDevice && "mb-3"
-                )}
-              >
-                <Crown
-                  className={cn(
-                    "text-yellow-300",
-                    isHorizontalMobileDevice || isLandscapeDevice
-                      ? "h-3.5 w-3.5"
-                      : isLargeTabletDevice
-                      ? "h-5 w-5"
-                      : "h-4 w-4"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "font-bold",
-                    isHorizontalMobileDevice || isLandscapeDevice
-                      ? "text-xs"
-                      : isLargeTabletDevice
-                      ? "text-base"
-                      : "text-sm"
-                  )}
-                >
-                  PRO FEATURES
-                </span>
-              </div>
-
+          {isHorizontalMobileDevice && isLandscapeDevice ? (
+            <div
+              className={cn(
+                "bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+                upgradeCard.padding
+              )}
+              onClick={handleUpgradeClick}
+            >
               <h3 className={cn("font-bold mb-1", upgradeCard.title)}>
                 Unlock Premium
               </h3>
+
               <p
                 className={cn(
-                  "text-white/90 mb-3 leading-relaxed",
+                  "text-white/90 leading-relaxed",
                   upgradeCard.desc
                 )}
               >
@@ -576,22 +544,23 @@ export default function SideNavBottomSection({
                 <span
                   className={cn(
                     "font-semibold",
-                    isHorizontalMobileDevice || isLandscapeDevice
-                      ? "text-xs"
-                      : isLargeTabletDevice
+                    isLargeTabletDevice
                       ? "text-base"
+                      : isHorizontalMobileDevice || isLandscapeDevice
+                      ? "text-[10px]"
                       : "text-sm"
                   )}
                 >
                   Upgrade Now
                 </span>
+
                 <div
                   className={cn(
                     "bg-white/20 rounded-full font-medium backdrop-blur-sm",
-                    isHorizontalMobileDevice || isLandscapeDevice
-                      ? "px-2 py-1 text-[10px]"
-                      : isLargeTabletDevice
+                    isLargeTabletDevice
                       ? "px-3 py-1.5 text-sm"
+                      : isHorizontalMobileDevice || isLandscapeDevice
+                      ? "px-2 py-0.5 text-[9px]"
                       : "px-2 py-1 text-xs"
                   )}
                 >
@@ -599,7 +568,89 @@ export default function SideNavBottomSection({
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div
+              className={cn(
+                "bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+                upgradeCard.padding
+              )}
+              onClick={handleUpgradeClick}
+            >
+              <div className="absolute inset-0 bg-[radial-linear(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+
+              <div className="relative z-10">
+                <div
+                  className={cn(
+                    "flex items-center gap-2 mb-2",
+                    (isHorizontalMobileDevice || isLandscapeDevice) && "mb-1",
+                    isLargeTabletDevice && "mb-3"
+                  )}
+                >
+                  <Crown
+                    className={cn(
+                      "text-yellow-300",
+                      isHorizontalMobileDevice || isLandscapeDevice
+                        ? "h-3.5 w-3.5"
+                        : isLargeTabletDevice
+                        ? "h-5 w-5"
+                        : "h-4 w-4"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "font-bold",
+                      isHorizontalMobileDevice || isLandscapeDevice
+                        ? "text-xs"
+                        : isLargeTabletDevice
+                        ? "text-base"
+                        : "text-sm"
+                    )}
+                  >
+                    PRO FEATURES
+                  </span>
+                </div>
+
+                <h3 className={cn("font-bold mb-1", upgradeCard.title)}>
+                  Unlock Premium
+                </h3>
+                <p
+                  className={cn(
+                    "text-white/90 mb-3 leading-relaxed",
+                    upgradeCard.desc
+                  )}
+                >
+                  Get unlimited storage & features
+                </p>
+
+                <div className="flex items-center justify-between">
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      isHorizontalMobileDevice || isLandscapeDevice
+                        ? "text-xs"
+                        : isLargeTabletDevice
+                        ? "text-base"
+                        : "text-sm"
+                    )}
+                  >
+                    Upgrade Now
+                  </span>
+                  <div
+                    className={cn(
+                      "bg-white/20 rounded-full font-medium backdrop-blur-sm",
+                      isHorizontalMobileDevice || isLandscapeDevice
+                        ? "px-2 py-1 text-[10px]"
+                        : isLargeTabletDevice
+                        ? "px-3 py-1.5 text-sm"
+                        : "px-2 py-1 text-xs"
+                    )}
+                  >
+                    $10/mo
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {actualHasFiles && (
             <>

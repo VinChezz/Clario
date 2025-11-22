@@ -332,8 +332,8 @@ function SideNavTopSection({
       return {
         buttonClass: "p-2",
         iconSize: "h-4 w-4",
-        gridCols: "grid-cols-2",
-        gap: "gap-1.5",
+        gridCols: "grid-cols-4",
+        gap: "gap-2.5",
         textSize: "text-xs",
       };
     if (isHorizontalTablet) {
@@ -479,7 +479,7 @@ function SideNavTopSection({
   };
 
   const getSpacing = () => {
-    if (isHorizontalMobileDevice || isLandscapeDevice) return "gap-2";
+    if (isHorizontalMobileDevice || isLandscapeDevice) return "gap-1";
     if (isHorizontalTablet) return "gap-2";
     if (isMobileDevice) return "gap-4";
     if (isTabletDevice) return "gap-2.5";
@@ -493,7 +493,7 @@ function SideNavTopSection({
   const spacing = getSpacing();
 
   return (
-    <div className={cn("flex flex-col", spacing)}>
+    <div className={cn(`flex flex-col`, spacing)}>
       <button
         onClick={() => setTeamsModalOpen(true)}
         className={cn(
@@ -604,43 +604,70 @@ function SideNavTopSection({
         className={cn("grid", quickAccess.gridCols, quickAccess.gap)}
         id="quick-access-section"
       >
-        {menu.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onMenuClick(item)}
-            className={cn(
-              "flex items-center rounded-xl border border-gray-200 transition-all group text-left w-full min-w-0",
-              item.buttonClass,
-              quickAccess.buttonClass,
-              quickAccess.gap
-            )}
-          >
-            <div
-              className={cn(
-                "rounded-lg flex items-center justify-center shrink-0",
-                item.iconClass,
-                isHorizontalMobileDevice ||
-                  isLandscapeDevice ||
-                  isHorizontalTablet
-                  ? "w-8 h-8"
-                  : "w-10 h-10"
-              )}
-            >
-              <item.icon className={cn(quickAccess.iconSize, item.iconColor)} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span
+        {isHorizontalMobileDevice && isLandscapeDevice
+          ? menu.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onMenuClick(item)}
                 className={cn(
-                  "font-medium text-gray-700 block truncate",
-                  quickAccess.textSize,
-                  item.textClass
+                  "flex items-center justify-center rounded-xl border border-gray-200 transition-all group w-full min-w-0",
+                  item.buttonClass,
+                  quickAccess.buttonClass,
+                  quickAccess.gap
                 )}
               >
-                {item.name}
-              </span>
-            </div>
-          </button>
-        ))}
+                <div
+                  className={cn(
+                    "rounded-lg flex items-center justify-center shrink-0 w-8 h-8",
+                    item.iconClass
+                  )}
+                >
+                  <item.icon
+                    className={cn(quickAccess.iconSize, item.iconColor)}
+                  />
+                </div>
+              </button>
+            ))
+          : menu.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onMenuClick(item)}
+                className={cn(
+                  "flex items-center rounded-xl border border-gray-200 transition-all group text-left w-full min-w-0",
+                  item.buttonClass,
+                  quickAccess.buttonClass,
+                  quickAccess.gap
+                )}
+              >
+                <div
+                  className={cn(
+                    "rounded-lg flex items-center justify-center shrink-0",
+                    item.iconClass,
+                    isHorizontalMobileDevice ||
+                      isLandscapeDevice ||
+                      isHorizontalTablet
+                      ? "w-8 h-8"
+                      : "w-10 h-10"
+                  )}
+                >
+                  <item.icon
+                    className={cn(quickAccess.iconSize, item.iconColor)}
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <span
+                    className={cn(
+                      "font-medium text-gray-700 block truncate",
+                      quickAccess.textSize,
+                      item.textClass
+                    )}
+                  >
+                    {item.name}
+                  </span>
+                </div>
+              </button>
+            ))}
       </div>
 
       <Dialog open={teamsModalOpen} onOpenChange={setTeamsModalOpen}>
