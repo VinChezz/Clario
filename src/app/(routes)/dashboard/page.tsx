@@ -11,9 +11,13 @@ import {
   StaggeredItem,
 } from "./_components/ContentLoader";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
-import Constant from "@/app/_constant/Constant";
 import { useFileData } from "../../_context/FileDataContext";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import Virgil from "next/font/local";
+
+const virgil = Virgil({
+  src: "../../fonts/Virgil.woff2",
+});
 
 interface DashboardProps {
   onMenuToggle?: () => void;
@@ -30,16 +34,6 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
-
-  useEffect(() => {
-    console.log("📊 Dashboard Debug:", {
-      fileListCount: fileList.length,
-      fileCountFromContext: fileCount,
-      hasFiles,
-      isStorageFull,
-      user: user?.email,
-    });
-  }, [fileList, fileCount, hasFiles, isStorageFull, user]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -120,8 +114,13 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
             <ContentLoader>
               <div className="mb-4 sm:mb-6 lg:mb-8">
-                <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                  Welcome back{user?.given_name ? `, ${user.given_name}` : ""}!
+                <h1
+                  className={`${virgil.className} text-xl sm:text-2xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2`}
+                >
+                  Welcome back,
+                  <span className={`${virgil.className}  text-indigo-500`}>
+                    {user?.given_name ? ` ${user.given_name}` : ""}!
+                  </span>
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm lg:text-lg">
                   Here are your recent files and documents
