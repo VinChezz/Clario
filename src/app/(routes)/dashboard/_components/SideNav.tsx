@@ -16,6 +16,8 @@ import {
   useIsLargeTablet,
   useIsDesktop,
   useWindowHeight,
+  useIsHorizontalMobile,
+  useIsLandscape,
 } from "@/hooks/useMediaQuery";
 import Image from "next/image";
 
@@ -40,6 +42,8 @@ export default function SideNav({
   const isTablet = useIsTablet();
   const isLargeTablet = useIsLargeTablet();
   const isDesktop = useIsDesktop();
+  const isHorizontalMobileDevice = useIsHorizontalMobile();
+  const isLandscapeDevice = useIsLandscape();
   const windowHeight = useWindowHeight();
 
   const isCollapsibleTablet = isTablet || isLargeTablet;
@@ -147,27 +151,54 @@ export default function SideNav({
             : {}
         }
       >
-        <div
-          className={cn(
-            "flex items-center justify-between border-b border-gray-100 bg-white/95 backdrop-blur-sm shrink-0",
-            "p-3"
-          )}
-        >
-          <div className="flex items-center gap-2 px-2">
-            <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Image
-                src={"/logo-1.png"}
-                alt={"logo"}
-                width={32}
-                height={32}
-                className="rounded-lg"
-              />
-            </div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              Clario
-            </div>
+        {isHorizontalMobileDevice && isLandscapeDevice ? (
+          <div className={cn("flex justify-end")}>
+            {(isMobile || isCollapsibleTablet) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onCloseSidebar}
+                className="h-9 w-9"
+              >
+                {!isLargeTablet && <X className="h-4 w-4 text-gray-600" />}
+              </Button>
+            )}
           </div>
+        ) : (
+          <div
+            className={cn(
+              "flex items-center justify-between border-b border-gray-100 bg-white/95 backdrop-blur-sm shrink-0",
+              "p-3"
+            )}
+          >
+            <div className="flex items-center gap-2 px-2">
+              <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Image
+                  src={"/logo-1.png"}
+                  alt={"logo"}
+                  width={32}
+                  height={32}
+                  className="rounded-lg"
+                />
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                Clario
+              </div>
+            </div>
+            {(isMobile || isCollapsibleTablet) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onCloseSidebar}
+                className="h-8 w-8"
+              >
+                {!isLargeTablet && <X className="h-4 w-4 text-gray-600" />}
+              </Button>
+            )}
+          </div>
+        )}
 
+        {/* <div className="">
           {(isMobile || isCollapsibleTablet) && (
             <Button
               variant="ghost"
@@ -178,7 +209,7 @@ export default function SideNav({
               {!isLargeTablet && <X className="h-4 w-4 text-gray-600" />}
             </Button>
           )}
-        </div>
+        </div> */}
 
         {isCollapsibleTablet && !isMobileMenuOpen && (
           <Button
