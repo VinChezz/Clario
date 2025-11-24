@@ -115,14 +115,14 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
             <ContentLoader>
               <div className="mb-4 sm:mb-6 lg:mb-8">
                 <h1
-                  className={`${virgil.className} text-xl sm:text-2xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2`}
+                  className={`${virgil.className} text-3xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2`}
                 >
                   Welcome back,
                   <span className={`${virgil.className}  text-indigo-500`}>
                     {user?.given_name ? ` ${user.given_name}` : ""}!
                   </span>
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm lg:text-lg">
+                <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-sm lg:text-lg">
                   Here are your recent files and documents
                 </p>
               </div>
