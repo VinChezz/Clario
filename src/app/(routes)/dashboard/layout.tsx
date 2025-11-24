@@ -15,6 +15,7 @@ import Dashboard from "./page";
 import { TourProvider } from "../../_context/TourContext";
 import GettingStartedTour from "./_components/GettingStartedTour";
 import { FileDataProvider } from "../../_context/FileDataContext";
+import { GithubProvider } from "@/app/_context/GithubContext";
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user }: any = useKindeBrowserClient();
@@ -88,18 +89,18 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <TourProvider>
       <FileDataProvider>
-        {" "}
-        <FileListContext.Provider value={{ fileList_, setFileList_ }}>
-          <div className="flex h-screen w-full bg-white overflow-hidden">
-            {isMobile && isSidebarOpen && (
-              <div
-                className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
-                onClick={handleCloseSidebar}
-              />
-            )}
+        <GithubProvider>
+          <FileListContext.Provider value={{ fileList_, setFileList_ }}>
+            <div className="flex h-screen w-full bg-white overflow-hidden">
+              {isMobile && isSidebarOpen && (
+                <div
+                  className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
+                  onClick={handleCloseSidebar}
+                />
+              )}
 
-            <div
-              className={`
+              <div
+                className={`
               fixed lg:static
               top-0 left-0
               h-screen
@@ -112,23 +113,24 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                   : "-translate-x-full lg:translate-x-0 lg:shadow-none"
               }
             `}
-            >
-              <div className="h-full bg-white border-r border-gray-200">
-                <SideNav
-                  onCloseSidebar={handleCloseSidebar}
-                  isMobileMenuOpen={isSidebarOpen}
-                />
+              >
+                <div className="h-full bg-white border-r border-gray-200">
+                  <SideNav
+                    onCloseSidebar={handleCloseSidebar}
+                    isMobileMenuOpen={isSidebarOpen}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
-              <div className="flex-1 overflow-y-auto">
-                <GettingStartedTour />
-                <Dashboard onMenuToggle={handleMenuToggle} />
+              <div className="flex-1 flex flex-col h-screen overflow-hidden">
+                <div className="flex-1 overflow-y-auto">
+                  <GettingStartedTour />
+                  <Dashboard onMenuToggle={handleMenuToggle} />
+                </div>
               </div>
             </div>
-          </div>
-        </FileListContext.Provider>
+          </FileListContext.Provider>
+        </GithubProvider>
       </FileDataProvider>
     </TourProvider>
   );
