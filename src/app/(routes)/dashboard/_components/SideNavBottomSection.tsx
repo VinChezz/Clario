@@ -2,14 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import {
-  Archive,
-  Flag,
   Github,
   Plus,
   Crown,
   Lock,
   Play,
   RotateCcw,
+  CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import {
@@ -40,6 +40,7 @@ import {
   useIsLandscape,
   useIsHorizontalTablet,
 } from "@/hooks/useMediaQuery";
+import { GithubConnectModal } from "./github-modal/GithubConnectModal";
 
 const StorageIndicator = ({
   totalFiles,
@@ -253,8 +254,13 @@ export default function SideNavBottomSection({
   const { user }: any = useKindeBrowserClient();
   const [fileInput, setFileInput] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const { activeTeam } = useActiveTeam();
   const [dbUser, setDbUser] = useState<any>(null);
+  const [githubModalOpen, setGithubModalOpen] = useState(false);
+  const [isGithubConnected, setIsGithubConnected] = useState(false);
+  const [isCheckingRepo, setIsCheckingRepo] = useState(false);
+  const { activeTeam } = useActiveTeam();
+  const [showOrientationWarning, setShowOrientationWarning] = useState(false);
+
   const router = useRouter();
 
   const { startTour } = useTour();
@@ -266,8 +272,6 @@ export default function SideNavBottomSection({
   const isHorizontalMobileDevice = useIsHorizontalMobile();
   const isHorizontalTablet = useIsHorizontalTablet();
   const isLandscapeDevice = useIsLandscape();
-
-  const [showOrientationWarning, setShowOrientationWarning] = useState(false);
 
   const actualFileCount = fileCount !== undefined ? fileCount : totalFiles || 0;
   const actualHasFiles =
@@ -297,6 +301,34 @@ export default function SideNavBottomSection({
       setTeamMembers([]);
     }
   }, [activeTeam]);
+
+  useEffect(() => {
+    if (activeTeam?.id) {
+      checkGithubConnection();
+    }
+  }, [activeTeam?.id]);
+
+  const checkGithubConnection = async () => {
+    if (!activeTeam?.id) return;
+
+    setIsCheckingRepo(true);
+    try {
+      const response = await fetch(
+        `/api/github/connect?teamId=${activeTeam.id}`
+      );
+      const result = await response.json();
+      setIsGithubConnected(result.connected);
+    } catch (error) {
+      console.error("Failed to check GitHub connection:", error);
+      setIsGithubConnected(false);
+    } finally {
+      setIsCheckingRepo(false);
+    }
+  };
+
+  const handleRepoConnected = () => {
+    checkGithubConnection();
+  };
 
   const currentUserMember = teamMembers.find(
     (member) => member.userId === dbUser?.id
@@ -359,20 +391,28 @@ export default function SideNavBottomSection({
             name: "Show Tour",
             icon: Play,
             onClick: handleStartTour,
+            className: "",
           },
         ]
       : []),
     {
       id: 2,
-      name: "Github",
-      icon: Github,
-      onClick: () => window.open("https://github.com/your-repo", "_blank"),
+      name: isGithubConnected ? "View Repository" : "Connect Repo",
+      icon: isGithubConnected ? CheckCircle2 : Github,
+      description: isGithubConnected
+        ? "View connected GitHub repository"
+        : "Link your GitHub repository",
+      onClick: () => setGithubModalOpen(true),
+      className: isGithubConnected
+        ? "text-green-600 hover:text-green-700 hover:bg-green-50"
+        : "",
     },
     {
       id: 3,
-      name: "Archive",
-      icon: Archive,
+      name: "Trash",
+      icon: Trash2,
       onClick: onAction,
+      className: "",
     },
   ];
 
@@ -509,12 +549,27 @@ export default function SideNavBottomSection({
                   "w-full flex items-center text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200",
                   buttonSize.padding,
                   buttonSize.text,
-                  buttonSize.gap
+                  buttonSize.gap,
+                  menu.className
                 )}
                 onClick={menu.onClick}
+                disabled={menu.id === 2 && isCheckingRepo}
               >
                 <menu.icon className={buttonSize.icon} />
                 <span className="font-medium">{menu.name}</span>
+                {menu.id === 2 && isCheckingRepo && (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="ml-auto"
+                  >
+                    <div className="h-3 w-3 border-2 border-gray-300 border-t-gray-600 rounded-full" />
+                  </motion.div>
+                )}
               </button>
             ))}
           </div>
@@ -809,6 +864,12 @@ export default function SideNavBottomSection({
           )}
         </div>
       </div>
+
+      <GithubConnectModal
+        open={githubModalOpen}
+        onOpenChange={setGithubModalOpen}
+        onRepoConnected={handleRepoConnected}
+      />
 
       <OrientationWarningModal
         isOpen={showOrientationWarning}
