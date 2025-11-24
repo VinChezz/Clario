@@ -48,6 +48,7 @@ model Team {
   createdBy   User         @relation("TeamCreator", fields: [createdById], references: [id])
   members     TeamMember[]
   teamSettings TeamSettings?
+  githubRepo  GithubRepository?
 }
 
 model File {
@@ -244,6 +245,24 @@ model TeamMember {
 
   @@unique([userId, teamId])
 }
+
+model GithubRepository {
+  id          String   @id @default(cuid())
+  teamId      String   @unique
+  owner       String
+  repo        String
+  fullUrl     String
+  isActive    Boolean  @default(true)
+  lastSyncAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([owner, repo])
+  @@index([teamId])
+}
+
 
 enum Role {
   ADMIN
