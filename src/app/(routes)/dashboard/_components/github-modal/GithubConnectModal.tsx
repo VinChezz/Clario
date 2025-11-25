@@ -32,8 +32,16 @@ import { cn } from "@/lib/utils";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useGithub } from "@/app/_context/GithubContext";
+import {
+  useIsMobile,
+  useIsTablet,
+  useIsLargeTablet,
+  useIsHorizontalMobile,
+  useIsHorizontalTablet,
+  useIsSmallMobile,
+  useIsLandscape,
+} from "@/hooks/useMediaQuery";
 
 interface GithubConnectModalProps {
   open: boolean;
@@ -65,6 +73,86 @@ export function GithubConnectModal({
   const [currentPath, setCurrentPath] = useState<string>("");
   const [pathHistory, setPathHistory] = useState<string[]>([]);
   const [isCopied, setIsCopied] = useState(false);
+
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
+  const isLargeTablet = useIsLargeTablet();
+  const isHorizontalMobile = useIsHorizontalMobile();
+  const isHorizontalTablet = useIsHorizontalTablet();
+  const isSmallMobile = useIsSmallMobile();
+  const isLandscape = useIsLandscape();
+
+  const getDialogSize = () => {
+    if (isSmallMobile) return "max-w-[95vw]";
+    if (isMobile) return "max-w-[95vw]";
+    if (isTablet) return "max-w-[90vw]";
+    if (isLargeTablet) return "max-w-4xl";
+    return "max-w-4xl";
+  };
+
+  const getHeaderSize = () => {
+    if (isSmallMobile) return "text-lg";
+    if (isMobile) return "text-lg";
+    if (isTablet) return "text-2xl";
+    return "text-2xl";
+  };
+
+  const getIconSize = () => {
+    if (isSmallMobile) return "w-8 h-8";
+    if (isMobile) return "w-8 h-8";
+    if (isTablet) return "w-10 h-10";
+    return "w-10 h-10";
+  };
+
+  const getButtonSize = () => {
+    if (isSmallMobile) return "h-8 text-xs";
+    if (isMobile) return "h-9 text-sm";
+    if (isTablet) return "h-10 text-sm";
+    return "h-10 text-sm";
+  };
+
+  const getTabListLayout = () => {
+    if (isSmallMobile) return "grid-cols-3 text-xs gap-0.5";
+    if (isMobile) return "grid-cols-3 text-xs";
+    if (isTablet) return "grid-cols-5 text-sm";
+    return "grid-cols-5 text-sm";
+  };
+
+  const getTabLabels = () => {
+    if (isSmallMobile || isMobile) {
+      return [
+        { value: "overview", label: "Overview" },
+        { value: "issues", label: "Issues" },
+        { value: "pulls", label: "PRs" },
+        { value: "readme", label: "Readme" },
+        { value: "tree", label: "Files" },
+      ];
+    }
+    return [
+      { value: "overview", label: "Overview" },
+      { value: "issues", label: "Issues" },
+      { value: "pulls", label: "Pull Requests" },
+      { value: "readme", label: "README" },
+      { value: "tree", label: "Files" },
+    ];
+  };
+
+  const getGridLayout = () => {
+    if (isSmallMobile || isMobile) return "grid-cols-1 gap-2";
+    return "grid-cols-2 gap-3";
+  };
+
+  const getCardPadding = () => {
+    if (isSmallMobile) return "p-3";
+    if (isMobile) return "p-2";
+    return "p-4";
+  };
+
+  const getContentPadding = () => {
+    if (isSmallMobile) return "pr-1";
+    if (isMobile) return "pr-2";
+    return "pr-2";
+  };
 
   const isValidGithubUrl = (url: string): boolean => {
     const pattern = /^https?:\/\/github\.com\/[\w-]+\/[\w.-]+\/?$/;
@@ -322,51 +410,104 @@ export function GithubConnectModal({
   if (!connectedRepo) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg rounded-2xl border-0 bg-linear-to-br from-white to-gray-50/80 backdrop-blur-sm shadow-xl">
+        <DialogContent
+          className={cn(
+            "rounded-2xl border-0 bg-linear-to-br from-white to-gray-50/80 backdrop-blur-sm shadow-xl overflow-hidden flex flex-col w-max-[80vh] h-auto",
+            getDialogSize()
+          )}
+        >
           <DialogHeader className="text-center space-y-3">
-            <div className="mx-auto w-12 h-12 bg-linear-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Github className="h-6 w-6 text-white" />
+            <div
+              className={cn(
+                "mx-auto bg-linear-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg",
+                getIconSize()
+              )}
+            >
+              <Github
+                className={cn(
+                  "text-white",
+                  isSmallMobile ? "h-4 w-4" : "h-6 w-6"
+                )}
+              />
             </div>
-            <DialogTitle className="text-2xl font-bold bg-linear-to-br from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            <DialogTitle
+              className={cn(
+                "font-bold bg-linear-to-br from-gray-900 to-gray-700 bg-clip-text text-transparent",
+                getHeaderSize()
+              )}
+            >
               Connect Repository
             </DialogTitle>
-            <p className="text-sm text-gray-500 font-normal">
+            <p
+              className={cn(
+                "text-gray-500 font-normal",
+                isSmallMobile ? "text-xs" : "text-sm"
+              )}
+            >
               Sync your GitHub repository to track issues and collaborate
             </p>
           </DialogHeader>
 
-          <div className="space-y-5 mt-2">
+          <div className="space-y-4 mt-2 px-1">
+            {/* Error Notification */}
             {error && (
-              <Alert
-                variant="destructive"
-                className="rounded-xl border-l-4 border-l-red-500"
-              >
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
-                  <AlertDescription className="text-sm">
-                    {error}
-                  </AlertDescription>
+              <div className="w-full p-3 rounded-xl bg-gradient-to-r from-red-50/90 to-orange-50/90 border border-red-200/80 backdrop-blur-sm">
+                <div className="flex items-start gap-2 w-full">
+                  <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertCircle className="h-3 w-3 text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p
+                      className={cn(
+                        "text-red-800 font-medium leading-relaxed",
+                        isSmallMobile ? "text-xs" : "text-sm"
+                      )}
+                    >
+                      {error}
+                    </p>
+                  </div>
                 </div>
-              </Alert>
+              </div>
             )}
 
             {success && (
-              <Alert className="rounded-xl border-l-4 border-l-green-500 bg-green-50/80 border-green-200/80">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 shrink-0" />
-                  <AlertDescription className="text-green-800 text-sm">
-                    {success}
-                  </AlertDescription>
+              <div className="w-full p-3 rounded-xl bg-gradient-to-r from-green-50/90 to-emerald-50/90 border border-green-200/80 backdrop-blur-sm">
+                <div className="flex items-start gap-2 w-full">
+                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p
+                      className={cn(
+                        "text-green-800 font-medium leading-relaxed",
+                        isSmallMobile ? "text-xs" : "text-sm"
+                      )}
+                    >
+                      {success}
+                    </p>
+                  </div>
                 </div>
-              </Alert>
+              </div>
             )}
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-gray-700">
+                <label
+                  className={cn(
+                    "font-semibold text-gray-700",
+                    isSmallMobile ? "text-xs" : "text-sm"
+                  )}
+                >
                   Repository URL
                 </label>
-                <span className="text-xs text-gray-400">Required</span>
+                <span
+                  className={cn(
+                    "text-gray-400",
+                    isSmallMobile ? "text-[10px]" : "text-xs"
+                  )}
+                >
+                  Required
+                </span>
               </div>
               <div className="relative">
                 <Input
@@ -377,43 +518,58 @@ export function GithubConnectModal({
                     setError(null);
                   }}
                   className={cn(
-                    "w-full rounded-xl h-12 px-4 border-2 bg-white/80 backdrop-blur-sm transition-all duration-200",
-                    "focus:bg-white focus:ring-2 focus:ring-offset-1",
+                    "w-full rounded-xl border-2 bg-white/80 backdrop-blur-sm transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-offset-1",
+                    getButtonSize(),
                     repoUrl && !isValidGithubUrl(repoUrl)
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
                       : "border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
                   )}
                 />
                 {isValidGithubUrl(repoUrl) && (
-                  <CheckCircle2 className="h-5 w-5 text-green-500 absolute right-3 top-1/2 transform -translate-y-1/2" />
+                  <CheckCircle2 className="h-4 w-4 text-green-500 absolute right-3 top-1/2 transform -translate-y-1/2" />
                 )}
               </div>
               {repoUrl && !isValidGithubUrl(repoUrl) && (
                 <div className="flex items-center gap-2 text-red-600 text-xs">
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircle className="h-3 w-3" />
                   Please enter a valid GitHub repository URL
                 </div>
               )}
             </div>
 
-            <div className="p-4 rounded-xl text-sm bg-linear-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/60 backdrop-blur-sm">
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+            <div
+              className={cn(
+                "rounded-xl text-sm bg-linear-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/60 backdrop-blur-sm",
+                isSmallMobile ? "p-2" : "p-3"
+              )}
+            >
+              <div className="flex items-start gap-2">
+                <div className="w-5 h-5 bg-blue-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
                   <svg
-                    className="w-3 h-3 text-blue-600"
+                    className="w-2.5 h-2.5 text-blue-600"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
                     <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13zm1-9.75a1 1 0 11-2 0 1 1 0 012 0zM10 13a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1z" />
                   </svg>
                 </div>
-                <div>
-                  <p className="font-medium text-blue-900 mb-1">
+                <div className="flex-1">
+                  <p
+                    className={cn(
+                      "font-medium text-blue-900 mb-1",
+                      isSmallMobile ? "text-xs" : "text-sm"
+                    )}
+                  >
                     What happens next?
                   </p>
-                  <p className="text-blue-700 leading-relaxed">
+                  <p
+                    className={cn(
+                      "text-blue-700 leading-relaxed",
+                      isSmallMobile ? "text-xs" : "text-sm"
+                    )}
+                  >
                     Connect your repository to sync issues, track progress, and
-                    collaborate with your team in real-time.
+                    collaborate with your team.
                   </p>
                 </div>
               </div>
@@ -423,25 +579,39 @@ export function GithubConnectModal({
               onClick={handleConnect}
               disabled={!isButtonEnabled || isConnecting}
               className={cn(
-                "w-full rounded-xl h-12 font-semibold text-base transition-all duration-200 shadow-lg",
-                "bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700",
-                "disabled:opacity-50 disabled:pointer-events-none disabled:bg-gray-400"
+                "w-full rounded-xl font-semibold transition-all duration-200 shadow-lg bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:pointer-events-none",
+                getButtonSize()
               )}
             >
               {isConnecting ? (
                 <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Connecting Repository...
+                  <Loader2
+                    className={cn(
+                      "animate-spin mr-2",
+                      isSmallMobile ? "h-3 w-3" : "h-4 w-4"
+                    )}
+                  />
+                  {isSmallMobile ? "Connecting..." : "Connecting Repository..."}
                 </>
               ) : (
                 <>
-                  <GitBranch className="h-5 w-5 mr-2" />
-                  Connect Repository
+                  <GitBranch
+                    className={cn(
+                      "mr-2",
+                      isSmallMobile ? "h-3 w-3" : "h-4 w-4"
+                    )}
+                  />
+                  {isSmallMobile ? "Connect Repo" : "Connect Repository"}
                 </>
               )}
             </Button>
 
-            <p className="text-center text-xs text-gray-400">
+            <p
+              className={cn(
+                "text-center text-gray-400",
+                isSmallMobile ? "text-[10px]" : "text-xs"
+              )}
+            >
               Secure connection • Read-only access
             </p>
           </div>
@@ -452,15 +622,37 @@ export function GithubConnectModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl rounded-2xl max-h-[90vh] overflow-hidden flex flex-col border-0 bg-linear-to-br from-white to-gray-50/80 backdrop-blur-sm shadow-xl">
-        <DialogHeader className="shrink-0 pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-linear-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Github className="h-5 w-5 text-white" />
+      <DialogContent
+        className={cn(
+          "sm:max-w-3xl rounded-2xl max-h-[90vh] overflow-hidden flex flex-col border-0 bg-linear-to-br from-white to-gray-50/80 backdrop-blur-sm shadow-xl",
+          getDialogSize()
+        )}
+      >
+        <DialogHeader
+          className={cn("shrink-0", isSmallMobile ? "pb-2" : "pb-3")}
+        >
+          <div className="flex items-center justify-between pt-3">
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  "bg-linear-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg",
+                  getIconSize()
+                )}
+              >
+                <Github
+                  className={cn(
+                    "text-white",
+                    isSmallMobile ? "h-3 w-3" : "h-4 w-4"
+                  )}
+                />
               </div>
               <div>
-                <DialogTitle className="text-2xl font-bold bg-linear-to-br from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                <DialogTitle
+                  className={cn(
+                    "font-bold bg-linear-to-br from-gray-900 to-gray-700 bg-clip-text text-transparent",
+                    getHeaderSize()
+                  )}
+                >
                   {connectedRepo.owner}/{connectedRepo.repo}
                 </DialogTitle>
               </div>
@@ -469,35 +661,67 @@ export function GithubConnectModal({
               variant="ghost"
               size="sm"
               onClick={handleDisconnect}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded-xl border border-red-200/60 transition-all duration-200"
+              className={cn(
+                "text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded-xl border border-red-200/60 transition-all duration-200",
+                isSmallMobile ? "h-7 text-xs" : "h-8 text-sm"
+              )}
             >
-              <XCircle className="h-4 w-4 mr-1" />
-              Disconnect
+              <XCircle
+                className={cn("mr-1", isSmallMobile ? "h-3 w-3" : "h-2 w-2")}
+              />
+              {isSmallMobile ? "Disconnect" : "Quit"}
             </Button>
           </div>
         </DialogHeader>
 
         {error && (
-          <Alert
-            variant="destructive"
-            className="rounded-xl border-l-4 border-l-red-500 shrink-0"
+          <div
+            className={cn(
+              "w-full rounded-xl bg-gradient-to-r from-red-50/90 to-orange-50/90 border border-red-200/80 backdrop-blur-sm shrink-0",
+              isSmallMobile ? "p-2" : "p-3"
+            )}
           >
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
-              <AlertDescription className="text-sm">{error}</AlertDescription>
+            <div className="flex items-start gap-2 w-full">
+              <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                <AlertCircle className="h-3 w-3 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <p
+                  className={cn(
+                    "text-red-800 font-medium leading-relaxed",
+                    isSmallMobile ? "text-xs" : "text-sm"
+                  )}
+                >
+                  {error}
+                </p>
+              </div>
             </div>
-          </Alert>
+          </div>
         )}
 
         {success && (
-          <Alert className="rounded-xl border-l-4 border-l-green-500 bg-green-50/80 border-green-200/80 shrink-0">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600 shrink-0" />
-              <AlertDescription className="text-green-800 text-sm">
-                {success}
-              </AlertDescription>
+          <div
+            className={cn(
+              "w-full rounded-xl bg-gradient-to-r from-green-50/90 to-emerald-50/90 border border-green-200/80 backdrop-blur-sm shrink-0",
+              isSmallMobile ? "p-2" : "p-3"
+            )}
+          >
+            <div className="flex items-start gap-2 w-full">
+              <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                <CheckCircle2 className="h-3 w-3 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <p
+                  className={cn(
+                    "text-green-800 font-medium leading-relaxed",
+                    isSmallMobile ? "text-xs" : "text-sm"
+                  )}
+                >
+                  {success}
+                </p>
+              </div>
             </div>
-          </Alert>
+          </div>
         )}
 
         <Tabs
@@ -505,14 +729,13 @@ export function GithubConnectModal({
           onValueChange={setActiveTab}
           className="w-full flex-1 flex flex-col overflow-hidden"
         >
-          <TabsList className="grid w-full grid-cols-5 shrink-0 bg-gray-100/80 p-1 rounded-2xl border">
-            {[
-              { value: "overview", label: "Overview" },
-              { value: "issues", label: "Issues" },
-              { value: "pulls", label: "Pull Requests" },
-              { value: "readme", label: "README" },
-              { value: "tree", label: "Files" },
-            ].map((tab) => (
+          <TabsList
+            className={cn(
+              "w-full shrink-0 bg-gray-100/80 rounded-xl border",
+              getTabListLayout()
+            )}
+          >
+            {getTabLabels().map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
@@ -526,7 +749,7 @@ export function GithubConnectModal({
                   if (tab.value === "tree" && !repoTree)
                     fetchGithubData("tree");
                 }}
-                className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 font-medium transition-all duration-200"
+                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 font-medium transition-all duration-200"
               >
                 {tab.label}
               </TabsTrigger>
@@ -535,20 +758,48 @@ export function GithubConnectModal({
 
           <TabsContent
             value="overview"
-            className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2"
+            className={cn(
+              "space-y-3 mt-3 overflow-y-auto flex-1",
+              getContentPadding()
+            )}
           >
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 rounded-xl border-2 border-green-200/60 bg-linear-to-br from-green-50/80 to-emerald-50/80 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+            <div className={cn("grid", getGridLayout())}>
+              <div
+                className={cn(
+                  "rounded-xl border border-green-200/60 bg-linear-to-br from-green-50/80 to-emerald-50/80 backdrop-blur-sm",
+                  getCardPadding()
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "bg-green-100 rounded-lg flex items-center justify-center",
+                      isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                    )}
+                  >
+                    <CheckCircle2
+                      className={cn(
+                        "text-green-600",
+                        isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                      )}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-green-900">
+                    <p
+                      className={cn(
+                        "font-semibold text-green-900",
+                        isSmallMobile ? "text-xs" : "text-sm"
+                      )}
+                    >
                       Repository Connected
                     </p>
-                    <div className="flex items-center gap-2 mt-1 group">
-                      <p className="text-xs text-green-700 break-all opacity-80 flex-1">
+                    <div className="flex items-center gap-1 mt-1 group">
+                      <p
+                        className={cn(
+                          "text-green-700 break-all opacity-80 flex-1",
+                          isSmallMobile ? "text-[10px]" : "text-xs"
+                        )}
+                      >
                         {connectedRepo.fullUrl}
                       </p>
                       <div className="relative">
@@ -563,37 +814,71 @@ export function GithubConnectModal({
                             setIsCopied(true);
                             setTimeout(() => setIsCopied(false), 2000);
                           }}
-                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-green-100 rounded-lg shrink-0 cursor-pointer relative"
+                          className={cn(
+                            "p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-green-100 rounded-lg shrink-0 cursor-pointer relative",
+                            isSmallMobile ? "h-5 w-5" : "h-6 w-6"
+                          )}
                           title="Copy repository URL"
                         >
                           {isCopied ? (
-                            <CheckCircle2 className="h-3 w-3 text-green-600" />
+                            <CheckCircle2
+                              className={
+                                isSmallMobile
+                                  ? "h-2.5 w-2.5 text-green-600"
+                                  : "h-3 w-3 text-green-600"
+                              }
+                            />
                           ) : (
-                            <Copy className="h-3 w-3 text-green-600" />
+                            <Copy
+                              className={
+                                isSmallMobile
+                                  ? "h-2.5 w-2.5 text-green-600"
+                                  : "h-3 w-3 text-green-600"
+                              }
+                            />
                           )}
                         </Button>
-
-                        {isCopied && (
-                          <div className="absolute -top-8 -right-4.5 bg-green-600 text-white text-xs px-2 py-1 rounded-lg pointer-events-none whitespace-nowrap z-10">
-                            Copied!
-                            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1 w-2 h-2 bg-green-600 rotate-45"></div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="p-4 rounded-xl border-2 border-gray-200/60 bg-white/80 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <RefreshCw className="h-5 w-5 text-blue-600" />
+
+              <div
+                className={cn(
+                  "rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur-sm",
+                  getCardPadding()
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "bg-blue-100 rounded-lg flex items-center justify-center",
+                      isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                    )}
+                  >
+                    <RefreshCw
+                      className={cn(
+                        "text-blue-600",
+                        isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                      )}
+                    />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p
+                      className={cn(
+                        "font-semibold text-gray-900",
+                        isSmallMobile ? "text-xs" : "text-sm"
+                      )}
+                    >
                       Last Synced
                     </p>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p
+                      className={cn(
+                        "text-gray-600 mt-1",
+                        isSmallMobile ? "text-[10px]" : "text-xs"
+                      )}
+                    >
                       {connectedRepo.lastSyncAt
                         ? new Date(connectedRepo.lastSyncAt).toLocaleString()
                         : "Never"}
@@ -603,15 +888,35 @@ export function GithubConnectModal({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-gray-200/60 bg-white/80 backdrop-blur-sm">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
-                <GitBranch className="h-5 w-5 text-purple-600" />
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur-sm",
+                isSmallMobile ? "p-2" : "p-3"
+              )}
+            >
+              <div
+                className={cn(
+                  "bg-purple-100 rounded-lg flex items-center justify-center shrink-0",
+                  isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                )}
+              >
+                <GitBranch
+                  className={cn(
+                    "text-purple-600",
+                    isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                  )}
+                />
               </div>
               <div className="flex-1 min-w-0">
-                <label className="text-xs font-semibold text-gray-600 block mb-2">
+                <label
+                  className={cn(
+                    "font-semibold text-gray-600 block mb-1",
+                    isSmallMobile ? "text-[10px]" : "text-xs"
+                  )}
+                >
                   Current Branch
                 </label>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <select
                     value={selectedBranch}
                     onChange={(e) => {
@@ -622,7 +927,12 @@ export function GithubConnectModal({
                         fetchGithubData("tree");
                       }
                     }}
-                    className="text-sm border-2 border-gray-200 rounded-xl px-3 py-2 bg-white w-full max-w-[200px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    className={cn(
+                      "border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
+                      isSmallMobile
+                        ? "text-xs px-2 py-1 max-w-[120px]"
+                        : "text-sm px-3 py-2 max-w-[150px]"
+                    )}
                   >
                     {branches.map((branch) => (
                       <option key={branch} value={branch}>
@@ -632,7 +942,10 @@ export function GithubConnectModal({
                   </select>
                   <Badge
                     variant="outline"
-                    className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                    className={cn(
+                      "bg-blue-50 text-blue-700 border-blue-200",
+                      isSmallMobile ? "text-[10px] px-1.5" : "text-xs"
+                    )}
                   >
                     {branches.length}{" "}
                     {branches.length === 1 ? "branch" : "branches"}
@@ -644,16 +957,22 @@ export function GithubConnectModal({
                 variant="outline"
                 onClick={fetchBranches}
                 disabled={isLoading}
-                className="shrink-0 rounded-xl border-2"
+                className={cn(
+                  "shrink-0 rounded-lg border cursor-pointer",
+                  isSmallMobile ? "h-7 w-7" : "h-8 w-8"
+                )}
                 title="Refresh branches"
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                  className={cn(
+                    isSmallMobile ? "h-3 w-3" : "h-3 w-3",
+                    isLoading ? "animate-spin" : ""
+                  )}
                 />
               </Button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {[
                 {
                   label: "View Issues",
@@ -691,11 +1010,24 @@ export function GithubConnectModal({
                 <Button
                   key={index}
                   variant="outline"
-                  className="w-full justify-start rounded-xl h-12 border-2 border-gray-200/60 bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200"
+                  className={cn(
+                    "w-full justify-start rounded-lg border border-gray-200/60 bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200",
+                    isSmallMobile ? "h-10 text-xs" : "h-12 text-sm"
+                  )}
                   onClick={item.action}
                 >
-                  <div className="w-8 h-8 bg-linear-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center mr-3">
-                    <item.icon className="h-4 w-4 text-blue-600" />
+                  <div
+                    className={cn(
+                      "bg-linear-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center mr-2",
+                      isSmallMobile ? "w-7 h-7" : "w-8 h-8"
+                    )}
+                  >
+                    <item.icon
+                      className={cn(
+                        "text-blue-600",
+                        isSmallMobile ? "h-3 w-3" : "h-4 w-4"
+                      )}
+                    />
                   </div>
                   {item.label}
                 </Button>
@@ -824,7 +1156,7 @@ export function GithubConnectModal({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                        className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 hover:bg-blue-100 border border-blue-200 cursor-pointer"
                         onClick={() =>
                           addToDocument(
                             `PR #${pr.number}: ${pr.title}\n\n${pr.body}`,
@@ -855,18 +1187,80 @@ export function GithubConnectModal({
               </div>
             ) : (
               <div className="space-y-4 pb-4">
-                <div className="flex justify-end">
+                <div
+                  className={cn(
+                    "flex items-center",
+                    isSmallMobile || isMobile
+                      ? "justify-between"
+                      : "justify-end"
+                  )}
+                >
+                  {(isSmallMobile || isMobile) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        navigator.clipboard.writeText(readme);
+                        setIsCopied(true);
+                        setTimeout(() => setIsCopied(false), 2000);
+                      }}
+                      className="rounded-xl border-2 border-gray-200/60 bg-white/80 hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 cursor-pointer flex items-center gap-2"
+                      title="Copy README content"
+                    >
+                      {isCopied ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <span className="text-green-600 font-medium">
+                            Copied!
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4 text-gray-600" />
+                          <span className="text-gray-700 font-medium">
+                            Copy README
+                          </span>
+                        </>
+                      )}
+                    </Button>
+                  )}
+
                   <Button
                     size="sm"
                     onClick={() => addToDocument(readme, "readme")}
-                    className="rounded-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg transition-all duration-200"
+                    className="rounded-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg transition-all duration-200 cursor-pointer"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add to Document
                   </Button>
                 </div>
-                <div className="p-6 border-2 border-gray-200/60 rounded-xl bg-white/80 backdrop-blur-sm overflow-auto">
-                  <pre className="text-sm whitespace-pre-wrap wrap-break-words font-mono leading-relaxed text-gray-800">
+
+                <div className="relative p-6 border-2 border-gray-200/60 rounded-xl bg-white/80 backdrop-blur-sm overflow-auto group">
+                  {!isSmallMobile && !isMobile && (
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          navigator.clipboard.writeText(readme);
+                          setIsCopied(true);
+                          setTimeout(() => setIsCopied(false), 2000);
+                        }}
+                        className="h-8 w-8 p-0 rounded-lg bg-white/90 backdrop-blur-sm border border-gray-300 shadow-sm hover:bg-white hover:border-blue-300 transition-all duration-200 cursor-pointer flex items-center justify-center"
+                        title="Copy README content"
+                      >
+                        {isCopied ? (
+                          <Copy className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-gray-600" />
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                  <pre className="text-sm whitespace-pre-wrap break-words font-mono leading-relaxed text-gray-800 pt-2">
                     {readme}
                   </pre>
                 </div>
@@ -921,7 +1315,7 @@ export function GithubConnectModal({
                       <button
                         key={folder.path}
                         onClick={() => navigateToFolder(folder.path)}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-blue-50 rounded-xl border-2 border-transparent hover:border-blue-200 transition-all duration-200 group"
+                        className="w-full flex items-center gap-3 p-3 hover:bg-blue-50 rounded-xl border-2 border-transparent hover:border-blue-200 transition-all duration-200 group cursor-pointer"
                       >
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                           <Folder className="h-4 w-4 text-blue-600" />
@@ -941,7 +1335,7 @@ export function GithubConnectModal({
                     {getCurrentFolderContents().files.map((file: any) => (
                       <div
                         key={file.path}
-                        className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-200 transition-all duration-200 group"
+                        className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-200 transition-all duration-200 group cursor-pointer"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -960,7 +1354,7 @@ export function GithubConnectModal({
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="rounded-lg bg-gray-100 hover:bg-gray-200"
+                            className="rounded-lg bg-gray-100 hover:bg-gray-200 cursor-pointer"
                           >
                             <ExternalLink className="h-4 w-4" />
                           </Button>
