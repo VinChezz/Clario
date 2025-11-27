@@ -6,12 +6,30 @@ interface GithubContextType {
   connectedRepo: any;
   setConnectedRepo: (repo: any) => void;
   checkRepoConnection: (teamId: string) => Promise<void>;
+  codeViewerState: CodeViewerState | null;
+  setCodeViewerState: (state: CodeViewerState | null) => void;
+  openCodeViewer: (data: Omit<CodeViewerState, "open">) => void;
+}
+
+interface CodeViewerState {
+  open: boolean;
+  filePath: string;
+  fileName: string;
+  repoUrl: string;
+  branch: string;
+  teamId: string;
 }
 
 const GithubContext = createContext<GithubContextType | undefined>(undefined);
 
 export function GithubProvider({ children }: { children: ReactNode }) {
   const [connectedRepo, setConnectedRepo] = useState<any>(null);
+  const [codeViewerState, setCodeViewerState] =
+    useState<CodeViewerState | null>(null);
+
+  const openCodeViewer = (data: Omit<CodeViewerState, "open">) => {
+    setCodeViewerState({ ...data, open: true });
+  };
 
   const checkRepoConnection = async (teamId: string) => {
     try {
@@ -31,7 +49,14 @@ export function GithubProvider({ children }: { children: ReactNode }) {
 
   return (
     <GithubContext.Provider
-      value={{ connectedRepo, setConnectedRepo, checkRepoConnection }}
+      value={{
+        connectedRepo,
+        setConnectedRepo,
+        checkRepoConnection,
+        codeViewerState,
+        setCodeViewerState,
+        openCodeViewer,
+      }}
     >
       {children}
     </GithubContext.Provider>

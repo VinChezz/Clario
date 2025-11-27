@@ -25,8 +25,8 @@ import {
   ChevronRight,
   Home,
   RefreshCw,
-  FolderOpen,
   Copy,
+  FileCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
@@ -40,8 +40,8 @@ import {
   useIsHorizontalMobile,
   useIsHorizontalTablet,
   useIsSmallMobile,
-  useIsLandscape,
 } from "@/hooks/useMediaQuery";
+import { CodeViewerModal } from "./_components/CodeViewer";
 
 interface GithubConnectModalProps {
   open: boolean;
@@ -55,7 +55,13 @@ export function GithubConnectModal({
   onRepoConnected,
 }: GithubConnectModalProps) {
   const { activeTeam } = useActiveTeam();
-  const { connectedRepo, setConnectedRepo, checkRepoConnection } = useGithub();
+  const {
+    connectedRepo,
+    setConnectedRepo,
+    checkRepoConnection,
+    openCodeViewer,
+  } = useGithub();
+
   const [repoUrl, setRepoUrl] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,6 +79,8 @@ export function GithubConnectModal({
   const [currentPath, setCurrentPath] = useState<string>("");
   const [pathHistory, setPathHistory] = useState<string[]>([]);
   const [isCopied, setIsCopied] = useState(false);
+  const [codeViewerOpen, setCodeViewerOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<any>(null);
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
@@ -80,7 +88,6 @@ export function GithubConnectModal({
   const isHorizontalMobile = useIsHorizontalMobile();
   const isHorizontalTablet = useIsHorizontalTablet();
   const isSmallMobile = useIsSmallMobile();
-  const isLandscape = useIsLandscape();
 
   const getDialogSize = () => {
     if (isSmallMobile) return "max-w-[95vw]";
@@ -407,6 +414,18 @@ export function GithubConnectModal({
     return { folders, files };
   };
 
+  const handleFileClick = async (file: any) => {
+    if (!activeTeam?.id) return;
+
+    openCodeViewer({
+      filePath: file.path,
+      fileName: file.name,
+      repoUrl: connectedRepo.fullUrl,
+      branch: selectedBranch,
+      teamId: activeTeam.id,
+    });
+  };
+
   if (!connectedRepo) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -449,9 +468,8 @@ export function GithubConnectModal({
           </DialogHeader>
 
           <div className="space-y-4 mt-2 px-1">
-            {/* Error Notification */}
             {error && (
-              <div className="w-full p-3 rounded-xl bg-gradient-to-r from-red-50/90 to-orange-50/90 border border-red-200/80 backdrop-blur-sm">
+              <div className="w-full p-3 rounded-xl bg-linear-to-r from-red-50/90 to-orange-50/90 border border-red-200/80 backdrop-blur-sm">
                 <div className="flex items-start gap-2 w-full">
                   <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                     <AlertCircle className="h-3 w-3 text-red-600" />
@@ -471,7 +489,7 @@ export function GithubConnectModal({
             )}
 
             {success && (
-              <div className="w-full p-3 rounded-xl bg-gradient-to-r from-green-50/90 to-emerald-50/90 border border-green-200/80 backdrop-blur-sm">
+              <div className="w-full p-3 rounded-xl bg-linear-to-r from-green-50/90 to-emerald-50/90 border border-green-200/80 backdrop-blur-sm">
                 <div className="flex items-start gap-2 w-full">
                   <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                     <CheckCircle2 className="h-3 w-3 text-green-600" />
@@ -621,763 +639,764 @@ export function GithubConnectModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn(
-          "sm:max-w-3xl rounded-2xl max-h-[90vh] overflow-hidden flex flex-col border-0 bg-linear-to-br from-white to-gray-50/80 backdrop-blur-sm shadow-xl",
-          getDialogSize()
-        )}
-      >
-        <DialogHeader
-          className={cn("shrink-0", isSmallMobile ? "pb-2" : "pb-3")}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className={cn(
+            "sm:max-w-3xl rounded-2xl max-h-[90vh] overflow-hidden flex flex-col border-0 bg-linear-to-br from-white to-gray-50/80 backdrop-blur-sm shadow-xl",
+            getDialogSize()
+          )}
         >
-          <div className="flex items-center justify-between pt-3">
-            <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "bg-linear-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg",
-                  getIconSize()
-                )}
-              >
-                <Github
+          <DialogHeader
+            className={cn("shrink-0", isSmallMobile ? "pb-2" : "pb-3")}
+          >
+            <div className="flex items-center justify-between pt-3">
+              <div className="flex items-center gap-2">
+                <div
                   className={cn(
-                    "text-white",
-                    isSmallMobile ? "h-3 w-3" : "h-4 w-4"
-                  )}
-                />
-              </div>
-              <div>
-                <DialogTitle
-                  className={cn(
-                    "font-bold bg-linear-to-br from-gray-900 to-gray-700 bg-clip-text text-transparent",
-                    getHeaderSize()
+                    "bg-linear-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg",
+                    getIconSize()
                   )}
                 >
-                  {connectedRepo.owner}/{connectedRepo.repo}
-                </DialogTitle>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDisconnect}
-              className={cn(
-                "text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded-xl border border-red-200/60 transition-all duration-200",
-                isSmallMobile ? "h-7 text-xs" : "h-8 text-sm"
-              )}
-            >
-              <XCircle
-                className={cn("mr-1", isSmallMobile ? "h-3 w-3" : "h-2 w-2")}
-              />
-              {isSmallMobile ? "Disconnect" : "Quit"}
-            </Button>
-          </div>
-        </DialogHeader>
-
-        {error && (
-          <div
-            className={cn(
-              "w-full rounded-xl bg-gradient-to-r from-red-50/90 to-orange-50/90 border border-red-200/80 backdrop-blur-sm shrink-0",
-              isSmallMobile ? "p-2" : "p-3"
-            )}
-          >
-            <div className="flex items-start gap-2 w-full">
-              <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                <AlertCircle className="h-3 w-3 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <p
-                  className={cn(
-                    "text-red-800 font-medium leading-relaxed",
-                    isSmallMobile ? "text-xs" : "text-sm"
-                  )}
-                >
-                  {error}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {success && (
-          <div
-            className={cn(
-              "w-full rounded-xl bg-gradient-to-r from-green-50/90 to-emerald-50/90 border border-green-200/80 backdrop-blur-sm shrink-0",
-              isSmallMobile ? "p-2" : "p-3"
-            )}
-          >
-            <div className="flex items-start gap-2 w-full">
-              <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                <CheckCircle2 className="h-3 w-3 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p
-                  className={cn(
-                    "text-green-800 font-medium leading-relaxed",
-                    isSmallMobile ? "text-xs" : "text-sm"
-                  )}
-                >
-                  {success}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="w-full flex-1 flex flex-col overflow-hidden"
-        >
-          <TabsList
-            className={cn(
-              "w-full shrink-0 bg-gray-100/80 rounded-xl border",
-              getTabListLayout()
-            )}
-          >
-            {getTabLabels().map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                onClick={() => {
-                  if (tab.value === "issues" && !issues.length)
-                    fetchGithubData("issues");
-                  if (tab.value === "pulls" && !pulls.length)
-                    fetchGithubData("pulls");
-                  if (tab.value === "readme" && !readme)
-                    fetchGithubData("readme");
-                  if (tab.value === "tree" && !repoTree)
-                    fetchGithubData("tree");
-                }}
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 font-medium transition-all duration-200"
-              >
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent
-            value="overview"
-            className={cn(
-              "space-y-3 mt-3 overflow-y-auto flex-1",
-              getContentPadding()
-            )}
-          >
-            <div className={cn("grid", getGridLayout())}>
-              <div
-                className={cn(
-                  "rounded-xl border border-green-200/60 bg-linear-to-br from-green-50/80 to-emerald-50/80 backdrop-blur-sm",
-                  getCardPadding()
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <div
+                  <Github
                     className={cn(
-                      "bg-green-100 rounded-lg flex items-center justify-center",
-                      isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                      "text-white",
+                      isSmallMobile ? "h-3 w-3" : "h-4 w-4"
                     )}
-                  >
-                    <CheckCircle2
-                      className={cn(
-                        "text-green-600",
-                        isSmallMobile ? "h-4 w-4" : "h-5 w-5"
-                      )}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={cn(
-                        "font-semibold text-green-900",
-                        isSmallMobile ? "text-xs" : "text-sm"
-                      )}
-                    >
-                      Repository Connected
-                    </p>
-                    <div className="flex items-center gap-1 mt-1 group">
-                      <p
-                        className={cn(
-                          "text-green-700 break-all opacity-80 flex-1",
-                          isSmallMobile ? "text-[10px]" : "text-xs"
-                        )}
-                      >
-                        {connectedRepo.fullUrl}
-                      </p>
-                      <div className="relative">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            navigator.clipboard.writeText(
-                              connectedRepo.fullUrl
-                            );
-                            setIsCopied(true);
-                            setTimeout(() => setIsCopied(false), 2000);
-                          }}
-                          className={cn(
-                            "p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-green-100 rounded-lg shrink-0 cursor-pointer relative",
-                            isSmallMobile ? "h-5 w-5" : "h-6 w-6"
-                          )}
-                          title="Copy repository URL"
-                        >
-                          {isCopied ? (
-                            <CheckCircle2
-                              className={
-                                isSmallMobile
-                                  ? "h-2.5 w-2.5 text-green-600"
-                                  : "h-3 w-3 text-green-600"
-                              }
-                            />
-                          ) : (
-                            <Copy
-                              className={
-                                isSmallMobile
-                                  ? "h-2.5 w-2.5 text-green-600"
-                                  : "h-3 w-3 text-green-600"
-                              }
-                            />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                  />
                 </div>
-              </div>
-
-              <div
-                className={cn(
-                  "rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur-sm",
-                  getCardPadding()
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <div
+                <div>
+                  <DialogTitle
                     className={cn(
-                      "bg-blue-100 rounded-lg flex items-center justify-center",
-                      isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                      "font-bold bg-linear-to-br from-gray-900 to-gray-700 bg-clip-text text-transparent",
+                      getHeaderSize()
                     )}
                   >
-                    <RefreshCw
-                      className={cn(
-                        "text-blue-600",
-                        isSmallMobile ? "h-4 w-4" : "h-5 w-5"
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <p
-                      className={cn(
-                        "font-semibold text-gray-900",
-                        isSmallMobile ? "text-xs" : "text-sm"
-                      )}
-                    >
-                      Last Synced
-                    </p>
-                    <p
-                      className={cn(
-                        "text-gray-600 mt-1",
-                        isSmallMobile ? "text-[10px]" : "text-xs"
-                      )}
-                    >
-                      {connectedRepo.lastSyncAt
-                        ? new Date(connectedRepo.lastSyncAt).toLocaleString()
-                        : "Never"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={cn(
-                "flex items-center gap-2 rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur-sm",
-                isSmallMobile ? "p-2" : "p-3"
-              )}
-            >
-              <div
-                className={cn(
-                  "bg-purple-100 rounded-lg flex items-center justify-center shrink-0",
-                  isSmallMobile ? "w-8 h-8" : "w-10 h-10"
-                )}
-              >
-                <GitBranch
-                  className={cn(
-                    "text-purple-600",
-                    isSmallMobile ? "h-4 w-4" : "h-5 w-5"
-                  )}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <label
-                  className={cn(
-                    "font-semibold text-gray-600 block mb-1",
-                    isSmallMobile ? "text-[10px]" : "text-xs"
-                  )}
-                >
-                  Current Branch
-                </label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedBranch}
-                    onChange={(e) => {
-                      setSelectedBranch(e.target.value);
-                      if (activeTab === "tree") {
-                        setCurrentPath("");
-                        setPathHistory([]);
-                        fetchGithubData("tree");
-                      }
-                    }}
-                    className={cn(
-                      "border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
-                      isSmallMobile
-                        ? "text-xs px-2 py-1 max-w-[120px]"
-                        : "text-sm px-3 py-2 max-w-[150px]"
-                    )}
-                  >
-                    {branches.map((branch) => (
-                      <option key={branch} value={branch}>
-                        {branch}
-                      </option>
-                    ))}
-                  </select>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "bg-blue-50 text-blue-700 border-blue-200",
-                      isSmallMobile ? "text-[10px] px-1.5" : "text-xs"
-                    )}
-                  >
-                    {branches.length}{" "}
-                    {branches.length === 1 ? "branch" : "branches"}
-                  </Badge>
+                    {connectedRepo.owner}/{connectedRepo.repo}
+                  </DialogTitle>
                 </div>
               </div>
               <Button
+                variant="ghost"
                 size="sm"
-                variant="outline"
-                onClick={fetchBranches}
-                disabled={isLoading}
+                onClick={handleDisconnect}
                 className={cn(
-                  "shrink-0 rounded-lg border cursor-pointer",
-                  isSmallMobile ? "h-7 w-7" : "h-8 w-8"
+                  "text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded-xl border border-red-200/60 transition-all duration-200",
+                  isSmallMobile ? "h-7 text-xs" : "h-8 text-sm"
                 )}
-                title="Refresh branches"
               >
-                <RefreshCw
-                  className={cn(
-                    isSmallMobile ? "h-3 w-3" : "h-3 w-3",
-                    isLoading ? "animate-spin" : ""
-                  )}
+                <XCircle
+                  className={cn("mr-1", isSmallMobile ? "h-3 w-3" : "h-2 w-2")}
                 />
+                {isSmallMobile ? "Disconnect" : "Quit"}
               </Button>
             </div>
+          </DialogHeader>
 
-            <div className="space-y-2">
-              {[
-                {
-                  label: "View Issues",
-                  icon: AlertCircle,
-                  action: () => {
-                    fetchGithubData("issues");
-                    setActiveTab("issues");
-                  },
-                },
-                {
-                  label: "View Pull Requests",
-                  icon: GitPullRequest,
-                  action: () => {
-                    fetchGithubData("pulls");
-                    setActiveTab("pulls");
-                  },
-                },
-                {
-                  label: "View README",
-                  icon: FileText,
-                  action: () => {
-                    fetchGithubData("readme");
-                    setActiveTab("readme");
-                  },
-                },
-                {
-                  label: "Browse Files",
-                  icon: FolderTree,
-                  action: () => {
-                    fetchGithubData("tree");
-                    setActiveTab("tree");
-                  },
-                },
-              ].map((item, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start rounded-lg border border-gray-200/60 bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200",
-                    isSmallMobile ? "h-10 text-xs" : "h-12 text-sm"
-                  )}
-                  onClick={item.action}
-                >
-                  <div
+          {error && (
+            <div
+              className={cn(
+                "w-full rounded-xl bg-linear-to-r from-red-50/90 to-orange-50/90 border border-red-200/80 backdrop-blur-sm shrink-0",
+                isSmallMobile ? "p-2" : "p-3"
+              )}
+            >
+              <div className="flex items-start gap-2 w-full">
+                <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                  <AlertCircle className="h-3 w-3 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <p
                     className={cn(
-                      "bg-linear-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center mr-2",
-                      isSmallMobile ? "w-7 h-7" : "w-8 h-8"
+                      "text-red-800 font-medium leading-relaxed",
+                      isSmallMobile ? "text-xs" : "text-sm"
                     )}
                   >
-                    <item.icon
-                      className={cn(
-                        "text-blue-600",
-                        isSmallMobile ? "h-3 w-3" : "h-4 w-4"
-                      )}
-                    />
-                  </div>
-                  {item.label}
-                </Button>
-              ))}
+                    {error}
+                  </p>
+                </div>
+              </div>
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent
-            value="issues"
-            className="mt-4 overflow-y-auto flex-1 pr-2"
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center h-40">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              </div>
-            ) : issues.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <AlertCircle className="h-8 w-8 text-gray-400" />
+          {success && (
+            <div
+              className={cn(
+                "w-full rounded-xl bg-linear-to-r from-green-50/90 to-emerald-50/90 border border-green-200/80 backdrop-blur-sm shrink-0",
+                isSmallMobile ? "p-2" : "p-3"
+              )}
+            >
+              <div className="flex items-start gap-2 w-full">
+                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 className="h-3 w-3 text-green-600" />
                 </div>
-                <p className="text-gray-500 font-medium">No issues found</p>
-              </div>
-            ) : (
-              <div className="space-y-3 pb-4">
-                {issues.map((issue) => (
-                  <div
-                    key={issue.id}
-                    className="p-4 border-2 border-gray-200/60 rounded-xl bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200 group"
+                <div className="flex-1">
+                  <p
+                    className={cn(
+                      "text-green-800 font-medium leading-relaxed",
+                      isSmallMobile ? "text-xs" : "text-sm"
+                    )}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <Badge
-                            variant={
-                              issue.state === "open" ? "default" : "secondary"
-                            }
-                            className={`rounded-lg ${
-                              issue.state === "open"
-                                ? "bg-green-100 text-green-800 border-green-200"
-                                : "bg-gray-100 text-gray-800 border-gray-200"
-                            }`}
-                          >
-                            {issue.state}
-                          </Badge>
-                          <span className="text-sm font-semibold text-gray-600">
-                            #{issue.number}
-                          </span>
-                        </div>
-                        <h4 className="font-semibold text-gray-900 mb-2">
-                          {issue.title}
-                        </h4>
-                        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-                          {issue.body || "No description provided"}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 hover:bg-blue-100 border border-blue-200"
-                        onClick={() =>
-                          addToDocument(
-                            `Issue #${issue.number}: ${issue.title}\n\n${issue.body}`,
-                            "issue"
-                          )
-                        }
-                      >
-                        <Plus className="h-4 w-4 text-blue-600" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                    {success}
+                  </p>
+                </div>
               </div>
-            )}
-          </TabsContent>
+            </div>
+          )}
 
-          <TabsContent
-            value="pulls"
-            className="mt-4 overflow-y-auto flex-1 pr-2"
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full flex-1 flex flex-col overflow-hidden"
           >
-            {isLoading ? (
-              <div className="flex items-center justify-center h-40">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              </div>
-            ) : pulls.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <GitPullRequest className="h-8 w-8 text-gray-400" />
-                </div>
-                <p className="text-gray-500 font-medium">
-                  No pull requests found
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3 pb-4">
-                {pulls.map((pr) => (
-                  <div
-                    key={pr.id}
-                    className="p-4 border-2 border-gray-200/60 rounded-xl bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200 group"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <Badge
-                            variant={
-                              pr.state === "open" ? "default" : "secondary"
-                            }
-                            className={`rounded-lg ${
-                              pr.state === "open"
-                                ? "bg-purple-100 text-purple-800 border-purple-200"
-                                : "bg-gray-100 text-gray-800 border-gray-200"
-                            }`}
-                          >
-                            {pr.state}
-                          </Badge>
-                          <span className="text-sm font-semibold text-gray-600">
-                            #{pr.number}
-                          </span>
-                        </div>
-                        <h4 className="font-semibold text-gray-900 mb-2">
-                          {pr.title}
-                        </h4>
-                        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-                          {pr.body || "No description provided"}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 hover:bg-blue-100 border border-blue-200 cursor-pointer"
-                        onClick={() =>
-                          addToDocument(
-                            `PR #${pr.number}: ${pr.title}\n\n${pr.body}`,
-                            "pr"
-                          )
-                        }
-                      >
-                        <Plus className="h-4 w-4 text-blue-600" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+            <TabsList
+              className={cn(
+                "w-full shrink-0 bg-gray-100/80 rounded-xl border",
+                getTabListLayout()
+              )}
+            >
+              {getTabLabels().map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  onClick={() => {
+                    if (tab.value === "issues" && !issues.length)
+                      fetchGithubData("issues");
+                    if (tab.value === "pulls" && !pulls.length)
+                      fetchGithubData("pulls");
+                    if (tab.value === "readme" && !readme)
+                      fetchGithubData("readme");
+                    if (tab.value === "tree" && !repoTree)
+                      fetchGithubData("tree");
+                  }}
+                  className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 font-medium transition-all duration-200"
+                >
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-          <TabsContent value="readme" className="mt-4 overflow-y-auto flex-1">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-40">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              </div>
-            ) : !readme ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-gray-400" />
-                </div>
-                <p className="text-gray-500 font-medium">README not found</p>
-              </div>
-            ) : (
-              <div className="space-y-4 pb-4">
+            <TabsContent
+              value="overview"
+              className={cn(
+                "space-y-3 mt-3 overflow-y-auto flex-1",
+                getContentPadding()
+              )}
+            >
+              <div className={cn("grid", getGridLayout())}>
                 <div
                   className={cn(
-                    "flex items-center",
-                    isSmallMobile || isMobile
-                      ? "justify-between"
-                      : "justify-end"
+                    "rounded-xl border border-green-200/60 bg-linear-to-br from-green-50/80 to-emerald-50/80 backdrop-blur-sm",
+                    getCardPadding()
                   )}
                 >
-                  {(isSmallMobile || isMobile) && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        navigator.clipboard.writeText(readme);
-                        setIsCopied(true);
-                        setTimeout(() => setIsCopied(false), 2000);
-                      }}
-                      className="rounded-xl border-2 border-gray-200/60 bg-white/80 hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 cursor-pointer flex items-center gap-2"
-                      title="Copy README content"
-                    >
-                      {isCopied ? (
-                        <>
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          <span className="text-green-600 font-medium">
-                            Copied!
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4 text-gray-600" />
-                          <span className="text-gray-700 font-medium">
-                            Copy README
-                          </span>
-                        </>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "bg-green-100 rounded-lg flex items-center justify-center",
+                        isSmallMobile ? "w-8 h-8" : "w-10 h-10"
                       )}
-                    </Button>
-                  )}
-
-                  <Button
-                    size="sm"
-                    onClick={() => addToDocument(readme, "readme")}
-                    className="rounded-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg transition-all duration-200 cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add to Document
-                  </Button>
+                    >
+                      <CheckCircle2
+                        className={cn(
+                          "text-green-600",
+                          isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                        )}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={cn(
+                          "font-semibold text-green-900",
+                          isSmallMobile ? "text-xs" : "text-sm"
+                        )}
+                      >
+                        Repository Connected
+                      </p>
+                      <div className="flex items-center gap-1 mt-1 group">
+                        <p
+                          className={cn(
+                            "text-green-700 break-all opacity-80 flex-1",
+                            isSmallMobile ? "text-[10px]" : "text-xs"
+                          )}
+                        >
+                          {connectedRepo.fullUrl}
+                        </p>
+                        <div className="relative">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              navigator.clipboard.writeText(
+                                connectedRepo.fullUrl
+                              );
+                              setIsCopied(true);
+                              setTimeout(() => setIsCopied(false), 2000);
+                            }}
+                            className={cn(
+                              "p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-green-100 rounded-lg shrink-0 cursor-pointer relative",
+                              isSmallMobile ? "h-5 w-5" : "h-6 w-6"
+                            )}
+                            title="Copy repository URL"
+                          >
+                            {isCopied ? (
+                              <CheckCircle2
+                                className={
+                                  isSmallMobile
+                                    ? "h-2.5 w-2.5 text-green-600"
+                                    : "h-3 w-3 text-green-600"
+                                }
+                              />
+                            ) : (
+                              <Copy
+                                className={
+                                  isSmallMobile
+                                    ? "h-2.5 w-2.5 text-green-600"
+                                    : "h-3 w-3 text-green-600"
+                                }
+                              />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="relative p-6 border-2 border-gray-200/60 rounded-xl bg-white/80 backdrop-blur-sm overflow-auto group">
-                  {!isSmallMobile && !isMobile && (
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                <div
+                  className={cn(
+                    "rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur-sm",
+                    getCardPadding()
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "bg-blue-100 rounded-lg flex items-center justify-center",
+                        isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                      )}
+                    >
+                      <RefreshCw
+                        className={cn(
+                          "text-blue-600",
+                          isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <p
+                        className={cn(
+                          "font-semibold text-gray-900",
+                          isSmallMobile ? "text-xs" : "text-sm"
+                        )}
+                      >
+                        Last Synced
+                      </p>
+                      <p
+                        className={cn(
+                          "text-gray-600 mt-1",
+                          isSmallMobile ? "text-[10px]" : "text-xs"
+                        )}
+                      >
+                        {connectedRepo.lastSyncAt
+                          ? new Date(connectedRepo.lastSyncAt).toLocaleString()
+                          : "Never"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className={cn(
+                  "flex items-center gap-2 rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur-sm",
+                  isSmallMobile ? "p-2" : "p-3"
+                )}
+              >
+                <div
+                  className={cn(
+                    "bg-purple-100 rounded-lg flex items-center justify-center shrink-0",
+                    isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                  )}
+                >
+                  <GitBranch
+                    className={cn(
+                      "text-purple-600",
+                      isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                    )}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label
+                    className={cn(
+                      "font-semibold text-gray-600 block mb-1",
+                      isSmallMobile ? "text-[10px]" : "text-xs"
+                    )}
+                  >
+                    Current Branch
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedBranch}
+                      onChange={(e) => {
+                        setSelectedBranch(e.target.value);
+                        if (activeTab === "tree") {
+                          setCurrentPath("");
+                          setPathHistory([]);
+                          fetchGithubData("tree");
+                        }
+                      }}
+                      className={cn(
+                        "border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
+                        isSmallMobile
+                          ? "text-xs px-2 py-1 max-w-[120px]"
+                          : "text-sm px-3 py-2 max-w-[150px]"
+                      )}
+                    >
+                      {branches.map((branch) => (
+                        <option key={branch} value={branch}>
+                          {branch}
+                        </option>
+                      ))}
+                    </select>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "bg-blue-50 text-blue-700 border-blue-200",
+                        isSmallMobile ? "text-[10px] px-1.5" : "text-xs"
+                      )}
+                    >
+                      {branches.length}{" "}
+                      {branches.length === 1 ? "branch" : "branches"}
+                    </Badge>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={fetchBranches}
+                  disabled={isLoading}
+                  className={cn(
+                    "shrink-0 rounded-lg border cursor-pointer",
+                    isSmallMobile ? "h-7 w-7" : "h-8 w-8"
+                  )}
+                  title="Refresh branches"
+                >
+                  <RefreshCw
+                    className={cn(
+                      isSmallMobile ? "h-3 w-3" : "h-3 w-3",
+                      isLoading ? "animate-spin" : ""
+                    )}
+                  />
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {[
+                  {
+                    label: "View Issues",
+                    icon: AlertCircle,
+                    action: () => {
+                      fetchGithubData("issues");
+                      setActiveTab("issues");
+                    },
+                  },
+                  {
+                    label: "View Pull Requests",
+                    icon: GitPullRequest,
+                    action: () => {
+                      fetchGithubData("pulls");
+                      setActiveTab("pulls");
+                    },
+                  },
+                  {
+                    label: "View README",
+                    icon: FileText,
+                    action: () => {
+                      fetchGithubData("readme");
+                      setActiveTab("readme");
+                    },
+                  },
+                  {
+                    label: "Browse Files",
+                    icon: FolderTree,
+                    action: () => {
+                      fetchGithubData("tree");
+                      setActiveTab("tree");
+                    },
+                  },
+                ].map((item, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start rounded-lg border border-gray-200/60 bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200",
+                      isSmallMobile ? "h-10 text-xs" : "h-12 text-sm"
+                    )}
+                    onClick={item.action}
+                  >
+                    <div
+                      className={cn(
+                        "bg-linear-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center mr-2",
+                        isSmallMobile ? "w-7 h-7" : "w-8 h-8"
+                      )}
+                    >
+                      <item.icon
+                        className={cn(
+                          "text-blue-600",
+                          isSmallMobile ? "h-3 w-3" : "h-4 w-4"
+                        )}
+                      />
+                    </div>
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent
+              value="issues"
+              className="mt-4 overflow-y-auto flex-1 pr-2"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                </div>
+              ) : issues.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium">No issues found</p>
+                </div>
+              ) : (
+                <div className="space-y-3 pb-4">
+                  {issues.map((issue) => (
+                    <div
+                      key={issue.id}
+                      className="p-4 border-2 border-gray-200/60 rounded-xl bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200 group"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <Badge
+                              variant={
+                                issue.state === "open" ? "default" : "secondary"
+                              }
+                              className={`rounded-lg ${
+                                issue.state === "open"
+                                  ? "bg-green-100 text-green-800 border-green-200"
+                                  : "bg-gray-100 text-gray-800 border-gray-200"
+                              }`}
+                            >
+                              {issue.state}
+                            </Badge>
+                            <span className="text-sm font-semibold text-gray-600">
+                              #{issue.number}
+                            </span>
+                          </div>
+                          <h4 className="font-semibold text-gray-900 mb-2">
+                            {issue.title}
+                          </h4>
+                          <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                            {issue.body || "No description provided"}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                          onClick={() =>
+                            addToDocument(
+                              `Issue #${issue.number}: ${issue.title}\n\n${issue.body}`,
+                              "issue"
+                            )
+                          }
+                        >
+                          <Plus className="h-4 w-4 text-blue-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent
+              value="pulls"
+              className="mt-4 overflow-y-auto flex-1 pr-2"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                </div>
+              ) : pulls.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <GitPullRequest className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium">
+                    No pull requests found
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 pb-4">
+                  {pulls.map((pr) => (
+                    <div
+                      key={pr.id}
+                      className="p-4 border-2 border-gray-200/60 rounded-xl bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200 group"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <Badge
+                              variant={
+                                pr.state === "open" ? "default" : "secondary"
+                              }
+                              className={`rounded-lg ${
+                                pr.state === "open"
+                                  ? "bg-purple-100 text-purple-800 border-purple-200"
+                                  : "bg-gray-100 text-gray-800 border-gray-200"
+                              }`}
+                            >
+                              {pr.state}
+                            </Badge>
+                            <span className="text-sm font-semibold text-gray-600">
+                              #{pr.number}
+                            </span>
+                          </div>
+                          <h4 className="font-semibold text-gray-900 mb-2">
+                            {pr.title}
+                          </h4>
+                          <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                            {pr.body || "No description provided"}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 hover:bg-blue-100 border border-blue-200 cursor-pointer"
+                          onClick={() =>
+                            addToDocument(
+                              `PR #${pr.number}: ${pr.title}\n\n${pr.body}`,
+                              "pr"
+                            )
+                          }
+                        >
+                          <Plus className="h-4 w-4 text-blue-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="readme" className="mt-4 overflow-y-auto flex-1">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                </div>
+              ) : !readme ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium">README not found</p>
+                </div>
+              ) : (
+                <div className="space-y-4 pb-4">
+                  <div
+                    className={cn(
+                      "flex items-center",
+                      isSmallMobile || isMobile
+                        ? "justify-between"
+                        : "justify-end"
+                    )}
+                  >
+                    {(isSmallMobile || isMobile) && (
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="outline"
                         onClick={(event) => {
                           event.preventDefault();
                           navigator.clipboard.writeText(readme);
                           setIsCopied(true);
                           setTimeout(() => setIsCopied(false), 2000);
                         }}
-                        className="h-8 w-8 p-0 rounded-lg bg-white/90 backdrop-blur-sm border border-gray-300 shadow-sm hover:bg-white hover:border-blue-300 transition-all duration-200 cursor-pointer flex items-center justify-center"
+                        className="rounded-xl border-2 border-gray-200/60 bg-white/80 hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 cursor-pointer flex items-center gap-2"
                         title="Copy README content"
                       >
                         {isCopied ? (
-                          <Copy className="h-4 w-4 text-green-600" />
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <span className="text-green-600 font-medium">
+                              Copied!
+                            </span>
+                          </>
                         ) : (
-                          <Copy className="h-4 w-4 text-gray-600" />
+                          <>
+                            <Copy className="h-4 w-4 text-gray-600" />
+                            <span className="text-gray-700 font-medium">
+                              Copy README
+                            </span>
+                          </>
                         )}
                       </Button>
-                    </div>
-                  )}
+                    )}
 
-                  <pre className="text-sm whitespace-pre-wrap break-words font-mono leading-relaxed text-gray-800 pt-2">
-                    {readme}
-                  </pre>
-                </div>
-              </div>
-            )}
-          </TabsContent>
+                    <Button
+                      size="sm"
+                      onClick={() => addToDocument(readme, "readme")}
+                      className="rounded-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg transition-all duration-200 cursor-pointer"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add to Document
+                    </Button>
+                  </div>
 
-          <TabsContent value="tree" className="mt-4 overflow-y-auto flex-1">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-40">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              </div>
-            ) : !repoTree?.tree ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <FolderTree className="h-8 w-8 text-gray-400" />
+                  <div className="relative p-6 border-2 border-gray-200/60 rounded-xl bg-white/80 backdrop-blur-sm overflow-auto group">
+                    {!isSmallMobile && !isMobile && (
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            navigator.clipboard.writeText(readme);
+                            setIsCopied(true);
+                            setTimeout(() => setIsCopied(false), 2000);
+                          }}
+                          className="h-8 w-8 p-0 rounded-lg bg-white/90 backdrop-blur-sm border border-gray-300 shadow-sm hover:bg-white hover:border-blue-300 transition-all duration-200 cursor-pointer flex items-center justify-center"
+                          title="Copy README content"
+                        >
+                          {isCopied ? (
+                            <Copy className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Copy className="h-4 w-4 text-gray-600" />
+                          )}
+                        </Button>
+                      </div>
+                    )}
+
+                    <pre className="text-sm whitespace-pre-wrap wrap-break-word font-mono leading-relaxed text-gray-800 pt-2">
+                      {readme}
+                    </pre>
+                  </div>
                 </div>
-                <p className="text-gray-500 font-medium">No files found</p>
-              </div>
-            ) : (
-              <div className="space-y-3 pb-4">
-                {/* Breadcrumb navigation */}
-                <div className="flex items-center gap-2 p-3 rounded-xl border-2 border-gray-200/60 bg-white/80 backdrop-blur-sm">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={navigateToRoot}
-                    disabled={!currentPath}
-                    className="h-8 w-8 rounded-lg bg-gray-100 hover:bg-gray-200"
-                  >
-                    <Home className="h-4 w-4" />
-                  </Button>
-                  {pathHistory.length > 0 && (
+              )}
+            </TabsContent>
+
+            <TabsContent value="tree" className="mt-4 overflow-y-auto flex-1">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                </div>
+              ) : !repoTree?.tree ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FolderTree className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium">No files found</p>
+                </div>
+              ) : (
+                <div className="space-y-3 pb-4">
+                  <div className="flex items-center gap-2 p-3 rounded-xl border-2 border-gray-200/60 bg-white/80 backdrop-blur-sm">
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={navigateBack}
+                      onClick={navigateToRoot}
+                      disabled={!currentPath}
                       className="h-8 w-8 rounded-lg bg-gray-100 hover:bg-gray-200"
                     >
-                      <ChevronRight className="h-4 w-4 rotate-180" />
+                      <Home className="h-4 w-4" />
                     </Button>
-                  )}
-                  <span className="text-sm font-medium text-gray-700 truncate flex-1">
-                    {currentPath ? `/${currentPath}` : "root"}
-                  </span>
-                </div>
-
-                {/* Folders */}
-                {getCurrentFolderContents().folders.length > 0 && (
-                  <div className="space-y-1">
-                    {getCurrentFolderContents().folders.map((folder: any) => (
-                      <button
-                        key={folder.path}
-                        onClick={() => navigateToFolder(folder.path)}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-blue-50 rounded-xl border-2 border-transparent hover:border-blue-200 transition-all duration-200 group cursor-pointer"
+                    {pathHistory.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={navigateBack}
+                        className="h-8 w-8 rounded-lg bg-gray-100 hover:bg-gray-200"
                       >
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <Folder className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 truncate flex-1 text-left">
-                          {folder.name}
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                      </button>
-                    ))}
+                        <ChevronRight className="h-4 w-4 rotate-180" />
+                      </Button>
+                    )}
+                    <span className="text-sm font-medium text-gray-700 truncate flex-1">
+                      {currentPath ? `/${currentPath}` : "root"}
+                    </span>
                   </div>
-                )}
 
-                {/* Files */}
-                {getCurrentFolderContents().files.length > 0 && (
-                  <div className="space-y-1">
-                    {getCurrentFolderContents().files.map((file: any) => (
-                      <div
-                        key={file.path}
-                        className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-200 transition-all duration-200 group cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <FileText className="h-4 w-4 text-gray-400" />
-                          </div>
-                          <span className="text-sm text-gray-900 truncate">
-                            {file.name}
-                          </span>
-                        </div>
-                        <a
-                          href={`${connectedRepo.fullUrl}/blob/${selectedBranch}/${file.path}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0"
+                  {getCurrentFolderContents().folders.length > 0 && (
+                    <div className="space-y-1">
+                      {getCurrentFolderContents().folders.map((folder: any) => (
+                        <button
+                          key={folder.path}
+                          onClick={() => navigateToFolder(folder.path)}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-blue-50 rounded-xl border-2 border-transparent hover:border-blue-200 transition-all duration-200 group cursor-pointer"
                         >
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="rounded-lg bg-gray-100 hover:bg-gray-200 cursor-pointer"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {getCurrentFolderContents().folders.length === 0 &&
-                  getCurrentFolderContents().files.length === 0 && (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <FolderOpen className="h-8 w-8 text-gray-400" />
-                      </div>
-                      <p className="text-gray-500 font-medium">Empty folder</p>
+                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Folder className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <span className="text-sm font-medium text-gray-900 truncate flex-1 text-left">
+                            {folder.name}
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                        </button>
+                      ))}
                     </div>
                   )}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+
+                  {getCurrentFolderContents().files.map((file: any) => (
+                    <div
+                      key={file.path}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-200 transition-all duration-200 group cursor-pointer"
+                    >
+                      <div
+                        className="flex items-center gap-3 min-w-0 flex-1"
+                        onClick={() => handleFileClick(file)}
+                      >
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <FileCode className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <span className="text-sm text-gray-900 truncate">
+                          {file.name}
+                        </span>
+                      </div>
+                      <a
+                        href={`${connectedRepo.fullUrl}/blob/${selectedBranch}/${file.path}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="rounded-lg bg-gray-100 hover:bg-gray-200 cursor-pointer"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {selectedFile && (
+        <CodeViewerModal
+          open={codeViewerOpen}
+          onOpenChange={setCodeViewerOpen}
+          filePath={selectedFile.path}
+          fileName={selectedFile.name}
+          repoUrl={connectedRepo.fullUrl}
+          branch={selectedBranch}
+          teamId={activeTeam?.id || ""}
+        />
+      )}
+    </>
   );
 }
