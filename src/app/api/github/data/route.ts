@@ -57,7 +57,6 @@ export async function GET(req: Request) {
         break;
 
       case "issues":
-        // Явно запрашиваем только issues (не включая pull requests)
         const issuesResponse = await fetch(
           `${baseUrl}/issues?state=all&per_page=50`,
           {
@@ -65,12 +64,10 @@ export async function GET(req: Request) {
           }
         );
         const issuesData = await issuesResponse.json();
-        // Фильтруем, чтобы оставить только issues (у pull requests есть pull_request поле)
         data = issuesData.filter((issue: any) => !issue.pull_request);
         break;
 
       case "pulls":
-        // Используем endpoint специально для pull requests
         const pullsResponse = await fetch(
           `${baseUrl}/pulls?state=all&per_page=50`,
           {
