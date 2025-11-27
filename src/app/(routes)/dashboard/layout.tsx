@@ -15,7 +15,37 @@ import Dashboard from "./page";
 import { TourProvider } from "../../_context/TourContext";
 import GettingStartedTour from "./_components/GettingStartedTour";
 import { FileDataProvider } from "../../_context/FileDataContext";
-import { GithubProvider } from "@/app/_context/GithubContext";
+import { GithubProvider, useGithub } from "@/app/_context/GithubContext";
+import { CodeViewerModal } from "./_components/github-modal/_components/CodeViewer";
+
+function GlobalCodeViewer() {
+  const { codeViewerState, setCodeViewerState } = useGithub();
+
+  if (!codeViewerState?.open) return null;
+
+  return (
+    <CodeViewerModal
+      open={codeViewerState.open}
+      onOpenChange={(open) => {
+        if (!open) {
+          setCodeViewerState({
+            open: false,
+            filePath: codeViewerState.filePath,
+            fileName: codeViewerState.fileName,
+            repoUrl: codeViewerState.repoUrl,
+            branch: codeViewerState.branch,
+            teamId: codeViewerState.teamId,
+          });
+        }
+      }}
+      filePath={codeViewerState.filePath}
+      fileName={codeViewerState.fileName}
+      repoUrl={codeViewerState.repoUrl}
+      branch={codeViewerState.branch}
+      teamId={codeViewerState.teamId}
+    />
+  );
+}
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user }: any = useKindeBrowserClient();
@@ -128,6 +158,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <Dashboard onMenuToggle={handleMenuToggle} />
                 </div>
               </div>
+              <GlobalCodeViewer />
             </div>
           </FileListContext.Provider>
         </GithubProvider>
