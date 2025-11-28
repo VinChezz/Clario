@@ -62,6 +62,7 @@ model File {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   isPublic    Boolean  @default(false)
+  deletedAt   DateTime?
   permissions String   @default("VIEW")
   shareToken  String?  @unique
   version     Int      @default(1)
