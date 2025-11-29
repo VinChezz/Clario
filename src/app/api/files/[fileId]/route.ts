@@ -116,7 +116,10 @@ export async function GET(
     }
 
     const file = await prisma.file.findUnique({
-      where: { id: fileId },
+      where: {
+        id: fileId,
+        deletedAt: null,
+      },
       include: {
         createdBy: {
           select: {
@@ -180,6 +183,94 @@ export async function GET(
     return NextResponse.json(file, { status: 200 });
   } catch (error) {
     console.error("❌ Error fetching file:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { fileId: string } }
+) {
+  try {
+    const { fileId } = await params;
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+
+    console.log("🗑️ SOFT DELETE request for file:", fileId);
+
+    if (!fileId) {
+      return NextResponse.json(
+        { error: "File ID is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!user || !user.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const existingFile = await prisma.file.findUnique({
+      where: { id: fileId },
+      include: {
+        team: {
+          include: {
+            members: {
+              where: {
+                userId: dbUser.id,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!existingFile) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
+    const userMembership = existingFile.team.members[0];
+    const isTeamCreator = existingFile.team.createdById === dbUser.id;
+
+    const canDelete =
+      userMembership?.role === "ADMIN" ||
+      userMembership?.role === "EDIT" ||
+      isTeamCreator;
+
+    if (!canDelete) {
+      return NextResponse.json(
+        {
+          error:
+            "Insufficient permissions. Only EDIT and ADMIN roles can delete files.",
+        },
+        { status: 403 }
+      );
+    }
+
+    const deletedFile = await prisma.file.update({
+      where: { id: fileId },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+
+    console.log("✅ File moved to trash:", fileId);
+    return NextResponse.json(
+      { message: "File moved to trash", file: deletedFile },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error("❌ Error moving file to trash:", err);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
