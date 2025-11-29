@@ -8,6 +8,7 @@ export interface FILE {
   createdById: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string;
   isPublic: boolean;
   permissions: string;
   shareToken?: string;
