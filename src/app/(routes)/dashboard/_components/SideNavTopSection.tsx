@@ -69,6 +69,10 @@ interface SideNavTopSectionProps {
   isMobile?: boolean;
   isTablet?: boolean;
   fileList_?: FILE[];
+  fileCount?: number;
+  onFileClick?: (fileId: string) => void;
+  refreshTrigger?: number;
+  onRefreshFiles?: () => void;
 }
 
 const menu = [
@@ -127,17 +131,21 @@ function SideNavTopSection({
   setActiveTeamInfo,
   onItemClick,
   fileList_ = [],
+  fileCount = 0,
+  onFileClick,
+  refreshTrigger = 0,
+  onRefreshFiles,
 }: SideNavTopSectionProps) {
   const router = useRouter();
   const [activeTeam, setActiveTeam] = useState<TEAM>();
   const [teamList, setTeamList] = useState<TEAM[]>();
-  const [fileList, setFileList] = useState<FILE[]>([]);
   const [teamsModalOpen, setTeamsModalOpen] = useState(false);
   const [filesModalOpen, setFilesModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [fileFilter, setFileFilter] = useState<"all" | "recent" | "favorites">(
     "all"
   );
+  const [localFileList, setLocalFileList] = useState<FILE[]>(fileList_);
 
   const isMobileDevice = useIsMobile();
   const isTabletDevice = useIsTablet();
@@ -146,11 +154,20 @@ function SideNavTopSection({
   const isHorizontalTablet = useIsHorizontalTablet();
   const isLandscapeDevice = useIsLandscape();
 
-  const stableFileList = useMemo(() => fileList_, [JSON.stringify(fileList_)]);
+  const stableFileList = useMemo(
+    () => localFileList,
+    [JSON.stringify(localFileList)]
+  );
 
   useEffect(() => {
-    setFileList(stableFileList);
-  }, [stableFileList]);
+    setLocalFileList(fileList_);
+  }, [fileList_]);
+
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      loadFiles();
+    }
+  }, [refreshTrigger]);
 
   useEffect(() => {
     if (user) getTeamList();
@@ -159,6 +176,39 @@ function SideNavTopSection({
   useEffect(() => {
     if (activeTeam) setActiveTeamInfo(activeTeam);
   }, [activeTeam]);
+
+  const loadFiles = async () => {
+    try {
+      if (!activeTeam?.id) return;
+
+      console.log("🔄 Loading files for sidenav team:", activeTeam.id);
+
+      const response = await fetch(`/api/files?teamId=${activeTeam.id}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const files = await response.json();
+      console.log("📁 Sidenav files response:", files);
+
+      const activeFiles = Array.isArray(files)
+        ? files.filter((file) => !file.deletedAt)
+        : [];
+
+      setLocalFileList(activeFiles);
+      console.log("✅ Sidenav files loaded successfully:", activeFiles.length);
+    } catch (error) {
+      console.error("❌ Failed to load files in sidenav:", error);
+      setLocalFileList([]);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTeam?.id) {
+      loadFiles();
+    }
+  }, [activeTeam?.id]);
 
   const getTeamList = async () => {
     try {
@@ -205,7 +255,11 @@ function SideNavTopSection({
   };
 
   const handleFileClick = (fileId: string) => {
-    router.push(`/workspace/${fileId}`);
+    if (onFileClick) {
+      onFileClick(fileId);
+    } else {
+      router.push(`/workspace/${fileId}`);
+    }
     setFilesModalOpen(false);
     onItemClick?.();
   };
@@ -214,6 +268,9 @@ function SideNavTopSection({
     setActiveTeam(team);
     setTeamsModalOpen(false);
     setSearchQuery("");
+    if (team.id !== activeTeam?.id) {
+      loadFiles();
+    }
   };
 
   const handleQuickAction = (path: string) => {
@@ -233,7 +290,7 @@ function SideNavTopSection({
     team.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredFiles = fileList.filter((file) => {
+  const filteredFiles = stableFileList.filter((file) => {
     const matchesSearch = file.fileName
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
@@ -242,6 +299,13 @@ function SideNavTopSection({
     if (fileFilter === "favorites") return matchesSearch;
     return matchesSearch;
   });
+
+  const handleRefreshFiles = () => {
+    loadFiles();
+    if (onRefreshFiles) {
+      onRefreshFiles();
+    }
+  };
 
   const getButtonSize = () => {
     if (isMobileDevice)
@@ -554,7 +618,10 @@ function SideNavTopSection({
       </button>
 
       <button
-        onClick={() => setFilesModalOpen(true)}
+        onClick={() => {
+          setFilesModalOpen(true);
+          handleRefreshFiles();
+        }}
         className={cn(
           "group flex items-center w-full rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:shadow-md transition-all duration-200",
           buttonSize.padding,
@@ -589,7 +656,7 @@ function SideNavTopSection({
                 : "text-xs"
             )}
           >
-            {fileList.length} files
+            {filteredFiles.length} files
           </p>
         </div>
         <ChevronRight
@@ -865,12 +932,14 @@ function SideNavTopSection({
       <Dialog open={filesModalOpen} onOpenChange={setFilesModalOpen}>
         <DialogContent
           className={cn(
-            "p-2 gap-0 overflow-hidden rounded-2xl",
-            modalSizes.files
+            "p-0 gap-0 overflow-hidden rounded-2xl max-w-2xl",
+            isHorizontalMobileDevice || isLandscapeDevice
+              ? "max-h-96"
+              : "max-h-[600px]"
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <DialogHeader className="px-6 pt-5 pb-4 border-b">
+          <DialogHeader className="px-7 pt-6 pb-4 border-b">
             <div className="flex items-center justify-between">
               <DialogTitle
                 className={cn("font-bold text-gray-900", modalSizes.title)}
@@ -886,7 +955,7 @@ function SideNavTopSection({
             </div>
           </DialogHeader>
 
-          <div className="p-5 space-y-3">
+          <div className="p-7 space-y-3">
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input

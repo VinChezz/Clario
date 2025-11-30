@@ -10,6 +10,8 @@ import {
   RotateCcw,
   CheckCircle2,
   Trash2,
+  FileText,
+  Badge,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import {
@@ -41,6 +43,16 @@ import {
   useIsHorizontalTablet,
 } from "@/hooks/useMediaQuery";
 import { GithubConnectModal } from "./github-modal/GithubConnectModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const StorageIndicator = ({
   totalFiles,
@@ -260,6 +272,10 @@ export default function SideNavBottomSection({
   const [isCheckingRepo, setIsCheckingRepo] = useState(false);
   const { activeTeam } = useActiveTeam();
   const [showOrientationWarning, setShowOrientationWarning] = useState(false);
+  const [trashModalOpen, setTrashModalOpen] = useState(false);
+  const [deletedFiles, setDeletedFiles] = useState<any[]>([]);
+  const [isLoadingTrash, setIsLoadingTrash] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -383,6 +399,58 @@ export default function SideNavBottomSection({
 
   const shouldShowTourButton = !isMobileDevice && !isHorizontalMobileDevice;
 
+  const fetchDeletedFiles = async () => {
+    if (!activeTeam?.id) return;
+
+    setIsLoadingTrash(true);
+    try {
+      const response = await fetch(`/api/files/trash?teamId=${activeTeam.id}`);
+      if (response.ok) {
+        const files = await response.json();
+        setDeletedFiles(files);
+      }
+    } catch (error) {
+      console.error("Failed to fetch deleted files:", error);
+    } finally {
+      setIsLoadingTrash(false);
+    }
+  };
+
+  const handleRestoreFile = async (fileId: string) => {
+    try {
+      const response = await fetch(`/api/files/${fileId}/restore`, {
+        method: "PATCH",
+      });
+
+      if (response.ok) {
+        fetchDeletedFiles();
+      }
+    } catch (error) {
+      console.error("Failed to restore file:", error);
+    }
+  };
+
+  const handleDeletePermanently = async (fileId: string) => {
+    try {
+      console.log("🗑️ Deleting file permanently:", fileId);
+
+      const response = await fetch(`/api/files/${fileId}/permanent`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        console.log("✅ File permanently deleted:", fileId);
+        setFileToDelete(null);
+        fetchDeletedFiles();
+      } else {
+        const errorData = await response.json();
+        console.error("❌ Failed to delete file:", errorData);
+      }
+    } catch (error) {
+      console.error("❌ Error deleting file permanently:", error);
+    }
+  };
+
   const menuList = [
     ...(shouldShowTourButton
       ? [
@@ -411,7 +479,11 @@ export default function SideNavBottomSection({
       id: 3,
       name: "Trash",
       icon: Trash2,
-      onClick: onAction,
+      onClick: () => {
+        setTrashModalOpen(true);
+        fetchDeletedFiles();
+        onAction?.();
+      },
       className: "",
     },
   ];
@@ -518,6 +590,113 @@ export default function SideNavBottomSection({
     };
   };
 
+  const getModalSizes = () => {
+    if (isMobileDevice)
+      return {
+        teams: "max-w-[95vw] max-h-[87vh]",
+        files: "max-w-[95vw] max-h-[90vh]",
+        title: "text-base",
+        inputHeight: "h-7",
+        teamAvatar: "w-10 h-10 text-xs",
+        fileGrid: "grid-cols-2",
+        contentPadding: "p-3.5",
+        teamItemPadding: "p-2",
+        headerPadding: "px-3.5 pt-3.5 pb-3",
+        searchPadding: "px-3.5 pb-3",
+        teamsPadding: "px-3.5 pt-0",
+        quickAccessPadding: "px-3.5",
+        userPadding: "px-3.5",
+        separatorMargin: "mx-3.5",
+      };
+    if (isHorizontalMobileDevice || isLandscapeDevice)
+      return {
+        teams: "max-w-[85vw]",
+        files: "max-w-[85vw]",
+        title: "text-lg",
+        inputHeight: "h-9",
+        teamAvatar: "w-8 h-8 text-xs",
+        fileGrid: "grid-cols-1",
+        contentPadding: "p-3",
+        teamItemPadding: "p-2",
+        headerPadding: "px-3 pt-3 pb-2",
+        searchPadding: "px-3 pb-2",
+        teamsPadding: "px-3 pt-0",
+        quickAccessPadding: "px-3",
+        userPadding: "px-3",
+        separatorMargin: "mx-3",
+      };
+    if (isHorizontalTablet) {
+      return {
+        teams: "max-w-[80vw]",
+        files: "max-w-[80vw]",
+        title: "text-lg",
+        inputHeight: "h-9",
+        teamAvatar: "w-8 h-8 text-sm",
+        fileGrid: "grid-cols-2",
+        contentPadding: "p-4",
+        teamItemPadding: "p-3",
+        headerPadding: "px-4 pt-4 pb-3",
+        searchPadding: "px-4 pb-3",
+        teamsPadding: "px-4 pt-0",
+        quickAccessPadding: "px-4",
+        userPadding: "px-4",
+        separatorMargin: "mx-4",
+      };
+    }
+    if (isTabletDevice)
+      return {
+        teams: "max-w-md",
+        files: "max-w-2xl",
+        title: "text-lg",
+        inputHeight: "h-10",
+        teamAvatar: "w-10 h-10 text-sm",
+        fileGrid: "grid-cols-2",
+        contentPadding: "p-5",
+        teamItemPadding: "p-3",
+        headerPadding: "px-5 pt-5 pb-4",
+        searchPadding: "px-5 pb-4",
+        teamsPadding: "px-5 pt-0",
+        quickAccessPadding: "px-5",
+        userPadding: "px-5",
+        separatorMargin: "mx-5",
+      };
+    if (isLargeTabletDevice)
+      return {
+        teams: "max-w-lg",
+        files: "max-w-3xl",
+        title: "text-2xl",
+        teamText: "text-xl",
+        inputHeight: "h-12",
+        teamAvatar: "w-12 h-12 text-base",
+        fileGrid: "grid-cols-3",
+        contentPadding: "p-6",
+        teamItemPadding: "p-4",
+        headerPadding: "px-6 pt-6 pb-5",
+        searchPadding: "px-6 pb-5",
+        teamsPadding: "px-6 pt-0",
+        quickAccessPadding: "px-6",
+        userPadding: "px-6",
+        separatorMargin: "mx-6",
+      };
+
+    return {
+      teams: "max-w-lg",
+      files: "max-w-4xl",
+      title: "text-xl",
+      inputHeight: "h-8",
+      teamAvatar: "w-10 h-10 text-sm",
+      fileGrid: "grid-cols-3",
+      contentPadding: "p-4",
+      teamItemPadding: "p-3",
+      headerPadding: "px-6 pt-6 pb-4",
+      searchPadding: "px-4 pb-4",
+      teamsPadding: "px-6 pt-0",
+      quickAccessPadding: "px-6",
+      userPadding: "px-6",
+      separatorMargin: "mx-4",
+    };
+  };
+
   const getSpacing = () => {
     if (isHorizontalMobileDevice || isLandscapeDevice) return "space-y-1";
     if (isMobileDevice) return "space-y-2";
@@ -528,6 +707,7 @@ export default function SideNavBottomSection({
 
   const buttonSize = getButtonSize();
   const upgradeCard = getUpgradeCardSize();
+  const modalSizes = getModalSizes();
   const spacing = getSpacing();
 
   return (
@@ -848,6 +1028,127 @@ export default function SideNavBottomSection({
               )}
             </>
           )}
+
+          <Dialog open={trashModalOpen} onOpenChange={setTrashModalOpen}>
+            <DialogContent
+              className={cn(
+                "p-0 gap-0 overflow-hidden rounded-2xl max-w-2xl",
+                isHorizontalMobileDevice || isLandscapeDevice
+                  ? "max-h-96"
+                  : "max-h-[600px]"
+              )}
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
+              <DialogHeader className="px-7 pt-6 pb-4 border-b">
+                <div className="flex items-center justify-between">
+                  <DialogTitle
+                    className={cn("font-bold text-gray-900", modalSizes.title)}
+                  >
+                    Trash
+                  </DialogTitle>
+                  <Badge className="text-xs font-semibold bg-white shadow-sm px-3 py-1">
+                    {deletedFiles.length}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div
+                className={cn(
+                  "overflow-y-auto p-5 pt-1",
+                  isHorizontalMobileDevice ||
+                    isLandscapeDevice ||
+                    isHorizontalTablet
+                    ? "max-h-48"
+                    : "max-h-[480px]"
+                )}
+              >
+                {deletedFiles && deletedFiles.length > 0 ? (
+                  <div className={cn("grid gap-3", modalSizes.fileGrid)}>
+                    {deletedFiles.map((file) => (
+                      <div
+                        key={file.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleRestoreFile(file.id)}
+                        className="group flex flex-col rounded-xl border border-gray-200 bg-white
+                        hover:bg-linear-to-br hover:from-indigo-50 hover:via-purple-50 hover:to-pink-50
+                        hover:border-indigo-200 hover:shadow-md hover:-translate-y-1
+                        transition-all duration-300 overflow-hidden cursor-pointer"
+                      >
+                        <div
+                          className="relative w-full aspect-video bg-linear-to-br from-gray-50 to-gray-100
+                          flex items-center justify-center group-hover:from-transparent
+                          group-hover:to-transparent transition-all"
+                        >
+                          <FileText className="h-8 w-8 text-gray-400 group-hover:text-red-600 transition-colors" />
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFileToDelete(file.id);
+                            }}
+                            className="absolute top-2 right-2 p-1 rounded-md bg-white shadow-sm
+                            border border-gray-200 opacity-0 group-hover:opacity-100
+                            hover:bg-red-50 transition-all"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </button>
+                        </div>
+                        <div className="p-3">
+                          <p className="font-semibold text-sm text-gray-900 truncate mb-1">
+                            {file.fileName}
+                          </p>
+                          <p className="text-xs text-red-600">
+                            Deleted
+                            {new Date(file.deletedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-400">
+                    <Trash2 className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                    <p className="text-sm font-semibold mb-1">Trash is empty</p>
+                    <p className="text-xs">Deleted files will appear here</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">
+                    Files in trash will be automatically deleted after 30 days
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <AlertDialog
+            open={!!fileToDelete}
+            onOpenChange={() => setFileToDelete(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Permanently delete file?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. The file will be permanently
+                  deleted from the server and cannot be recovered.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() =>
+                    fileToDelete && handleDeletePermanently(fileToDelete)
+                  }
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Delete Permanently
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         <div className="pt-3">
