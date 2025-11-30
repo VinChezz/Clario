@@ -1,6 +1,7 @@
 "use client";
 
 import { FileListContext } from "@/app/_context/FileListContext";
+import { useFileData } from "@/app/_context/FileDataContext";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import {
   Archive,
@@ -46,23 +47,35 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 
 type ViewMode = "grid" | "list" | "table";
 
 interface FileListProps {
   files?: FILE[];
+  onFileUpdate?: (files: any[]) => void;
 }
 
-export default function FileList({ files }: FileListProps) {
+export default function FileList({ files, onFileUpdate }: FileListProps) {
   const { fileList_, setFileList_ } = useContext(FileListContext);
   const [fileList, setFileList] = useState<FILE[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "date" | "size">("date");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [trashModalOpen, setTrashModalOpen] = useState(false);
+  const [deletedFiles, setDeletedFiles] = useState<any[]>([]);
   const { user }: any = useKindeBrowserClient();
   const router = useRouter();
   const isMobile = useIsMobile();
+
+  const { updateFromFileList } = useFileData();
 
   useEffect(() => {
     if (files && files.length > 0) {
@@ -73,19 +86,128 @@ export default function FileList({ files }: FileListProps) {
   }, [files, fileList_]);
 
   useEffect(() => {
-    console.log("📁 FileList Debug:", {
-      filesFromProps: files?.length || 0,
-      filesFromContext: fileList_?.length || 0,
-      currentFileList: fileList.length,
-      hasFiles: fileList.length > 0,
-    });
-  }, [files, fileList_, fileList]);
-
-  useEffect(() => {
     if (isMobile && viewMode === "table") {
       setViewMode("list");
     }
   }, [isMobile]);
+
+  const fetchDeletedFiles = async () => {
+    try {
+      const response = await fetch("/api/files/trash");
+      if (response.ok) {
+        const files = await response.json();
+        setDeletedFiles(files);
+      }
+    } catch (error) {
+      console.error("Failed to fetch deleted files:", error);
+    }
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    const previousFileList = [...fileList];
+
+    try {
+      const updatedFileList = fileList.filter((file) => file.id !== fileId);
+      setFileList(updatedFileList);
+
+      if (setFileList_) {
+        setFileList_((prev: any) =>
+          prev.filter((file: any) => file.id !== fileId)
+        );
+      }
+
+      updateFromFileList(updatedFileList);
+
+      if (onFileUpdate) {
+        onFileUpdate(updatedFileList);
+      }
+
+      const response = await fetch(`/api/files/${fileId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Delete failed");
+      }
+
+      fetchDeletedFiles();
+
+      console.log("✅ File moved to trash successfully");
+    } catch (error) {
+      console.error("❌ Failed to delete file:", error);
+
+      setFileList(previousFileList);
+
+      if (setFileList_) {
+        setFileList_(previousFileList);
+      }
+
+      updateFromFileList(previousFileList);
+
+      if (onFileUpdate) {
+        onFileUpdate(previousFileList);
+      }
+
+      alert("Failed to delete file. Please try again.");
+    }
+  };
+
+  const handleRestoreFile = async (fileId: string) => {
+    try {
+      const updatedDeletedFiles = deletedFiles.filter(
+        (file) => file.id !== fileId
+      );
+      setDeletedFiles(updatedDeletedFiles);
+
+      const response = await fetch(`/api/files/${fileId}/restore`, {
+        method: "PATCH",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Restore failed");
+      }
+
+      if (onFileUpdate) {
+        onFileUpdate([]);
+      }
+
+      console.log("✅ File restored successfully");
+    } catch (error) {
+      console.error("❌ Failed to restore file:", error);
+
+      fetchDeletedFiles();
+
+      alert("Failed to restore file. Please try again.");
+    }
+  };
+  const handleDownloadFile = async (file: FILE) => {
+    try {
+      const fileData = {
+        fileName: file.fileName,
+        document: file.document,
+        whiteboard: file.whiteboard,
+        createdAt: file.createdAt,
+        updatedAt: file.updatedAt,
+      };
+
+      const blob = new Blob([JSON.stringify(fileData, null, 2)], {
+        type: "application/json",
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${file.fileName}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to download file:", error);
+    }
+  };
 
   const filteredAndSortedFiles = fileList
     .filter((file) =>
@@ -188,13 +310,22 @@ export default function FileList({ files }: FileListProps) {
     }
   };
 
-  const handleFileAction = (action: string, file: FILE) => {
+  const handleFileAction = (
+    action: string,
+    file: FILE,
+    e?: React.MouseEvent
+  ) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
     switch (action) {
       case "share":
         console.log("Sharing file:", file.fileName);
         break;
       case "download":
-        console.log("Downloading file:", file.fileName);
+        handleDownloadFile(file);
         break;
       case "rename":
         console.log("Renaming file:", file.fileName);
@@ -203,7 +334,13 @@ export default function FileList({ files }: FileListProps) {
         console.log("Archiving file:", file.fileName);
         break;
       case "delete":
-        console.log("Deleting file:", file.fileName);
+        handleDeleteFile(file.id!);
+        break;
+      case "star":
+        console.log("Starring file:", file.fileName);
+        break;
+      case "copy":
+        console.log("Copying file:", file.fileName);
         break;
       default:
         break;
@@ -295,7 +432,19 @@ export default function FileList({ files }: FileListProps) {
                 )}
               </div>
 
-              <div className="flex items-center gap-2 lg:gap-3">
+              <div className="flex items-center gap-2 lg:gap-3 z-50">
+                <Button
+                  variant="outline"
+                  className="gap-2 flex-1 lg:flex-initial h-10"
+                  onClick={() => {
+                    setTrashModalOpen(true);
+                    fetchDeletedFiles();
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="lg:inline">Trash</span>
+                </Button>
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -490,42 +639,57 @@ export default function FileList({ files }: FileListProps) {
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
-                                onClick={() =>
-                                  handleFileAction("download", file)
-                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFileAction("download", file, e);
+                                }}
                               >
                                 <Download className="h-4 w-4" /> Download
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
-                                onClick={() => handleFileAction("rename", file)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFileAction("rename", file, e);
+                                }}
                               >
                                 <Edit3 className="h-4 w-4" /> Rename
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
-                                onClick={() => handleFileAction("share", file)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFileAction("share", file, e);
+                                }}
                               >
                                 <Share className="h-4 w-4" />
+                                Share
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
-                                onClick={() =>
-                                  handleFileAction("archive", file)
-                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFileAction("archive", file, e);
+                                }}
                               >
                                 <Archive className="h-4 w-4" /> Archive
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
-                                onClick={() => handleFileAction("copy", file)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFileAction("copy", file, e);
+                                }}
                               >
                                 <Copy className="h-4 w-4" /> Make a Copy
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 className="flex items-center gap-2 text-red-600"
-                                onClick={() => handleFileAction("delete", file)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFileAction("delete", file, e);
+                                }}
                               >
                                 <Trash2 className="h-4 w-4" /> Delete
                               </DropdownMenuItem>
@@ -541,6 +705,54 @@ export default function FileList({ files }: FileListProps) {
           )}
         </div>
       </div>
+
+      <Dialog open={trashModalOpen} onOpenChange={setTrashModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[600px] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Trash</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-3">
+            {deletedFiles.length > 0 ? (
+              deletedFiles.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-gray-400" />
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">
+                        {file.fileName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Deleted {new Date(file.deletedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRestoreFile(file.id)}
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      Restore
+                    </Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-12 text-gray-400">
+                <Trash2 className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                <p className="text-sm font-semibold mb-1">Trash is empty</p>
+                <p className="text-xs">Deleted files will appear here</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -589,14 +801,21 @@ const FileGridItem = ({
               className="h-7 w-7 lg:h-8 lg:w-8 bg-white/90 hover:bg-white backdrop-blur-sm shadow-sm"
               onClick={(e) => {
                 e.stopPropagation();
-                onFileAction("share", file);
+                e.preventDefault();
+                onFileAction("download", file, e);
               }}
             >
-              <Share className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
+              <Download className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
             </Button>
 
             <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuTrigger
+                asChild
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+              >
                 <Button
                   variant="secondary"
                   size="icon"
@@ -609,31 +828,46 @@ const FileGridItem = ({
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem
                   className="flex items-center gap-2"
-                  onClick={() => onFileAction("download", file)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFileAction("download", file, e);
+                  }}
                 >
                   <Download className="h-4 w-4" /> Download
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="flex items-center gap-2"
-                  onClick={() => onFileAction("rename", file)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFileAction("rename", file, e);
+                  }}
                 >
                   <Edit3 className="h-4 w-4" /> Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="flex items-center gap-2"
-                  onClick={() => onFileAction("share", file)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFileAction("share", file, e);
+                  }}
                 >
                   <Share className="h-4 w-4" /> Share
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="flex items-center gap-2"
-                  onClick={() => onFileAction("archive", file)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFileAction("archive", file, e);
+                  }}
                 >
                   <Archive className="h-4 w-4" /> Archive
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="flex items-center gap-2"
-                  onClick={() => onFileAction("copy", file)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFileAction("copy", file, e);
+                  }}
                 >
                   <Copy className="h-4 w-4" /> Make a Copy
                 </DropdownMenuItem>
@@ -642,7 +876,10 @@ const FileGridItem = ({
 
                 <DropdownMenuItem
                   className="flex items-center gap-2 text-red-600"
-                  onClick={() => onFileAction("delete", file)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFileAction("delete", file, e);
+                  }}
                 >
                   <Trash2 className="h-4 w-4" /> Delete
                 </DropdownMenuItem>
@@ -664,7 +901,8 @@ const FileGridItem = ({
           className="h-7 w-7 lg:h-8 lg:w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
-            onFileAction("star", file);
+            e.preventDefault();
+            onFileAction("star", file, e);
           }}
         >
           <Star className="h-3 w-3 lg:h-4 lg:w-4 fill-yellow-400 text-yellow-400" />
@@ -780,10 +1018,11 @@ const FileListItem = ({
               className="h-9 w-9"
               onClick={(e) => {
                 e.stopPropagation();
-                onFileAction("share", file);
+                e.preventDefault();
+                onFileAction("download", file, e);
               }}
             >
-              <Share className="h-4 w-4" />
+              <Download className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -791,7 +1030,8 @@ const FileListItem = ({
               className="h-9 w-9"
               onClick={(e) => {
                 e.stopPropagation();
-                onFileAction("star", file);
+                e.preventDefault();
+                onFileAction("star", file, e);
               }}
             >
               <Star className="h-4 w-4" />
@@ -799,7 +1039,13 @@ const FileListItem = ({
           </>
         )}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuTrigger
+            asChild
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
             <Button
               variant="ghost"
               size="icon"
@@ -811,32 +1057,47 @@ const FileListItem = ({
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem
               className="flex items-center gap-2"
-              onClick={() => onFileAction("download", file)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFileAction("download", file, e);
+              }}
             >
               <Download className="h-4 w-4" /> Download
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex items-center gap-2"
-              onClick={() => onFileAction("rename", file)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFileAction("rename", file, e);
+              }}
             >
               <Edit3 className="h-4 w-4" /> Rename
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex items-center gap-2"
-              onClick={() => onFileAction("copy", file)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFileAction("copy", file, e);
+              }}
             >
               <Copy className="h-4 w-4" /> Make a Copy
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="flex items-center gap-2"
-              onClick={() => onFileAction("archive", file)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFileAction("archive", file, e);
+              }}
             >
               <Archive className="h-4 w-4" /> Archive
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex items-center gap-2 text-red-600"
-              onClick={() => onFileAction("delete", file)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFileAction("delete", file, e);
+              }}
             >
               <Trash2 className="h-4 w-4" /> Delete
             </DropdownMenuItem>
