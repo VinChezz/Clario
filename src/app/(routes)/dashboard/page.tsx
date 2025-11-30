@@ -68,7 +68,9 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
 
         console.log("🔄 Loading files for team:", activeTeam.id);
 
-        const response = await fetch(`/api/files?teamId=${activeTeam.id}`);
+        const response = await fetch(
+          `/api/files?teamId=${activeTeam.id}&includeTrashed=false`
+        );
 
         console.log("📡 API Response status:", response.status);
 
@@ -81,8 +83,12 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
 
         const filesArray = Array.isArray(files) ? files : [];
 
-        setFileList(filesArray);
-        updateFromFileList(filesArray);
+        const activeFiles = Array.isArray(files)
+          ? files.filter((file) => !file.deletedAt)
+          : [];
+
+        setFileList(activeFiles);
+        updateFromFileList(activeFiles);
 
         console.log("✅ Files loaded successfully:", filesArray.length);
       } catch (error) {
@@ -100,6 +106,11 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
       updateFromFileList([]);
     }
   }, [user, activeTeam?.id, updateFromFileList]);
+
+  const handleFileUpdate = (updatedFiles: any[]) => {
+    setFileList(updatedFiles);
+    updateFromFileList(updatedFiles);
+  };
 
   if (isLoading || !contentLoaded) {
     return <GradientLoader />;
@@ -214,7 +225,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
                 className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8"
                 id="file-list-container"
               >
-                <FileList files={fileList} />
+                <FileList files={fileList} onFileUpdate={handleFileUpdate} />
               </div>
             </ContentLoader>
 
