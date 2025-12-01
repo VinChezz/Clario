@@ -1,50 +1,43 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { canCreateFile, getPlanLimit } from "@/lib/planUtils";
+import { Plan } from "@prisma/client";
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    if (!user || !user.id || !user.email) {
+    if (!user || !user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const {
-      fileName,
-      teamId,
-      archive = false,
-      document = "",
-      whiteboard = "",
-    } = await request.json();
+    const { fileName, teamId, document, whiteboard } = await req.json();
 
-    if (!fileName || !teamId) {
+    if (!fileName?.trim()) {
       return NextResponse.json(
-        { error: "File name and team ID are required" },
+        { error: "File name is required" },
         { status: 400 }
       );
     }
 
-    const userName =
-      user.given_name || user.family_name || user.email.split("@")[0];
-    const userImage = user.picture || "";
+    if (!teamId) {
+      return NextResponse.json(
+        { error: "Team ID is required" },
+        { status: 400 }
+      );
+    }
 
-    const dbUser = await prisma.user.upsert({
+    const dbUser = await prisma.user.findUnique({
       where: { email: user.email },
-      update: {
-        name: userName,
-        image: userImage,
-      },
-      create: {
-        id: user.id,
-        email: user.email,
-        name: userName,
-        image: userImage,
-      },
     });
 
-    const teamAccess = await prisma.team.findFirst({
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const team = await prisma.team.findFirst({
       where: {
         id: teamId,
         OR: [
@@ -53,7 +46,6 @@ export async function POST(request: Request) {
             members: {
               some: {
                 userId: dbUser.id,
-                role: { in: ["ADMIN", "EDIT"] },
               },
             },
           },
@@ -68,45 +60,90 @@ export async function POST(request: Request) {
       },
     });
 
-    if (!teamAccess) {
+    if (!team) {
+      return NextResponse.json({ error: "Team not found" }, { status: 404 });
+    }
+
+    const userMembership = team.members[0];
+    const isTeamCreator = team.createdById === dbUser.id;
+
+    const canCreate =
+      userMembership?.role === "ADMIN" ||
+      userMembership?.role === "EDIT" ||
+      isTeamCreator;
+
+    if (!canCreate) {
       return NextResponse.json(
         {
           error:
-            "Team not found or insufficient permissions. Only ADMIN and EDIT roles can create files.",
+            "Insufficient permissions. Only EDIT and ADMIN roles can create files.",
         },
         { status: 403 }
       );
     }
 
-    if (teamAccess.createdById !== dbUser.id) {
-      const userMembership = teamAccess.members[0];
-      if (!userMembership || !["ADMIN", "EDIT"].includes(userMembership.role)) {
-        return NextResponse.json(
-          {
-            error:
-              "Insufficient permissions. Only ADMIN and EDIT roles can create files.",
-          },
-          { status: 403 }
-        );
-      }
+    const actualFileCount = await prisma.file.count({
+      where: {
+        teamId: teamId,
+        deletedAt: null,
+      },
+    });
+
+    if (
+      !canCreateFile(
+        dbUser.plan as Plan,
+        dbUser.totalCreatedFiles,
+        actualFileCount
+      )
+    ) {
+      const limits = getPlanLimit(dbUser.plan as Plan);
+
+      return NextResponse.json(
+        {
+          error: `Your ${dbUser.plan.toLowerCase()} plan is limited to ${
+            limits.maxFiles
+          } files`,
+          errorCode: "FILE_LIMIT_EXCEEDED",
+          currentPlan: dbUser.plan,
+          totalCreatedFiles: dbUser.totalCreatedFiles,
+          maxFiles: limits.maxFiles,
+          requiresUpgrade: true,
+        },
+        { status: 403 }
+      );
     }
 
     const file = await prisma.file.create({
       data: {
-        fileName,
-        archive,
-        document,
-        whiteboard,
-        teamId,
+        fileName: fileName.trim(),
+        teamId: teamId,
         createdById: dbUser.id,
+        document: document || "",
+        whiteboard: whiteboard || "",
+        version: 1,
+        currentVersion: 1,
+        autoVersioning: true,
+        isPublic: false,
+        permissions: "VIEW",
+        archive: false,
       },
     });
 
+    await prisma.user.update({
+      where: { id: dbUser.id },
+      data: {
+        totalCreatedFiles: {
+          increment: 1,
+        },
+      },
+    });
+
+    console.log("✅ File created successfully:", file.id);
     return NextResponse.json(file, { status: 201 });
-  } catch (err) {
-    console.error("Error creating file:", err);
+  } catch (error) {
+    console.error("❌ Error creating file:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -164,7 +201,10 @@ export async function GET(request: Request) {
     }
 
     const files = await prisma.file.findMany({
-      where: { teamId },
+      where: {
+        teamId,
+        deletedAt: null,
+      },
       orderBy: { createdAt: "desc" },
       include: {
         createdBy: {
