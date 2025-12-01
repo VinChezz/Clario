@@ -14,8 +14,10 @@ import {
   Sparkles,
   ArrowRight,
   Building2,
+  Crown,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { canCreateTeam } from "@/lib/planUtils";
 
 const virgil = Virgil({
   src: "../../../fonts/Virgil.woff2",
@@ -25,6 +27,8 @@ export default function CreateTeam() {
   const { user, isLoading } = useKindeBrowserClient();
   const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [userPlan, setUserPlan] = useState("FREE");
+  const [currentTeams, setCurrentTeams] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -96,6 +100,50 @@ export default function CreateTeam() {
       setLoading(false);
     }
   };
+
+  if (!canCreateTeam && userPlan === "FREE") {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-gray-200">
+          <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Crown className="h-8 w-8 text-amber-600" />
+          </div>
+
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Team Limit Reached
+          </h2>
+
+          <p className="text-gray-600 mb-4">
+            Your <strong>Free</strong> plan allows only <strong>1 team</strong>.
+            You currently have <strong>{currentTeams} team(s)</strong>.
+          </p>
+
+          <p className="text-sm text-gray-500 mb-6">
+            Upgrade to Pro to create multiple teams and unlock advanced
+            collaboration features.
+          </p>
+
+          <div className="space-y-3">
+            <Button
+              onClick={() => router.push("/pricing")}
+              className="w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+            >
+              <Crown className="h-4 w-4 mr-2" />
+              Upgrade to Pro
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => router.push("/dashboard")}
+              className="w-full"
+            >
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-900">
