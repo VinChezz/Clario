@@ -55,24 +55,29 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const StorageIndicator = ({
-  totalFiles,
-  maxFiles,
+  usedSlots,
+  maxSlots,
+  actualFileCount,
+  plan = "FREE",
   isMobile = false,
   isTablet = false,
   isLargeTablet = false,
   isHorizontalMobile = false,
   isLandscape = false,
 }: {
-  totalFiles: number;
-  maxFiles: number;
+  usedSlots: number;
+  maxSlots: number;
+  actualFileCount: number;
+  plan?: string;
   isMobile?: boolean;
   isTablet?: boolean;
   isLargeTablet?: boolean;
   isHorizontalMobile?: boolean;
   isLandscape?: boolean;
 }) => {
-  const usagePercentage = (totalFiles / maxFiles) * 100;
-  const remainingFiles = maxFiles - totalFiles;
+  const usagePercentage = (usedSlots / maxSlots) * 100;
+  const remainingSlots = maxSlots - usedSlots;
+  const filesInTrash = usedSlots - actualFileCount;
 
   const getStorageStatus = () => {
     if (usagePercentage >= 100) {
@@ -94,7 +99,7 @@ const StorageIndicator = ({
         color: "from-blue-500 to-indigo-600",
         bgColor: "from-blue-50 to-indigo-100",
         textColor: "text-blue-600",
-        message: `${remainingFiles} files left`,
+        message: `${remainingSlots} files left`,
       };
     }
   };
@@ -132,7 +137,7 @@ const StorageIndicator = ({
               : "text-sm"
           )}
         >
-          Storage
+          Storage {plan !== "FREE" && `(${plan})`}
         </span>
         <span
           className={cn(
@@ -144,7 +149,7 @@ const StorageIndicator = ({
               : "text-sm"
           )}
         >
-          {totalFiles}/{maxFiles}
+          {usedSlots}/{maxSlots}
         </span>
       </div>
 
@@ -186,6 +191,15 @@ const StorageIndicator = ({
           </span>
         </div>
       </div>
+
+      {plan === "FREE" && filesInTrash > 0 && (
+        <div className="pt-1">
+          <div className="text-[10px] text-gray-500 flex justify-between">
+            <span>{actualFileCount} active</span>
+            <span>{filesInTrash} in trash</span>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -249,7 +263,6 @@ const OrientationWarningModal = ({
 interface SideNavBottomSectionProps {
   onFileCreate: (fileName: string) => void;
   totalFiles?: number;
-  isLoading?: boolean;
   onAction?: () => void;
   isMobile?: boolean;
   isTablet?: boolean;
@@ -259,28 +272,35 @@ interface SideNavBottomSectionProps {
 export default function SideNavBottomSection({
   onFileCreate,
   totalFiles,
-  isLoading = false,
   onAction,
   windowHeight,
 }: SideNavBottomSectionProps) {
-  const { user }: any = useKindeBrowserClient();
+  const { user, isLoading: isUserLoading } = useKindeBrowserClient();
   const [fileInput, setFileInput] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [dbUser, setDbUser] = useState<any>(null);
+  const [storageData, setStorageData] = useState({
+    usedSlots: 0,
+    maxSlots: 10,
+    actualFileCount: 0,
+    plan: "FREE",
+  });
   const [githubModalOpen, setGithubModalOpen] = useState(false);
   const [isGithubConnected, setIsGithubConnected] = useState(false);
   const [isCheckingRepo, setIsCheckingRepo] = useState(false);
-  const { activeTeam } = useActiveTeam();
+  const [dbUser, setDbUser] = useState<any>(null);
   const [showOrientationWarning, setShowOrientationWarning] = useState(false);
   const [trashModalOpen, setTrashModalOpen] = useState(false);
   const [deletedFiles, setDeletedFiles] = useState<any[]>([]);
   const [isLoadingTrash, setIsLoadingTrash] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<string | null>(null);
+  const [isLoadingStorage, setIsLoadingStorage] = useState(false);
 
   const router = useRouter();
 
   const { startTour } = useTour();
-  const { fileCount, hasFiles, isStorageFull } = useFileData();
+  const { fileCount, hasFiles, isStorageFull, updateFromFileList } =
+    useFileData();
+  const { activeTeam, isLoading: isTeamLoading } = useActiveTeam();
 
   const isMobileDevice = useIsMobile();
   const isTabletDevice = useIsTablet();
@@ -289,13 +309,34 @@ export default function SideNavBottomSection({
   const isHorizontalTablet = useIsHorizontalTablet();
   const isLandscapeDevice = useIsLandscape();
 
+  const refreshStorageData = async () => {
+    if (!user?.email) return;
+
+    try {
+      const response = await fetch("/api/users/storage");
+      if (!response.ok) {
+        throw new Error("Failed to fetch storage data");
+      }
+      const data = await response.json();
+
+      setStorageData({
+        usedSlots: data.storage?.usedSlots || 0,
+        maxSlots: data.storage?.maxSlots || 10,
+        actualFileCount: data.storage?.actualFileCount || 0,
+        plan: data.user?.plan || "FREE",
+      });
+    } catch (error) {
+      console.error("Failed to load storage data:", error);
+    }
+  };
+
   const actualFileCount = fileCount !== undefined ? fileCount : totalFiles || 0;
   const actualHasFiles =
     hasFiles !== undefined ? hasFiles : actualFileCount > 0;
   const actualIsStorageFull =
     isStorageFull !== undefined
       ? isStorageFull
-      : actualFileCount >= Constant.MAX_FREE_FILE;
+      : storageData.usedSlots >= storageData.maxSlots;
 
   useEffect(() => {
     if (user?.email) {
@@ -305,6 +346,15 @@ export default function SideNavBottomSection({
         .catch((error) => console.error("Failed to load user:", error));
     }
   }, [user]);
+
+  const currentUserMember = teamMembers.find(
+    (member) => member.userId === dbUser?.id
+  );
+  const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
+
+  const canCreateFiles =
+    (isCurrentUserCreator || currentUserMember?.role === "EDIT") &&
+    !actualIsStorageFull;
 
   useEffect(() => {
     if (activeTeam?.members) {
@@ -346,19 +396,50 @@ export default function SideNavBottomSection({
     checkGithubConnection();
   };
 
-  const currentUserMember = teamMembers.find(
-    (member) => member.userId === dbUser?.id
-  );
-  const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
+  const handleFileCreate = async (fileName: string) => {
+    if (actualIsStorageFull) return;
 
-  const canCreateFiles =
-    (isCurrentUserCreator || currentUserMember?.role === "EDIT") &&
-    !isStorageFull;
+    try {
+      onFileCreate(fileName);
+      onAction?.();
 
-  const handleFileCreate = (fileName: string) => {
-    if (isStorageFull) return;
-    onFileCreate(fileName);
-    onAction?.();
+      setTimeout(refreshStorageData, 1000);
+    } catch (error) {
+      console.error("Error creating file:", error);
+    }
+  };
+
+  const handleDeletePermanently = async (fileId: string) => {
+    try {
+      const response = await fetch(`/api/files/${fileId}/permanent`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setFileToDelete(null);
+        fetchDeletedFiles();
+
+        refreshStorageData();
+      }
+    } catch (error) {
+      console.error("❌ Error deleting file permanently:", error);
+    }
+  };
+
+  const handleRestoreFile = async (fileId: string) => {
+    try {
+      const response = await fetch(`/api/files/${fileId}/restore`, {
+        method: "PATCH",
+      });
+
+      if (response.ok) {
+        fetchDeletedFiles();
+
+        refreshStorageData();
+      }
+    } catch (error) {
+      console.error("Failed to restore file:", error);
+    }
   };
 
   const handleUpgradeClick = () => {
@@ -413,41 +494,6 @@ export default function SideNavBottomSection({
       console.error("Failed to fetch deleted files:", error);
     } finally {
       setIsLoadingTrash(false);
-    }
-  };
-
-  const handleRestoreFile = async (fileId: string) => {
-    try {
-      const response = await fetch(`/api/files/${fileId}/restore`, {
-        method: "PATCH",
-      });
-
-      if (response.ok) {
-        fetchDeletedFiles();
-      }
-    } catch (error) {
-      console.error("Failed to restore file:", error);
-    }
-  };
-
-  const handleDeletePermanently = async (fileId: string) => {
-    try {
-      console.log("🗑️ Deleting file permanently:", fileId);
-
-      const response = await fetch(`/api/files/${fileId}/permanent`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        console.log("✅ File permanently deleted:", fileId);
-        setFileToDelete(null);
-        fetchDeletedFiles();
-      } else {
-        const errorData = await response.json();
-        console.error("❌ Failed to delete file:", errorData);
-      }
-    } catch (error) {
-      console.error("❌ Error deleting file permanently:", error);
     }
   };
 
@@ -710,6 +756,9 @@ export default function SideNavBottomSection({
   const modalSizes = getModalSizes();
   const spacing = getSpacing();
 
+  console.log("creator:", isCurrentUserCreator);
+  console.log("member role:", currentUserMember?.role);
+
   return (
     <>
       <div
@@ -913,7 +962,7 @@ export default function SideNavBottomSection({
                         buttonSize.text,
                         buttonSize.gap
                       )}
-                      disabled={!canCreateFiles || isLoading}
+                      disabled={!canCreateFiles}
                       id="create-file-button-sidenav"
                     >
                       <Plus className={buttonSize.icon} />
@@ -1154,8 +1203,10 @@ export default function SideNavBottomSection({
         <div className="pt-3">
           {!isMobileDevice && !isHorizontalMobileDevice && (
             <StorageIndicator
-              totalFiles={actualFileCount}
-              maxFiles={Constant.MAX_FREE_FILE}
+              usedSlots={storageData.usedSlots}
+              maxSlots={storageData.maxSlots}
+              actualFileCount={storageData.actualFileCount}
+              plan={storageData.plan}
               isMobile={isMobileDevice}
               isTablet={isTabletDevice}
               isLargeTablet={isLargeTabletDevice}

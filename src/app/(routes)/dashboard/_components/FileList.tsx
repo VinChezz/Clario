@@ -52,17 +52,25 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import { toast } from "sonner";
 
 type ViewMode = "grid" | "list" | "table";
 
 interface FileListProps {
   files?: FILE[];
   onFileUpdate?: (files: any[]) => void;
+  onCreateFile?: (fileName: string) => void;
 }
 
-export default function FileList({ files, onFileUpdate }: FileListProps) {
+export default function FileList({
+  files,
+  onFileUpdate,
+  onCreateFile,
+}: FileListProps) {
   const { fileList_, setFileList_ } = useContext(FileListContext);
   const [fileList, setFileList] = useState<FILE[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -71,9 +79,13 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [trashModalOpen, setTrashModalOpen] = useState(false);
   const [deletedFiles, setDeletedFiles] = useState<any[]>([]);
+  const [createFileModalOpen, setCreateFileModalOpen] = useState(false);
+  const [newFileName, setNewFileName] = useState("");
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
   const { user }: any = useKindeBrowserClient();
   const router = useRouter();
   const isMobile = useIsMobile();
+  const { activeTeam } = useActiveTeam();
 
   const { updateFromFileList } = useFileData();
 
@@ -100,6 +112,67 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
       }
     } catch (error) {
       console.error("Failed to fetch deleted files:", error);
+    }
+  };
+
+  const handleCreateFile = async () => {
+    if (!newFileName.trim() || isCreatingFile || !activeTeam?.id) return;
+
+    setIsCreatingFile(true);
+    try {
+      const response = await fetch("/api/files", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: newFileName.trim(),
+          teamId: activeTeam.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.errorCode === "FILE_LIMIT_EXCEEDED") {
+          toast.warning("Storage limit exceeded");
+        } else {
+          throw new Error(data.error || "Failed to create file");
+        }
+        return;
+      }
+
+      const filesResponse = await fetch(`/api/files?teamId=${activeTeam.id}`);
+      const updatedFiles = await filesResponse.json();
+
+      setFileList(updatedFiles);
+
+      if (setFileList_) {
+        setFileList_(updatedFiles);
+      }
+
+      updateFromFileList(updatedFiles);
+
+      if (onFileUpdate) {
+        onFileUpdate(updatedFiles);
+      }
+
+      if (onCreateFile) {
+        onCreateFile(newFileName.trim());
+      }
+
+      setNewFileName("");
+      setCreateFileModalOpen(false);
+
+      router.push(`/workspace/${data.id}`);
+
+      console.log("✅ File created successfully:", data.id);
+    } catch (error: any) {
+      console.error("❌ Failed to create file:", error);
+
+      toast.success("Error creating file");
+    } finally {
+      setIsCreatingFile(false);
     }
   };
 
@@ -134,7 +207,7 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
       fetchDeletedFiles();
 
       console.log("✅ File moved to trash successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Failed to delete file:", error);
 
       setFileList(previousFileList);
@@ -148,8 +221,6 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
       if (onFileUpdate) {
         onFileUpdate(previousFileList);
       }
-
-      alert("Failed to delete file. Please try again.");
     }
   };
 
@@ -169,19 +240,30 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
         throw new Error(errorData.message || "Restore failed");
       }
 
-      if (onFileUpdate) {
-        onFileUpdate([]);
+      if (activeTeam?.id) {
+        const filesResponse = await fetch(`/api/files?teamId=${activeTeam.id}`);
+        const updatedFiles = await filesResponse.json();
+        setFileList(updatedFiles);
+
+        if (setFileList_) {
+          setFileList_(updatedFiles);
+        }
+
+        updateFromFileList(updatedFiles);
+
+        if (onFileUpdate) {
+          onFileUpdate(updatedFiles);
+        }
       }
 
       console.log("✅ File restored successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Failed to restore file:", error);
 
       fetchDeletedFiles();
-
-      alert("Failed to restore file. Please try again.");
     }
   };
+
   const handleDownloadFile = async (file: FILE) => {
     try {
       const fileData = {
@@ -204,6 +286,8 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      toast.success("File downloaded");
     } catch (error) {
       console.error("Failed to download file:", error);
     }
@@ -272,21 +356,6 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
       "from-sky-400 to-sky-600",
       "from-fuchsia-400 to-fuchsia-600",
       "from-violet-400 to-violet-600",
-      "from-blue-500 to-indigo-600",
-      "from-indigo-500 to-purple-600",
-      "from-purple-500 to-pink-600",
-      "from-pink-500 to-rose-600",
-      "from-green-500 to-emerald-600",
-      "from-teal-500 to-cyan-600",
-      "from-cyan-500 to-sky-600",
-      "from-emerald-500 to-teal-600",
-      "from-amber-500 to-orange-600",
-      "from-gray-500 to-slate-700",
-      "from-slate-400 to-gray-600",
-      "from-yellow-400 to-amber-600",
-      "from-orange-500 to-red-600",
-      "from-rose-500 to-pink-600",
-      "from-violet-500 to-indigo-600",
     ];
     return gradients[index % gradients.length];
   };
@@ -347,30 +416,44 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
     }
   };
 
-  if (!fileList || fileList.length === 0) {
-    return (
-      <div className="h-full flex flex-col">
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-linear-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mb-4 mx-auto">
-              <FileText className="h-10 w-10 text-blue-500" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              No files yet
-            </h3>
-            <p className="text-gray-500 mb-6 max-w-md">
-              Create your first file to get started with your team workspace
-            </p>
-            <Button
-              className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-              id="create-file-button-filelist"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create New File
-            </Button>
+  const EmptyState = () => (
+    <div className="h-full flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-linear-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mb-4 mx-auto">
+            <FileText className="h-10 w-10 text-blue-500" />
           </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No files yet</h3>
+          <p className="text-gray-500 mb-6 max-w-md">
+            Create your first file to get started with your team workspace
+          </p>
+          <Button
+            className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            onClick={() => setCreateFileModalOpen(true)}
+            id="create-file-button-filelist"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create New File
+          </Button>
         </div>
       </div>
+    </div>
+  );
+
+  if (!fileList || fileList.length === 0) {
+    return (
+      <>
+        <EmptyState />
+        <CreateFileDialog
+          open={createFileModalOpen}
+          onOpenChange={setCreateFileModalOpen}
+          fileName={newFileName}
+          setFileName={setNewFileName}
+          onSubmit={handleCreateFile}
+          isCreating={isCreatingFile}
+          activeTeam={activeTeam}
+        />
+      </>
     );
   }
 
@@ -391,20 +474,22 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
                 </p>
               </div>
 
-              {isMobile && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0"
-                  onClick={() => setIsSearchOpen(!isSearchOpen)}
-                >
-                  {isSearchOpen ? (
-                    <X className="h-5 w-5" />
-                  ) : (
-                    <SearchIcon className="h-5 w-5" />
-                  )}
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {isMobile && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => setIsSearchOpen(!isSearchOpen)}
+                  >
+                    {isSearchOpen ? (
+                      <X className="h-5 w-5" />
+                    ) : (
+                      <SearchIcon className="h-5 w-5" />
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div
@@ -706,6 +791,16 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
         </div>
       </div>
 
+      <CreateFileDialog
+        open={createFileModalOpen}
+        onOpenChange={setCreateFileModalOpen}
+        fileName={newFileName}
+        setFileName={setNewFileName}
+        onSubmit={handleCreateFile}
+        isCreating={isCreatingFile}
+        activeTeam={activeTeam}
+      />
+
       <Dialog open={trashModalOpen} onOpenChange={setTrashModalOpen}>
         <DialogContent className="max-w-2xl max-h-[600px] flex flex-col">
           <DialogHeader>
@@ -756,6 +851,91 @@ export default function FileList({ files, onFileUpdate }: FileListProps) {
     </div>
   );
 }
+
+const CreateFileDialog = ({
+  open,
+  onOpenChange,
+  fileName,
+  setFileName,
+  onSubmit,
+  isCreating,
+  activeTeam,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  fileName: string;
+  setFileName: (name: string) => void;
+  onSubmit: () => void;
+  isCreating: boolean;
+  activeTeam: any;
+}) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Create New File</DialogTitle>
+        <DialogDescription>
+          Give your new file a descriptive name
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <Input
+          placeholder="Enter file name..."
+          value={fileName}
+          onChange={(e) => setFileName(e.target.value)}
+          onKeyDown={(e) => {
+            if (
+              e.key === "Enter" &&
+              fileName.trim() &&
+              !isCreating &&
+              activeTeam?.id
+            ) {
+              onSubmit();
+            }
+          }}
+          disabled={isCreating}
+          autoFocus
+        />
+        <div className="text-sm text-gray-500">
+          <p>• File will be created in your current team</p>
+          <p>• You can add content after creation</p>
+          {!activeTeam?.id && (
+            <p className="text-red-500 font-medium">
+              • Please select a team first
+            </p>
+          )}
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setFileName("");
+            onOpenChange(false);
+          }}
+          disabled={isCreating}
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={onSubmit}
+          disabled={!fileName.trim() || isCreating || !activeTeam?.id}
+          className="bg-linear-to-r from-blue-600 to-indigo-600"
+        >
+          {isCreating ? (
+            <>
+              <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Creating...
+            </>
+          ) : (
+            "Create File"
+          )}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
 
 const FileGridItem = ({
   file,

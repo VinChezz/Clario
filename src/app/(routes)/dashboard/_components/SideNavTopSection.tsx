@@ -13,6 +13,7 @@ import {
   Sparkles,
   Clock,
   FolderOpen,
+  Lock,
 } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useMemo, useState } from "react";
@@ -37,6 +38,7 @@ import {
   useIsHorizontalTablet,
   useIsLandscape,
 } from "@/hooks/useMediaQuery";
+import { Plan } from "@prisma/client";
 
 export interface TeamMember {
   id: string;
@@ -75,57 +77,6 @@ interface SideNavTopSectionProps {
   onRefreshFiles?: () => void;
 }
 
-const menu = [
-  {
-    id: 1,
-    name: "Create Team",
-    path: "/teams/create",
-    icon: Users,
-    description: "Start new team",
-    color: "text-blue-600",
-    buttonClass: "hover:border-blue-300 hover:bg-blue-50",
-    textClass: "group-hover:text-blue-700",
-    iconClass: "bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm",
-    iconColor: "text-white",
-  },
-  {
-    id: 2,
-    name: "Settings",
-    path: "/settings",
-    icon: Settings,
-    description: "Manage preferences",
-    color: "text-gray-600",
-    buttonClass: "hover:border-gray-300 hover:bg-gray-50",
-    textClass: "",
-    iconClass: "bg-gradient-to-br from-gray-100 to-gray-200",
-    iconColor: "text-gray-600",
-  },
-  {
-    id: 3,
-    name: "Recent",
-    path: "/recent",
-    icon: History,
-    description: "Recent files",
-    color: "text-indigo-600",
-    buttonClass: "hover:border-indigo-300 hover:bg-indigo-50",
-    textClass: "group-hover:text-indigo-700",
-    iconClass: "bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm",
-    iconColor: "text-white",
-  },
-  {
-    id: 4,
-    name: "Favorites",
-    path: "/favorites",
-    icon: Star,
-    description: "Favorite files",
-    color: "text-yellow-600",
-    buttonClass: "hover:border-amber-300 hover:bg-amber-50",
-    textClass: "group-hover:text-amber-700",
-    iconClass: "bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm",
-    iconColor: "text-white",
-  },
-];
-
 function SideNavTopSection({
   user,
   setActiveTeamInfo,
@@ -146,6 +97,10 @@ function SideNavTopSection({
     "all"
   );
   const [localFileList, setLocalFileList] = useState<FILE[]>(fileList_);
+
+  const [userPlan, setUserPlan] = useState<Plan>(Plan.FREE);
+  const [currentTeamsCount, setCurrentTeamsCount] = useState(0);
+  const [canCreateTeam, setCanCreateTeam] = useState(true);
 
   const isMobileDevice = useIsMobile();
   const isTabletDevice = useIsTablet();
@@ -170,12 +125,28 @@ function SideNavTopSection({
   }, [refreshTrigger]);
 
   useEffect(() => {
-    if (user) getTeamList();
+    if (user) {
+      getTeamList();
+      fetchUserPlan();
+    }
   }, [user]);
 
   useEffect(() => {
     if (activeTeam) setActiveTeamInfo(activeTeam);
   }, [activeTeam]);
+
+  const fetchUserPlan = async () => {
+    try {
+      const response = await fetch("/api/users/plan");
+      const data = await response.json();
+
+      setUserPlan(data.user.plan);
+      setCurrentTeamsCount(data.usage.teams.current);
+      setCanCreateTeam(data.usage.teams.canCreate);
+    } catch (error) {
+      console.error("Error fetching user plan:", error);
+    }
+  };
 
   const loadFiles = async () => {
     try {
@@ -279,7 +250,12 @@ function SideNavTopSection({
     onItemClick?.();
   };
 
-  const onMenuClick = (item: any) => {
+  const onMenuClick = async (item: any) => {
+    if (item.id === 1 && item.isDisabled) {
+      router.push("/pricing");
+      return;
+    }
+
     if (item.path) {
       router.push(item.path);
     }
@@ -306,6 +282,60 @@ function SideNavTopSection({
       onRefreshFiles();
     }
   };
+
+  const menu = [
+    {
+      id: 1,
+      name: "Create Team",
+      path: "/teams/create",
+      icon: Users,
+      description: "Start new team",
+      color: "text-blue-600",
+      buttonClass: "hover:border-blue-300 hover:bg-blue-50",
+      textClass: "group-hover:text-blue-700",
+      iconClass: "bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm",
+      iconColor: "text-white",
+      isDisabled: userPlan === Plan.FREE && currentTeamsCount >= 1,
+      disabledTooltip:
+        "Free plan limited to 1 team. Upgrade to create more teams.",
+    },
+    {
+      id: 2,
+      name: "Settings",
+      path: "/settings",
+      icon: Settings,
+      description: "Manage preferences",
+      color: "text-gray-600",
+      buttonClass: "hover:border-gray-300 hover:bg-gray-50",
+      textClass: "",
+      iconClass: "bg-gradient-to-br from-gray-100 to-gray-200",
+      iconColor: "text-gray-600",
+    },
+    {
+      id: 3,
+      name: "Recent",
+      path: "/recent",
+      icon: History,
+      description: "Recent files",
+      color: "text-indigo-600",
+      buttonClass: "hover:border-indigo-300 hover:bg-indigo-50",
+      textClass: "group-hover:text-indigo-700",
+      iconClass: "bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm",
+      iconColor: "text-white",
+    },
+    {
+      id: 4,
+      name: "Favorites",
+      path: "/favorites",
+      icon: Star,
+      description: "Favorite files",
+      color: "text-yellow-600",
+      buttonClass: "hover:border-amber-300 hover:bg-amber-50",
+      textClass: "group-hover:text-amber-700",
+      iconClass: "bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm",
+      iconColor: "text-white",
+    },
+  ];
 
   const getButtonSize = () => {
     if (isMobileDevice)
@@ -676,12 +706,15 @@ function SideNavTopSection({
               <button
                 key={item.id}
                 onClick={() => onMenuClick(item)}
+                disabled={item.isDisabled}
                 className={cn(
-                  "flex items-center justify-center rounded-xl border border-gray-200 transition-all group w-full min-w-0",
+                  "flex items-center justify-center rounded-xl border border-gray-200 transition-all group w-full min-w-0 relative",
                   item.buttonClass,
                   quickAccess.buttonClass,
-                  quickAccess.gap
+                  quickAccess.gap,
+                  item.isDisabled && "opacity-50 cursor-not-allowed"
                 )}
+                title={item.isDisabled ? item.disabledTooltip : ""}
               >
                 <div
                   className={cn(
@@ -693,18 +726,24 @@ function SideNavTopSection({
                     className={cn(quickAccess.iconSize, item.iconColor)}
                   />
                 </div>
+                {item.isDisabled && (
+                  <Lock className="absolute -top-1 -right-1 h-3 w-3 text-gray-400" />
+                )}
               </button>
             ))
           : menu.map((item) => (
               <button
                 key={item.id}
                 onClick={() => onMenuClick(item)}
+                disabled={item.isDisabled}
                 className={cn(
-                  "flex items-center rounded-xl border border-gray-200 transition-all group text-left w-full min-w-0",
+                  "flex items-center rounded-xl border border-gray-200 transition-all group text-left w-full min-w-0 relative",
                   item.buttonClass,
                   quickAccess.buttonClass,
-                  quickAccess.gap
+                  quickAccess.gap,
+                  item.isDisabled && "opacity-50 cursor-not-allowed"
                 )}
+                title={item.isDisabled ? item.disabledTooltip : ""}
               >
                 <div
                   className={cn(
@@ -733,6 +772,9 @@ function SideNavTopSection({
                     {item.name}
                   </span>
                 </div>
+                {item.isDisabled && (
+                  <Lock className="h-3 w-3 text-gray-400 ml-auto" />
+                )}
               </button>
             ))}
       </div>
