@@ -198,19 +198,6 @@ export default function SideNav({
           </div>
         )}
 
-        {/* <div className="">
-          {(isMobile || isCollapsibleTablet) && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onCloseSidebar}
-              className="h-8 w-8"
-            >
-              {!isLargeTablet && <X className="h-4 w-4 text-gray-600" />}
-            </Button>
-          )}
-        </div> */}
-
         {isCollapsibleTablet && !isMobileMenuOpen && (
           <Button
             variant="ghost"
@@ -243,7 +230,6 @@ export default function SideNav({
             <SideNavBottomSection
               totalFiles={totalFiles}
               onFileCreate={onFileCreate}
-              isLoading={isLoading}
               onAction={onCloseSidebar}
               isMobile={isMobile}
               isTablet={isCollapsibleTablet}
