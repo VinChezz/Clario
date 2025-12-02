@@ -300,6 +300,7 @@ export default function SideNavBottomSection({
   const { startTour } = useTour();
   const { fileCount, hasFiles, isStorageFull, updateFromFileList } =
     useFileData();
+
   const { activeTeam, isLoading: isTeamLoading } = useActiveTeam();
 
   const isMobileDevice = useIsMobile();
@@ -310,14 +311,19 @@ export default function SideNavBottomSection({
   const isLandscapeDevice = useIsLandscape();
 
   const refreshStorageData = async () => {
-    if (!user?.email) return;
+    if (!user?.email || !activeTeam?.id) return;
 
+    setIsLoadingStorage(true);
     try {
-      const response = await fetch("/api/users/storage");
+      const response = await fetch(
+        `/api/users/storage?teamId=${activeTeam.id}`
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch storage data");
       }
       const data = await response.json();
+
+      console.log("Storage data refreshed:", data);
 
       setStorageData({
         usedSlots: data.storage?.usedSlots || 0,
@@ -325,10 +331,36 @@ export default function SideNavBottomSection({
         actualFileCount: data.storage?.actualFileCount || 0,
         plan: data.user?.plan || "FREE",
       });
+
+      if (updateFromFileList) {
+        const filesResponse = await fetch(`/api/files?teamId=${activeTeam.id}`);
+        const files = await filesResponse.json();
+        updateFromFileList(files);
+      }
     } catch (error) {
       console.error("Failed to load storage data:", error);
+    } finally {
+      setIsLoadingStorage(false);
     }
   };
+
+  useEffect(() => {
+    if (user?.email && activeTeam?.id) {
+      console.log("Team changed, refreshing storage:", activeTeam.id);
+      refreshStorageData();
+    }
+  }, [user?.email, activeTeam?.id]);
+
+  useEffect(() => {
+    if (fileCount !== undefined) {
+      console.log("File count updated in context:", fileCount);
+
+      setStorageData((prev) => ({
+        ...prev,
+        actualFileCount: fileCount,
+      }));
+    }
+  }, [fileCount]);
 
   const actualFileCount = fileCount !== undefined ? fileCount : totalFiles || 0;
   const actualHasFiles =
@@ -403,7 +435,9 @@ export default function SideNavBottomSection({
       onFileCreate(fileName);
       onAction?.();
 
-      setTimeout(refreshStorageData, 1000);
+      setTimeout(() => {
+        refreshStorageData();
+      }, 500);
     } catch (error) {
       console.error("Error creating file:", error);
     }
@@ -1202,17 +1236,19 @@ export default function SideNavBottomSection({
 
         <div className="pt-3">
           {!isMobileDevice && !isHorizontalMobileDevice && (
-            <StorageIndicator
-              usedSlots={storageData.usedSlots}
-              maxSlots={storageData.maxSlots}
-              actualFileCount={storageData.actualFileCount}
-              plan={storageData.plan}
-              isMobile={isMobileDevice}
-              isTablet={isTabletDevice}
-              isLargeTablet={isLargeTabletDevice}
-              isHorizontalMobile={isHorizontalMobileDevice}
-              isLandscape={isLandscapeDevice}
-            />
+            <div className="space-y-2">
+              <StorageIndicator
+                usedSlots={storageData.usedSlots}
+                maxSlots={storageData.maxSlots}
+                actualFileCount={storageData.actualFileCount}
+                plan={storageData.plan}
+                isMobile={isMobileDevice}
+                isTablet={isTabletDevice}
+                isLargeTablet={isLargeTabletDevice}
+                isHorizontalMobile={isHorizontalMobileDevice}
+                isLandscape={isLandscapeDevice}
+              />
+            </div>
           )}
         </div>
       </div>

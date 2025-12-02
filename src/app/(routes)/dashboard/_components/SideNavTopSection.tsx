@@ -109,14 +109,10 @@ function SideNavTopSection({
   const isHorizontalTablet = useIsHorizontalTablet();
   const isLandscapeDevice = useIsLandscape();
 
-  const stableFileList = useMemo(
+  const memoizedLocalFileList = useMemo(
     () => localFileList,
     [JSON.stringify(localFileList)]
   );
-
-  useEffect(() => {
-    setLocalFileList(fileList_);
-  }, [fileList_]);
 
   useEffect(() => {
     if (refreshTrigger > 0) {
@@ -266,7 +262,7 @@ function SideNavTopSection({
     team.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredFiles = stableFileList.filter((file) => {
+  const filteredFiles = memoizedLocalFileList.filter((file) => {
     const matchesSearch = file.fileName
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
@@ -578,7 +574,7 @@ function SideNavTopSection({
     if (isMobileDevice) return "gap-4";
     if (isTabletDevice) return "gap-2.5";
     if (isLargeTabletDevice) return "gap-5";
-    return "gap-2";
+    return "gap-1";
   };
 
   const buttonSize = getButtonSize();
@@ -905,43 +901,60 @@ function SideNavTopSection({
                   : "grid-cols-2"
               )}
             >
-              {menu.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleQuickAction(item.path!)}
-                  className={cn(
-                    "flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 transition-all group",
-                    item.buttonClass
-                  )}
-                >
-                  <div
+              {menu.map((item) => {
+                const isCreateTeamDisabled =
+                  item.id === 1 &&
+                  userPlan === Plan.FREE &&
+                  currentTeamsCount >= 1;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (isCreateTeamDisabled) {
+                        router.push("/pricing");
+                      } else {
+                        handleQuickAction(item.path!);
+                      }
+                    }}
+                    disabled={item.id === 1 && isCreateTeamDisabled}
                     className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center",
-                      item.iconClass
+                      "flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 transition-all group relative",
+                      item.buttonClass,
+                      isCreateTeamDisabled && "opacity-50 cursor-not-allowed"
                     )}
+                    title={isCreateTeamDisabled ? item.disabledTooltip : ""}
                   >
-                    <item.icon
-                      className={cn(quickAccess.iconSize, item.iconColor)}
-                    />
-                  </div>
-                  <span
-                    className={cn(
-                      "text-sm font-medium text-gray-700",
-                      quickAccess.textSize
+                    <div
+                      className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center",
+                        item.iconClass
+                      )}
+                    >
+                      <item.icon
+                        className={cn(quickAccess.iconSize, item.iconColor)}
+                      />
+                    </div>
+                    <span
+                      className={cn(
+                        "text-sm font-medium text-gray-700",
+                        quickAccess.textSize
+                      )}
+                    >
+                      {item.name}
+                    </span>
+                    {isCreateTeamDisabled && (
+                      <Lock className="absolute -top-0.5 -right-0.5 h-3 w-3 text-gray-400" />
                     )}
-                  >
-                    {item.name}
-                  </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <Separator className="mx-5" />
 
-          <div
-            className={cn("fshrink-0 bg-gray-50", modalSizes.contentPadding)}
-          >
+          <div className={cn("shrink-0 bg-gray-50", modalSizes.contentPadding)}>
             {user && (
               <div className="flex items-center gap-3 p-3 bg-white rounded-xl mb-2.5 shadow-sm border border-gray-200">
                 <Image
