@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
+    const { searchParams } = new URL(request.url);
+    const teamId = searchParams.get("teamId");
 
     if (!user || !user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,24 +23,50 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const userTeams = await prisma.team.findMany({
-      where: {
-        OR: [
-          { createdById: dbUser.id },
-          { members: { some: { userId: dbUser.id } } },
-        ],
-      },
-      select: { id: true },
-    });
+    let actualFileCount = 0;
+    let totalFiles = 0;
 
-    const teamIds = userTeams.map((team) => team.id);
+    if (teamId) {
+      const teamAccess = await prisma.team.findFirst({
+        where: {
+          id: teamId,
+          OR: [
+            { createdById: dbUser.id },
+            { members: { some: { userId: dbUser.id } } },
+          ],
+        },
+      });
 
-    const actualFileCount = await prisma.file.count({
-      where: {
-        teamId: { in: teamIds },
-        deletedAt: null,
-      },
-    });
+      if (!teamAccess) {
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
+
+      actualFileCount = await prisma.file.count({
+        where: {
+          teamId: teamId,
+          deletedAt: null,
+        },
+      });
+
+      totalFiles = await prisma.file.count({
+        where: {
+          teamId: teamId,
+        },
+      });
+    } else {
+      actualFileCount = await prisma.file.count({
+        where: {
+          createdById: dbUser.id,
+          deletedAt: null,
+        },
+      });
+
+      totalFiles = await prisma.file.count({
+        where: {
+          createdById: dbUser.id,
+        },
+      });
+    }
 
     const limits = getPlanLimit(dbUser.plan as Plan);
 
@@ -46,13 +74,13 @@ export async function GET(request: NextRequest) {
       user: {
         id: dbUser.id,
         plan: dbUser.plan,
+        email: dbUser.email,
         totalCreatedFiles: dbUser.totalCreatedFiles,
-        maxFiles: limits.maxFiles,
       },
       storage: {
         usedSlots: dbUser.totalCreatedFiles,
         maxSlots: limits.maxFiles,
-        actualFileCount,
+        actualFileCount: actualFileCount,
         filesInTrash: dbUser.totalCreatedFiles - actualFileCount,
         usagePercentage: Math.min(
           (dbUser.totalCreatedFiles / limits.maxFiles) * 100,
