@@ -464,7 +464,7 @@ function SideNavTopSection({
 
     return {
       buttonClass: "p-1.5",
-      iconSize: "h-3 w-3",
+      iconSize: "h-4 w-4",
       iconBoxSize: "w-7 h-7",
       gridCols: "grid-cols-2",
       gap: "gap-4",
