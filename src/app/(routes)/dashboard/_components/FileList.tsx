@@ -91,9 +91,15 @@ export default function FileList({
 
   useEffect(() => {
     if (files && files.length > 0) {
-      setFileList(files);
+      const activeFiles = files.filter(
+        (file) => !file.deletedAt && !file.isDeleted
+      );
+      setFileList(activeFiles);
     } else if (fileList_) {
-      setFileList(fileList_);
+      const activeFiles = fileList_.filter(
+        (file: FILE) => !file.deletedAt && !file.isDeleted
+      );
+      setFileList(activeFiles);
     }
   }, [files, fileList_]);
 
@@ -115,7 +121,7 @@ export default function FileList({
     }
   };
 
-  const handleCreateFile = async () => {
+  const handleCreateFile = async (shouldOpenFile = false) => {
     if (!newFileName.trim() || isCreatingFile || !activeTeam?.id) return;
 
     setIsCreatingFile(true);
@@ -143,18 +149,22 @@ export default function FileList({
       }
 
       const filesResponse = await fetch(`/api/files?teamId=${activeTeam.id}`);
-      const updatedFiles = await filesResponse.json();
+      const allFiles = await filesResponse.json();
 
-      setFileList(updatedFiles);
+      // Фильтруем файлы из корзины
+      const activeFiles = allFiles.filter(
+        (file: FILE) => !file.deletedAt && !file.isDeleted
+      );
+      setFileList(activeFiles);
 
       if (setFileList_) {
-        setFileList_(updatedFiles);
+        setFileList_(activeFiles);
       }
 
-      updateFromFileList(updatedFiles);
+      updateFromFileList(activeFiles);
 
       if (onFileUpdate) {
-        onFileUpdate(updatedFiles);
+        onFileUpdate(activeFiles);
       }
 
       if (onCreateFile) {
@@ -164,13 +174,16 @@ export default function FileList({
       setNewFileName("");
       setCreateFileModalOpen(false);
 
-      router.push(`/workspace/${data.id}`);
+      if (shouldOpenFile) {
+        router.push(`/workspace/${data.id}`);
+      } else {
+        toast.success(`File "${newFileName.trim()}" created successfully!`);
+      }
 
       console.log("✅ File created successfully:", data.id);
     } catch (error: any) {
       console.error("❌ Failed to create file:", error);
-
-      toast.success("Error creating file");
+      toast.error("Error creating file");
     } finally {
       setIsCreatingFile(false);
     }
@@ -865,7 +878,7 @@ const CreateFileDialog = ({
   onOpenChange: (open: boolean) => void;
   fileName: string;
   setFileName: (name: string) => void;
-  onSubmit: () => void;
+  onSubmit: (shouldOpenFile: boolean) => void;
   isCreating: boolean;
   activeTeam: any;
 }) => (
@@ -890,7 +903,7 @@ const CreateFileDialog = ({
               !isCreating &&
               activeTeam?.id
             ) {
-              onSubmit();
+              onSubmit(false);
             }
           }}
           disabled={isCreating}
@@ -908,30 +921,37 @@ const CreateFileDialog = ({
       </div>
 
       <DialogFooter>
-        <Button
-          variant="outline"
-          onClick={() => {
-            setFileName("");
-            onOpenChange(false);
-          }}
-          disabled={isCreating}
-        >
-          Cancel
-        </Button>
-        <Button
-          onClick={onSubmit}
-          disabled={!fileName.trim() || isCreating || !activeTeam?.id}
-          className="bg-linear-to-r from-blue-600 to-indigo-600"
-        >
-          {isCreating ? (
-            <>
-              <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Creating...
-            </>
-          ) : (
-            "Create File"
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => onSubmit(false)}
+            disabled={!fileName.trim() || isCreating || !activeTeam?.id}
+            className="bg-linear-to-r from-blue-600 to-indigo-600"
+          >
+            {isCreating ? (
+              <>
+                <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Only"
+            )}
+          </Button>
+
+          <Button
+            onClick={() => onSubmit(true)}
+            disabled={!fileName.trim() || isCreating || !activeTeam?.id}
+            className="bg-linear-to-r from-green-600 to-emerald-600"
+          >
+            {isCreating ? (
+              <>
+                <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create & Open"
+            )}
+          </Button>
+        </div>
       </DialogFooter>
     </DialogContent>
   </Dialog>
