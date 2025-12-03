@@ -12,6 +12,7 @@ import {
   Trash2,
   FileText,
   Badge,
+  X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import {
@@ -53,6 +54,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  formatDate,
+  formatTime,
+  formatFileSize,
+  calculateDaysUntilDeletion,
+  getFileTypeColor,
+} from "@/lib/formatUtils";
 
 const StorageIndicator = ({
   usedSlots,
@@ -64,6 +72,9 @@ const StorageIndicator = ({
   isLargeTablet = false,
   isHorizontalMobile = false,
   isLandscape = false,
+  showWarning = false,
+  showUpgradeButton = false,
+  onUpgradeClick,
 }: {
   usedSlots: number;
   maxSlots: number;
@@ -74,6 +85,9 @@ const StorageIndicator = ({
   isLargeTablet?: boolean;
   isHorizontalMobile?: boolean;
   isLandscape?: boolean;
+  showWarning?: boolean;
+  showUpgradeButton?: boolean;
+  onUpgradeClick?: () => void;
 }) => {
   const usagePercentage = (usedSlots / maxSlots) * 100;
   const remainingSlots = maxSlots - usedSlots;
@@ -87,12 +101,12 @@ const StorageIndicator = ({
         textColor: "text-red-600",
         message: "Storage full",
       };
-    } else if (usagePercentage >= 80) {
+    } else if (usagePercentage >= 80 || showWarning) {
       return {
         color: "from-yellow-500 to-orange-500",
         bgColor: "from-yellow-50 to-orange-100",
         textColor: "text-orange-600",
-        message: "Almost full",
+        message: `${remainingSlots} files left`,
       };
     } else {
       return {
@@ -200,6 +214,25 @@ const StorageIndicator = ({
           </div>
         </div>
       )}
+
+      {showUpgradeButton && onUpgradeClick && (
+        <div className="pt-2">
+          <button
+            onClick={onUpgradeClick}
+            className={cn(
+              "w-full text-xs font-semibold text-center py-1.5 rounded-lg transition-colors",
+              status.textColor,
+              status.textColor.includes("red")
+                ? "bg-red-100 hover:bg-red-200"
+                : status.textColor.includes("orange")
+                ? "bg-amber-100 hover:bg-amber-200"
+                : "bg-blue-100 hover:bg-blue-200"
+            )}
+          >
+            Upgrade to get more space
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -294,6 +327,13 @@ export default function SideNavBottomSection({
   const [isLoadingTrash, setIsLoadingTrash] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<string | null>(null);
   const [isLoadingStorage, setIsLoadingStorage] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+
+  const remainingSlots = storageData.maxSlots - storageData.usedSlots;
+  const canCreateBasedOnStorage = remainingSlots > 0;
+  const isStorageAlmostFull =
+    storageData.usedSlots >= storageData.maxSlots * 0.9;
 
   const router = useRouter();
 
@@ -309,6 +349,8 @@ export default function SideNavBottomSection({
   const isHorizontalMobileDevice = useIsHorizontalMobile();
   const isHorizontalTablet = useIsHorizontalTablet();
   const isLandscapeDevice = useIsLandscape();
+
+  const daysUntilDeletion = calculateDaysUntilDeletion(deletedFiles);
 
   const refreshStorageData = async () => {
     if (!user?.email || !activeTeam?.id) return;
@@ -386,7 +428,37 @@ export default function SideNavBottomSection({
 
   const canCreateFiles =
     (isCurrentUserCreator || currentUserMember?.role === "EDIT") &&
-    !actualIsStorageFull;
+    canCreateBasedOnStorage;
+
+  const getStorageInfo = () => {
+    if (storageData.usedSlots >= storageData.maxSlots) {
+      return {
+        status: "full",
+        message: "Storage full",
+        color: "text-red-600",
+        bgColor: "bg-red-50",
+        buttonText: "Storage Full",
+      };
+    } else if (isStorageAlmostFull) {
+      return {
+        status: "warning",
+        message: `${remainingSlots} slot${
+          remainingSlots === 1 ? "" : "s"
+        } left`,
+        color: "text-amber-600",
+        bgColor: "bg-amber-50",
+        buttonText: "Almost Full",
+      };
+    } else {
+      return {
+        status: "ok",
+        message: `${remainingSlots} files left`,
+        color: "text-blue-600",
+        bgColor: "bg-blue-50",
+        buttonText: "New File",
+      };
+    }
+  };
 
   useEffect(() => {
     if (activeTeam?.members) {
@@ -443,6 +515,64 @@ export default function SideNavBottomSection({
     }
   };
 
+  const deleteAllFiles = async () => {
+    try {
+      setIsLoadingTrash(true);
+
+      for (const file of deletedFiles) {
+        await handleDeletePermanently(file.id);
+      }
+
+      setSelectedFiles([]);
+      setSelectAll(false);
+    } catch (error) {
+      console.error("Failed to delete all files:", error);
+    } finally {
+      setIsLoadingTrash(false);
+    }
+  };
+
+  const deleteSelectedFiles = async () => {
+    try {
+      setIsLoadingTrash(true);
+
+      for (const fileId of selectedFiles) {
+        await handleDeletePermanently(fileId);
+      }
+
+      setSelectedFiles([]);
+      setSelectAll(false);
+    } catch (error) {
+      console.error("Failed to delete selected files:", error);
+    } finally {
+      setIsLoadingTrash(false);
+    }
+  };
+
+  const emptyTrash = async () => {
+    return deleteAllFiles();
+  };
+
+  const fetchDeletedFiles = async () => {
+    if (!activeTeam?.id) return;
+
+    setIsLoadingTrash(true);
+    try {
+      const response = await fetch(`/api/files/trash?teamId=${activeTeam.id}`);
+      if (response.ok) {
+        const files = await response.json();
+        setDeletedFiles(files);
+
+        setSelectedFiles([]);
+        setSelectAll(false);
+      }
+    } catch (error) {
+      console.error("Failed to fetch deleted files:", error);
+    } finally {
+      setIsLoadingTrash(false);
+    }
+  };
+
   const handleDeletePermanently = async (fileId: string) => {
     try {
       const response = await fetch(`/api/files/${fileId}/permanent`, {
@@ -451,8 +581,8 @@ export default function SideNavBottomSection({
 
       if (response.ok) {
         setFileToDelete(null);
+        setSelectedFiles((prev) => prev.filter((id) => id !== fileId));
         fetchDeletedFiles();
-
         refreshStorageData();
       }
     } catch (error) {
@@ -467,8 +597,8 @@ export default function SideNavBottomSection({
       });
 
       if (response.ok) {
+        setSelectedFiles((prev) => prev.filter((id) => id !== fileId));
         fetchDeletedFiles();
-
         refreshStorageData();
       }
     } catch (error) {
@@ -513,23 +643,6 @@ export default function SideNavBottomSection({
   };
 
   const shouldShowTourButton = !isMobileDevice && !isHorizontalMobileDevice;
-
-  const fetchDeletedFiles = async () => {
-    if (!activeTeam?.id) return;
-
-    setIsLoadingTrash(true);
-    try {
-      const response = await fetch(`/api/files/trash?teamId=${activeTeam.id}`);
-      if (response.ok) {
-        const files = await response.json();
-        setDeletedFiles(files);
-      }
-    } catch (error) {
-      console.error("Failed to fetch deleted files:", error);
-    } finally {
-      setIsLoadingTrash(false);
-    }
-  };
 
   const menuList = [
     ...(shouldShowTourButton
@@ -789,6 +902,7 @@ export default function SideNavBottomSection({
   const upgradeCard = getUpgradeCardSize();
   const modalSizes = getModalSizes();
   const spacing = getSpacing();
+  const storageInfo = getStorageInfo();
 
   console.log("creator:", isCurrentUserCreator);
   console.log("member role:", currentUserMember?.role);
@@ -972,7 +1086,7 @@ export default function SideNavBottomSection({
 
           {actualHasFiles && (
             <>
-              {actualIsStorageFull ? (
+              {!canCreateFiles ? (
                 <Button
                   className={cn(
                     "w-full bg-linear-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 shadow-lg cursor-not-allowed relative overflow-hidden",
@@ -984,7 +1098,13 @@ export default function SideNavBottomSection({
                   disabled
                 >
                   <Lock className={cn("text-white", buttonSize.icon)} />
-                  <span className="text-white font-semibold">Storage Full</span>
+                  <span className="text-white font-semibold">
+                    {storageInfo.status === "full"
+                      ? "Storage Full"
+                      : storageInfo.status === "warning"
+                      ? "Almost Full"
+                      : "No Permission"}
+                  </span>
                 </Button>
               ) : (
                 <Dialog>
@@ -994,13 +1114,15 @@ export default function SideNavBottomSection({
                         "w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300",
                         buttonSize.height,
                         buttonSize.text,
-                        buttonSize.gap
+                        buttonSize.gap,
+                        storageInfo.status === "warning" &&
+                          "bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                       )}
                       disabled={!canCreateFiles}
                       id="create-file-button-sidenav"
                     >
                       <Plus className={buttonSize.icon} />
-                      New File
+                      {storageInfo.buttonText}
                     </Button>
                   </DialogTrigger>
 
@@ -1038,7 +1160,14 @@ export default function SideNavBottomSection({
                           isLargeTabletDevice && "text-lg"
                         )}
                       >
-                        Give your file a descriptive name
+                        {storageInfo.status === "warning" ? (
+                          <span className="text-amber-600">
+                            ⚠️ Only {remainingSlots} file
+                            {remainingSlots === 1 ? "" : "s"} left
+                          </span>
+                        ) : (
+                          "Give your file a descriptive name"
+                        )}
                       </DialogDescription>
                     </DialogHeader>
 
@@ -1058,6 +1187,24 @@ export default function SideNavBottomSection({
                         value={fileInput}
                         autoFocus
                       />
+
+                      <div
+                        className={cn(
+                          "text-sm p-3 rounded-lg",
+                          storageInfo.bgColor,
+                          storageInfo.color
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">Storage status:</span>
+                          <span>{storageInfo.message}</span>
+                        </div>
+                        <div className="mt-1 text-xs opacity-80">
+                          {storageData.usedSlots}/{storageData.maxSlots} files
+                          used
+                          {storageData.plan === "FREE" && ` (Free plan)`}
+                        </div>
+                      </div>
                     </div>
 
                     <DialogFooter
@@ -1094,7 +1241,9 @@ export default function SideNavBottomSection({
                               : isMobileDevice
                               ? "text-sm h-9"
                               : "text-base h-11",
-                            isLargeTabletDevice && "text-lg h-12"
+                            isLargeTabletDevice && "text-lg h-12",
+                            storageInfo.status === "warning" &&
+                              "bg-linear-to-br from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                           )}
                           disabled={!(fileInput && fileInput.length > 3)}
                           onClick={() => {
@@ -1115,94 +1264,319 @@ export default function SideNavBottomSection({
           <Dialog open={trashModalOpen} onOpenChange={setTrashModalOpen}>
             <DialogContent
               className={cn(
-                "p-0 gap-0 overflow-hidden rounded-2xl max-w-2xl",
+                "p-0 gap-0 overflow-hidden rounded-2xl max-w-3xl",
                 isHorizontalMobileDevice || isLandscapeDevice
-                  ? "max-h-96"
-                  : "max-h-[600px]"
+                  ? "max-h-[85vh]"
+                  : "max-h-[80vh]"
               )}
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
-              <DialogHeader className="px-7 pt-6 pb-4 border-b">
+              <div className="px-8 pt-8 pb-6 bg-linear-to-br from-gray-50 to-white border-b border-gray-100">
                 <div className="flex items-center justify-between">
-                  <DialogTitle
-                    className={cn("font-bold text-gray-900", modalSizes.title)}
-                  >
-                    Trash
-                  </DialogTitle>
-                  <Badge className="text-xs font-semibold bg-white shadow-sm px-3 py-1">
-                    {deletedFiles.length}
-                  </Badge>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-linear-to-br from-red-500 to-rose-500 shadow-lg">
+                      <Trash2 className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-2xl font-bold text-gray-900">
+                        Trash
+                      </DialogTitle>
+                      <p className="text-gray-500 mt-1">
+                        Files will be permanently deleted after 30 days
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className="border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold">
+                      {deletedFiles.length} items
+                    </Badge>
+                  </div>
                 </div>
-              </DialogHeader>
+              </div>
+
+              {deletedFiles.length > 0 && (
+                <div className="px-8 py-4 border-b border-gray-100 bg-gray-50/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="select-all"
+                          className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                          checked={
+                            selectedFiles.length === deletedFiles.length &&
+                            deletedFiles.length > 0
+                          }
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedFiles(deletedFiles.map((f) => f.id));
+                            } else {
+                              setSelectedFiles([]);
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor="select-all"
+                          className="text-sm font-medium text-gray-700 cursor-pointer select-none"
+                        >
+                          Select all
+                        </label>
+                      </div>
+
+                      {selectedFiles.length > 0 && (
+                        <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
+                          <span className="text-sm text-gray-600">
+                            {selectedFiles.length} selected
+                          </span>
+                          <div className="h-4 w-px bg-gray-300" />
+                          <button
+                            onClick={() => {
+                              selectedFiles.forEach((id) =>
+                                handleRestoreFile(id)
+                              );
+                              setSelectedFiles([]);
+                            }}
+                            className="text-sm font-medium text-green-600 hover:text-green-700 px-2 py-1 rounded-md hover:bg-green-50 transition-colors"
+                          >
+                            Restore
+                          </button>
+                          <div className="h-4 w-px bg-gray-300" />
+                          <button
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  `Permanently delete ${
+                                    selectedFiles.length
+                                  } item${selectedFiles.length > 1 ? "s" : ""}?`
+                                )
+                              ) {
+                                deleteSelectedFiles();
+                              }
+                            }}
+                            className="text-sm font-medium text-red-600 hover:text-red-700 px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {deletedFiles.length >= 3 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="gap-2 px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `Empty trash? This will permanently delete ${
+                                deletedFiles.length
+                              } item${deletedFiles.length > 1 ? "s" : ""}.`
+                            )
+                          ) {
+                            emptyTrash();
+                          }
+                        }}
+                        disabled={isLoadingTrash}
+                      >
+                        {isLoadingTrash ? (
+                          <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        Empty Trash
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div
                 className={cn(
-                  "overflow-y-auto p-5 pt-1",
+                  "flex-1 overflow-y-auto",
                   isHorizontalMobileDevice ||
                     isLandscapeDevice ||
                     isHorizontalTablet
-                    ? "max-h-48"
-                    : "max-h-[480px]"
+                    ? "max-h-[50vh]"
+                    : "max-h-[50vh]"
                 )}
               >
                 {deletedFiles && deletedFiles.length > 0 ? (
-                  <div className={cn("grid gap-3", modalSizes.fileGrid)}>
-                    {deletedFiles.map((file) => (
-                      <div
-                        key={file.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleRestoreFile(file.id)}
-                        className="group flex flex-col rounded-xl border border-gray-200 bg-white
-                        hover:bg-linear-to-br hover:from-indigo-50 hover:via-purple-50 hover:to-pink-50
-                        hover:border-indigo-200 hover:shadow-md hover:-translate-y-1
-                        transition-all duration-300 overflow-hidden cursor-pointer"
-                      >
+                  <div className="p-8">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {deletedFiles.map((file) => (
                         <div
-                          className="relative w-full aspect-video bg-linear-to-br from-gray-50 to-gray-100
-                          flex items-center justify-center group-hover:from-transparent
-                          group-hover:to-transparent transition-all"
+                          key={file.id}
+                          className={cn(
+                            "group relative bg-white border border-gray-200 rounded-xl p-4",
+                            "hover:border-gray-300 hover:shadow-lg transition-all duration-200",
+                            "cursor-pointer overflow-hidden",
+                            selectedFiles.includes(file.id) &&
+                              "ring-2 ring-red-500 border-red-500"
+                          )}
+                          onClick={() => {
+                            if (selectedFiles.includes(file.id)) {
+                              setSelectedFiles((prev) =>
+                                prev.filter((id) => id !== file.id)
+                              );
+                            } else {
+                              setSelectedFiles((prev) => [...prev, file.id]);
+                            }
+                          }}
                         >
-                          <FileText className="h-8 w-8 text-gray-400 group-hover:text-red-600 transition-colors" />
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setFileToDelete(file.id);
-                            }}
-                            className="absolute top-2 right-2 p-1 rounded-md bg-white shadow-sm
-                            border border-gray-200 opacity-0 group-hover:opacity-100
-                            hover:bg-red-50 transition-all"
+                          <div
+                            className="absolute top-4 right-4 z-10"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </button>
+                            <input
+                              type="checkbox"
+                              id={`select-${file.id}`}
+                              className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                              checked={selectedFiles.includes(file.id)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                if (e.target.checked) {
+                                  setSelectedFiles((prev) => [
+                                    ...prev,
+                                    file.id,
+                                  ]);
+                                } else {
+                                  setSelectedFiles((prev) =>
+                                    prev.filter((id) => id !== file.id)
+                                  );
+                                }
+                              }}
+                            />
+                          </div>
+
+                          <div className="mb-4 relative">
+                            <div className="w-full aspect-video rounded-lg bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                              <FileText className="h-10 w-10 text-gray-400" />
+                              <div className="absolute inset-0 bg-linear-to-t from-black/5 to-transparent rounded-lg" />
+                            </div>
+
+                            <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-8 w-8 bg-white/90 backdrop-blur-sm shadow-md hover:shadow-lg"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRestoreFile(file.id);
+                                }}
+                              >
+                                <svg
+                                  className="h-4 w-4 text-green-600"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                                  />
+                                </svg>
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-8 w-8 bg-white/90 backdrop-blur-sm shadow-md hover:shadow-lg"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFileToDelete(file.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4 className="font-semibold text-gray-900 text-sm truncate mb-1">
+                              {file.fileName}
+                            </h4>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Deleted • {formatDate(file.deletedAt)}
+                            </p>
+
+                            <div className="flex items-center justify-between text-xs text-gray-400">
+                              <div className="flex items-center gap-2">
+                                <svg
+                                  className="h-3 w-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  />
+                                </svg>
+                                <span>{formatTime(file.deletedAt)}</span>
+                              </div>
+                              {file.size && (
+                                <span className="font-medium">
+                                  {formatFileSize(file.size)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="absolute inset-0 bg-linear-to-br from-transparent to-gray-50/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none" />
                         </div>
-                        <div className="p-3">
-                          <p className="font-semibold text-sm text-gray-900 truncate mb-1">
-                            {file.fileName}
-                          </p>
-                          <p className="text-xs text-red-600">
-                            Deleted
-                            {new Date(file.deletedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-gray-400">
-                    <Trash2 className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                    <p className="text-sm font-semibold mb-1">Trash is empty</p>
-                    <p className="text-xs">Deleted files will appear here</p>
+                  <div className="flex flex-col items-center justify-center py-20 px-8">
+                    <div className="relative mb-6">
+                      <div className="w-24 h-24 rounded-full bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <Trash2 className="h-12 w-12 text-gray-400" />
+                      </div>
+                      <div className="absolute -inset-2 bg-linear-to-br from-transparent via-gray-50/50 to-transparent rounded-full animate-pulse" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      Trash is empty
+                    </h3>
+                    <p className="text-gray-500 text-center max-w-md mb-6">
+                      Files you delete will appear here. They'll be permanently
+                      removed after 30 days.
+                    </p>
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-gray-300" />
+                        <span>Files stay for 30 days</span>
+                      </div>
+                      <div className="w-px h-4 bg-gray-300" />
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-gray-300" />
+                        <span>Restore anytime</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
 
-              <div className="px-6 py-4 border-t bg-gray-50">
+              <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
-                    Files in trash will be automatically deleted after 30 days
-                  </p>
+                  <div className="text-sm text-gray-500">
+                    {deletedFiles.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        <span>
+                          {deletedFiles.length} item
+                          {deletedFiles.length > 1 ? "s" : ""} will be deleted
+                          in {daysUntilDeletion} days
+                        </span>
+                      </div>
+                    ) : (
+                      <span>No items in trash</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </DialogContent>
@@ -1247,6 +1621,11 @@ export default function SideNavBottomSection({
                 isLargeTablet={isLargeTabletDevice}
                 isHorizontalMobile={isHorizontalMobileDevice}
                 isLandscape={isLandscapeDevice}
+                showWarning={isStorageAlmostFull}
+                showUpgradeButton={
+                  storageData.plan === "FREE" && isStorageAlmostFull
+                }
+                onUpgradeClick={handleUpgradeClick}
               />
             </div>
           )}
