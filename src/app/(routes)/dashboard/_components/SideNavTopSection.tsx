@@ -387,7 +387,7 @@ function SideNavTopSection({
     if (isLargeTabletDevice)
       return {
         height: "h-12",
-        text: "text-xl",
+        text: "text-base",
         icon: "h-6 w-6",
         padding: "px-4 py-4",
         gap: "gap-3",
@@ -412,52 +412,64 @@ function SideNavTopSection({
   const getQuickAccessSize = () => {
     if (isMobileDevice)
       return {
-        buttonClass: "p-3",
-        iconSize: "h-4 w-4",
+        buttonClass: "p-1.5",
+        iconSize: "h-3 w-3",
+        iconBoxSize: "w-6 h-6",
         gridCols: "grid-cols-2",
-        gap: "gap-3",
-        textSize: "text-sm",
+        gap: "gap-1.5",
+        textSize: "text-[14px]",
+        minHeight: "min-h-[60px]",
       };
     if (isHorizontalMobileDevice || isLandscapeDevice)
       return {
-        buttonClass: "p-2",
-        iconSize: "h-4 w-4",
+        buttonClass: "p-1",
+        iconSize: "h-2.5 w-2.5",
+        iconBoxSize: "w-5 h-5",
         gridCols: "grid-cols-4",
-        gap: "gap-2.5",
-        textSize: "text-xs",
+        gap: "gap-1",
+        textSize: "text-[9px]",
+        minHeight: "min-h-[32px]",
       };
     if (isHorizontalTablet) {
       return {
-        buttonClass: "p-2",
-        iconSize: "h-4 w-4",
+        buttonClass: "p-1",
+        iconSize: "h-3 w-3",
+        iconBoxSize: "w-6 h-6",
         gridCols: "grid-cols-2",
-        gap: "gap-1.5",
-        textSize: "text-sm",
+        gap: "gap-1",
+        textSize: "text-[10px]",
+        minHeight: "min-h-[36px]",
       };
     }
-
     if (isTabletDevice)
       return {
-        buttonClass: "p-2",
-        iconSize: "h-4 w-4",
+        buttonClass: "p-1.5",
+        iconSize: "h-3 w-3",
+        iconBoxSize: "w-10 h-10",
         gridCols: "grid-cols-2",
         gap: "gap-2",
-        textSize: "text-sm",
+        textSize: "text-xs",
+        minHeight: "min-h-[44px]",
       };
     if (isLargeTabletDevice)
       return {
-        buttonClass: "p-3",
-        iconSize: "h-6 w-6",
+        buttonClass: "p-2",
+        iconSize: "h-3.5 w-3.5",
+        iconBoxSize: "w-8 h-8",
         gridCols: "grid-cols-2",
-        gap: "gap-3",
-        textSize: "text-base",
+        gap: "gap-1.5",
+        textSize: "text-sm",
+        minHeight: "min-h-[48px]",
       };
+
     return {
-      buttonClass: "p-4",
-      iconSize: "h-4 w-4",
+      buttonClass: "p-1.5",
+      iconSize: "h-3 w-3",
+      iconBoxSize: "w-7 h-7",
       gridCols: "grid-cols-2",
-      gap: "gap-2",
-      textSize: "text-sm",
+      gap: "gap-4",
+      textSize: "text-xs",
+      minHeight: "min-h-[42px]",
     };
   };
 
@@ -574,7 +586,7 @@ function SideNavTopSection({
     if (isMobileDevice) return "gap-4";
     if (isTabletDevice) return "gap-2.5";
     if (isLargeTabletDevice) return "gap-5";
-    return "gap-1";
+    return "gap-2";
   };
 
   const buttonSize = getButtonSize();
