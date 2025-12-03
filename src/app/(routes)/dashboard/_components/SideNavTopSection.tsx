@@ -735,7 +735,7 @@ function SideNavTopSection({
                   />
                 </div>
                 {item.isDisabled && (
-                  <Lock className="absolute -top-1 -right-1 h-3 w-3 text-gray-400" />
+                  <Lock className="absolute right-2 h-3 w-3 text-gray-400" />
                 )}
               </button>
             ))
@@ -791,7 +791,7 @@ function SideNavTopSection({
         <DialogContent
           className={cn(
             "p-0 gap-0 overflow-hidden rounded-2xl flex flex-col",
-            modalSizes.teams
+            isHorizontalTablet ? "max-w-[70vw] max-h-[80vh]" : modalSizes.teams
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -956,7 +956,7 @@ function SideNavTopSection({
                       {item.name}
                     </span>
                     {isCreateTeamDisabled && (
-                      <Lock className="absolute -top-0.5 -right-0.5 h-3 w-3 text-gray-400" />
+                      <Lock className="absolute right-2 h-3 w-3 text-gray-400" />
                     )}
                   </button>
                 );
