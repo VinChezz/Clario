@@ -10,6 +10,7 @@ export interface FILE {
   updatedAt: string;
   deletedAt: string;
   isPublic: boolean;
+  isDeleted: boolean;
   permissions: string;
   shareToken?: string;
   version: number;
