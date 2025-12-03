@@ -999,7 +999,7 @@ function SideNavTopSection({
       <Dialog open={filesModalOpen} onOpenChange={setFilesModalOpen}>
         <DialogContent
           className={cn(
-            "p-0 gap-0 overflow-hidden rounded-2xl max-w-2xl",
+            "p-0 gap-0 rounded-2xl max-w-2xl",
             isHorizontalMobileDevice || isLandscapeDevice
               ? "max-h-96"
               : "max-h-[600px]"
