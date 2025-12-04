@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { useTour } from "../../../_context/TourContext";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useRouter } from "next/navigation";
 
 interface HeaderProps {
   onTeamUpdate?: () => void;
@@ -50,25 +51,88 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [dbUser, setDbUser] = useState<any>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [userSettings, setUserSettings] = useState<any>(null);
   const isMobile = useIsMobile();
+  const router = useRouter();
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark";
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-      .matches
-      ? "dark"
-      : "light";
-    const currentTheme = savedTheme || systemTheme;
+    const fetchUserSettings = async () => {
+      try {
+        const response = await fetch("/api/users/settings");
+        if (response.ok) {
+          const data = await response.json();
+          setUserSettings(data);
 
-    setTheme(currentTheme);
-    document.documentElement.classList.toggle("dark", currentTheme === "dark");
+          if (data.theme === "DARK") {
+            setTheme("dark");
+            document.documentElement.classList.add("dark");
+          } else if (data.theme === "LIGHT") {
+            setTheme("light");
+            document.documentElement.classList.remove("dark");
+          } else {
+            const systemTheme = window.matchMedia(
+              "(prefers-color-scheme: dark)"
+            ).matches
+              ? "dark"
+              : "light";
+            setTheme(systemTheme);
+            document.documentElement.classList.toggle(
+              "dark",
+              systemTheme === "dark"
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch user settings:", error);
+      }
+    };
+
+    fetchUserSettings();
   }, []);
+
+  useEffect(() => {
+    if (userSettings?.theme === "SYSTEM") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+      const handleChange = (e: MediaQueryListEvent) => {
+        const newTheme = e.matches ? "dark" : "light";
+        setTheme(newTheme);
+        document.documentElement.classList.toggle("dark", newTheme === "dark");
+      };
+
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
+  }, [userSettings?.theme]);
+
+  const updateThemeInSettings = async (newTheme: "light" | "dark") => {
+    try {
+      const themeValue = newTheme === "dark" ? "DARK" : "LIGHT";
+      await fetch("/api/users/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: themeValue }),
+      });
+
+      setUserSettings((prev: any) => ({ ...prev, theme: themeValue }));
+    } catch (error) {
+      console.error("Failed to update theme in settings:", error);
+
+      localStorage.setItem("theme", newTheme);
+    }
+  };
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
+
+    updateThemeInSettings(newTheme);
+
     document.documentElement.classList.toggle("dark", newTheme === "dark");
+  };
+
+  const navigateToSettings = () => {
+    router.push("/settings/profile");
   };
 
   useEffect(() => {
@@ -189,18 +253,21 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   const getRoleColor = (role: "VIEW" | "EDIT" | "ADMIN") => {
     switch (role) {
       case "ADMIN":
-        return "bg-red-100/80 text-red-700 border-red-200/50 backdrop-blur-sm";
+        return "bg-red-100/80 text-red-700 border-red-200/50 backdrop-blur-sm dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50";
       case "EDIT":
-        return "bg-blue-100/80 text-blue-700 border-blue-200/50 backdrop-blur-sm";
+        return "bg-blue-100/80 text-blue-700 border-blue-200/50 backdrop-blur-sm dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50";
       case "VIEW":
-        return "bg-gray-100/80 text-gray-700 border-gray-200/50 backdrop-blur-sm";
+        return "bg-gray-100/80 text-gray-700 border-gray-200/50 backdrop-blur-sm dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700/50";
       default:
-        return "bg-gray-100/80 text-gray-700 border-gray-200/50 backdrop-blur-sm";
+        return "bg-gray-100/80 text-gray-700 border-gray-200/50 backdrop-blur-sm dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700/50";
     }
   };
 
   return (
-    <header className="sticky top-0 backdrop-blur-xl bg-white/10 transition-all duration-300 z-30">
+    <header
+      className="sticky top-0 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 z-30"
+      id="dashboard-header"
+    >
       <div
         className={cn(
           "flex items-center justify-between py-4 mx-auto max-w-7xl",
@@ -212,7 +279,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
             variant="ghost"
             size="icon"
             className={cn(
-              "shrink-0 lg:hidden backdrop-blur-xl transition-all duration-300",
+              "shrink-0 lg:hidden backdrop-blur-xl transition-all duration-300 hover:bg-white/20 dark:hover:bg-gray-800/20",
               isMobile ? "h-10 w-10 mr-2" : "h-12 w-12 mr-3"
             )}
             onClick={handleMenuClick}
@@ -227,7 +294,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                   id="members-check"
                   variant="ghost"
                   className={cn(
-                    "h-auto rounded-2xl backdrop-blur-xl transition-all duration-300",
+                    "h-auto rounded-2xl backdrop-blur-xl transition-all duration-300 hover:bg-white/20 dark:hover:bg-gray-800/20",
                     isMobile
                       ? "px-3 py-2 max-w-[200px] min-h-10"
                       : "px-4 py-3 max-w-[280px] min-h-12"
@@ -259,7 +326,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                       {extraMembersCount > 0 && (
                         <div
                           className={cn(
-                            "bg-linear-to-br from-gray-100/40 to-gray-200/40 rounded-xl flex items-center justify-center font-medium text-gray-600 backdrop-blur-xl",
+                            "bg-linear-to-br from-gray-100/40 to-gray-200/40 dark:from-gray-800/40 dark:to-gray-700/40 rounded-xl flex items-center justify-center font-medium text-gray-600 dark:text-gray-400 backdrop-blur-xl",
                             isMobile ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm"
                           )}
                         >
@@ -270,7 +337,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                     <div className="text-left min-w-0 flex-1">
                       <p
                         className={cn(
-                          "font-semibold text-gray-900 truncate",
+                          "font-semibold text-gray-900 dark:text-white truncate",
                           isMobile ? "text-sm" : "text-base"
                         )}
                       >
@@ -279,8 +346,8 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                       <p
                         className={
                           isMobile
-                            ? "text-xs text-gray-600"
-                            : "text-sm text-gray-600"
+                            ? "text-xs text-gray-600 dark:text-gray-400"
+                            : "text-sm text-gray-600 dark:text-gray-400"
                         }
                       >
                         {teamMembers.length} members
@@ -290,14 +357,14 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-85 p-0 rounded-3xl backdrop-blur-xl bg-white/10 transition-all duration-300 z-30"
+                className="w-85 p-0 rounded-3xl backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 border border-white/20 dark:border-gray-800/20 transition-all duration-300 z-30"
                 align="start"
               >
-                <div className="p-6 backdrop-blur-xl bg-white/10 transition-all duration-300 rounded-t-3xl">
-                  <h3 className="font-bold text-gray-900 text-lg">
+                <div className="p-6 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 rounded-t-3xl">
+                  <h3 className="font-bold text-gray-900 dark:text-white text-lg">
                     Team Members
                   </h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     {teamMembers.length} member
                     {teamMembers.length !== 1 ? "s" : ""} in your team
                   </p>
@@ -307,11 +374,11 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                   {teamMembers.map((member, index) => (
                     <div
                       key={`${member.id}-${index}-full`}
-                      className="flex items-center justify-between p-4 backdrop-blur-xl bg-white/10 transition-all duration-300 group"
+                      className="flex items-center justify-between p-4 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 group border-b border-white/10 dark:border-gray-800/10 last:border-b-0"
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="relative">
-                          <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-xl border border-white/50 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-xl border border-white/50 dark:border-gray-800/50 flex items-center justify-center">
                             <Image
                               src={member.user.image || "/default-avatar.png"}
                               alt={member.user.name}
@@ -323,20 +390,20 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold truncate text-gray-900">
+                            <p className="text-sm font-semibold truncate text-gray-900 dark:text-white">
                               {member.user.name}
                             </p>
                             {member.userId === activeTeam.createdById && (
                               <Badge
                                 variant="outline"
-                                className="text-xs bg-yellow-100/80 text-yellow-700 border-yellow-200/50 backdrop-blur-sm"
+                                className="text-xs bg-yellow-100/80 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200/50 dark:border-yellow-800/50 backdrop-blur-sm"
                               >
                                 <Crown className="h-3 w-3 mr-1" />
                                 Owner
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 truncate mt-1">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
                             {member.user.email}
                           </p>
                         </div>
@@ -360,14 +427,14 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 backdrop-blur-xl bg-white/30 hover:bg-white/50 border border-white/30 transition-all duration-300"
+                                  className="h-8 w-8 p-0 backdrop-blur-xl bg-white/30 dark:bg-gray-800/30 hover:bg-white/50 dark:hover:bg-gray-700/50 border border-white/30 dark:border-gray-700/30 transition-all duration-300"
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
-                                className="rounded-2xl backdrop-blur-xl bg-white/95 border border-white/20 shadow-2xl"
+                                className="rounded-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border border-white/20 dark:border-gray-800/20 shadow-2xl"
                               >
                                 <DropdownMenuItem
                                   onClick={() =>
@@ -394,7 +461,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                                   onClick={() =>
                                     removeMember(member.id, member.user.name)
                                   }
-                                  className="text-sm text-red-600 cursor-pointer focus:text-red-600 backdrop-blur-sm"
+                                  className="text-sm text-red-600 dark:text-red-400 cursor-pointer focus:text-red-600 dark:focus:text-red-400 backdrop-blur-sm"
                                 >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Remove
@@ -407,9 +474,9 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                   ))}
                 </div>
 
-                <div className="p-4 backdrop-blur-xl bg-white/10 transition-all duration-300 rounded-b-3xl">
+                <div className="p-4 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 rounded-b-3xl">
                   <Button
-                    className="w-full gap-2 text-sm h-11 bg-linear-to-br from-indigo-500/90 to-indigo-600/90 hover:from-indigo-600/90 hover:to-indigo-500/90 text-white backdrop-blur-xl bg-white/10 transition-all duration-300 group relative overflow-hidden"
+                    className="w-full gap-2 text-sm h-11 bg-linear-to-br from-indigo-500/90 to-indigo-600/90 hover:from-indigo-600/90 hover:to-indigo-500/90 text-white backdrop-blur-xl transition-all duration-300 group relative overflow-hidden"
                     onClick={() => setIsInviteModalOpen(true)}
                     disabled={!activeTeam || !canInvite}
                   >
@@ -429,19 +496,19 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
             variant="ghost"
             size="icon"
             className={cn(
-              "backdrop-blur-xl transition-all duration-300 hover:scale-110 relative",
+              "backdrop-blur-xl transition-all duration-300 hover:scale-110 relative hover:bg-white/20 dark:hover:bg-gray-800/20",
               isMobile ? "h-9 w-9" : "h-11 w-11"
             )}
           >
             <Bell className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white backdrop-blur-sm"></span>
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-900 backdrop-blur-sm"></span>
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
             className={cn(
-              "backdrop-blur-xl transition-all duration-300 hover:scale-110",
+              "backdrop-blur-xl transition-all duration-300 hover:scale-110 hover:bg-white/20 dark:hover:bg-gray-800/20",
               isMobile ? "h-9 w-9" : "h-11 w-11"
             )}
             onClick={toggleTheme}
@@ -457,9 +524,11 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
             variant="ghost"
             size="icon"
             className={cn(
-              "backdrop-blur-xl transition-all duration-300 hover:scale-110",
+              "backdrop-blur-xl transition-all duration-300 hover:scale-110 hover:bg-white/20 dark:hover:bg-gray-800/20",
               isMobile ? "h-9 w-9" : "h-11 w-11"
             )}
+            onClick={navigateToSettings}
+            title="User Settings"
           >
             <Settings className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
           </Button>
