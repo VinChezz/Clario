@@ -30,9 +30,8 @@ export default function Home() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
-          className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 relative overflow-hidden"
+          className="min-h-screen bg-linear-to-br from-slate-900 via-indigo-900 to-slate-900 relative overflow-hidden"
         >
-          {/* Фоновые элементы как в лоадере */}
           <div className="absolute inset-0">
             <motion.div
               className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-indigo-600/10 blur-3xl"
