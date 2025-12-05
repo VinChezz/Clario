@@ -11,7 +11,6 @@ import {
   useIsTablet,
   useIsDesktop,
 } from "@/hooks/useMediaQuery";
-import Dashboard from "./page";
 import { TourProvider } from "../../_context/TourContext";
 import GettingStartedTour from "./_components/GettingStartedTour";
 import { FileDataProvider } from "../../_context/FileDataContext";
@@ -155,7 +154,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
               <div className="flex-1 flex flex-col h-screen overflow-hidden">
                 <div className="flex-1 overflow-y-auto">
                   <GettingStartedTour />
-                  <Dashboard onMenuToggle={handleMenuToggle} />
+                  {children}
                 </div>
               </div>
               <GlobalCodeViewer />
