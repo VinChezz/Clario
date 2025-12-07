@@ -18,6 +18,7 @@ model User {
   language    String?      @default("en")
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  lastLoginAt DateTime?
 
   plan              Plan   @default(FREE)
   totalCreatedFiles Int    @default(0)
@@ -38,6 +39,7 @@ model User {
 
   CommentMention CommentMention[]
 }
+
 
 model Team {
   id          String       @id @default(cuid())
