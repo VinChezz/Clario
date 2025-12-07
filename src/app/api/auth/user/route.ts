@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
               user.given_name +
               (user.family_name ? ` ${user.family_name}` : ""),
             image: user.picture,
+            lastLoginAt: new Date(),
           },
         });
         console.log("✅ Created new user in database:", dbUser.id);
