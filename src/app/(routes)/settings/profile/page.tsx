@@ -23,42 +23,41 @@ export default function UserSettingsPage() {
   const router = useRouter();
 
   const handleBack = () => {
-    router.back();
+    router.push("/dashboard");
   };
 
   return (
     <>
-      <Header />
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="flex-1"
-          >
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Settings
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Manage your account settings and preferences
-            </p>
-          </motion.div>
-
+        <div className="flex items-center gap-4 mb-6">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
+            transition={{ duration: 0.3 }}
           >
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleBack}
-              className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 space-y-1"
+          >
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+              Settings
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Manage your account settings and preferences
+            </p>
           </motion.div>
         </div>
 
