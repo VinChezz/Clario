@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 export function NotificationSettings() {
   const queryClient = useQueryClient();
@@ -62,7 +63,15 @@ export function NotificationSettings() {
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
