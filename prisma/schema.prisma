@@ -38,6 +38,8 @@ model User {
   userSettings UserSettings?
 
   CommentMention CommentMention[]
+  userSecurity UserSecurity?
+
 }
 
 
@@ -271,6 +273,23 @@ model GithubRepository {
   @@index([teamId])
 }
 
+model UserSecurity {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  isTwoFactorEnabled Boolean  @default(false)
+  twoFactorSecret   String?
+  twoFactorMethod   String?
+  backupCodes       String[]
+  tempCode          String?
+  tempExpires       DateTime?
+  tempTotpSecret    String?
+  tempTotpExpires   DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
 
 enum Role {
   ADMIN
