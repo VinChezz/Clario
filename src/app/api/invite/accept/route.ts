@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
       user: user.email,
     });
 
-    // Находим инвайт по токену
     const invite = await prisma.invite.findFirst({
       where: {
         token,
@@ -49,13 +48,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Находим или создаем пользователя в базе данных
     let dbUser = await prisma.user.findUnique({
       where: { email: user.email as string },
     });
 
     if (!dbUser) {
-      // Создаем пользователя если не существует
       dbUser = await prisma.user.create({
         data: {
           email: user.email as string,
@@ -67,7 +64,6 @@ export async function POST(request: NextRequest) {
       console.log("✅ Created new user in database:", dbUser.id);
     }
 
-    // Проверяем, не является ли пользователь уже участником команды
     const existingMembership = await prisma.teamMember.findFirst({
       where: {
         teamId: invite.teamId,
@@ -76,7 +72,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingMembership) {
-      // Помечаем инвайт как принятый, но не создаем дублирующее членство
       await prisma.invite.update({
         where: { id: invite.id },
         data: {
@@ -93,7 +88,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Создаем запись участника команды
     const teamMember = await prisma.teamMember.create({
       data: {
         userId: dbUser.id,
@@ -105,7 +99,6 @@ export async function POST(request: NextRequest) {
 
     console.log("✅ Created team member:", teamMember.id);
 
-    // Обновляем статус инвайта
     await prisma.invite.update({
       where: { id: invite.id },
       data: {

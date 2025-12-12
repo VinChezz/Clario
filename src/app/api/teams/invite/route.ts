@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const isProd = process.env.NODE_ENV === "production";
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,14 +31,6 @@ export async function POST(request: NextRequest) {
       role = "VIEW",
       type = "EMAIL",
     } = await request.json();
-
-    console.log("📨 Invite request:", {
-      users,
-      teamId,
-      role,
-      type,
-      user: user.email,
-    });
 
     if (!teamId) {
       return NextResponse.json(
@@ -68,8 +70,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (type === "telegram" || type === "discord") {
-      console.log(`🔗 Creating ${type} link invite`);
-
       const token = randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -85,16 +85,12 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      console.log(`✅ Created ${type} link invite: ${invite.id}`);
-
       return NextResponse.json({
         success: true,
         inviteToken: token,
         expiresAt: invite.expiresAt,
-        type: type,
-        message: `${
-          type.charAt(0).toUpperCase() + type.slice(1)
-        } invite link created successfully`,
+        type,
+        message: `${type} invite link created successfully`,
       });
     }
 
@@ -114,7 +110,6 @@ export async function POST(request: NextRequest) {
           const inviteeUser = await prisma.user.findFirst({
             where: { id: userId },
           });
-
           if (!inviteeUser) {
             console.log(`❌ User not found: ${userId}`);
             continue;
@@ -130,7 +125,6 @@ export async function POST(request: NextRequest) {
           });
 
           if (existingInvite) {
-            console.log(`⚠️ Active invite already exists for user ${userId}`);
             invites.push(existingInvite);
             continue;
           }
@@ -151,89 +145,106 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          console.log(
-            `✅ Created email invite for user ${userId}: ${invite.id}`
-          );
           invites.push(invite);
 
-          try {
-            const inviteLink = `${
-              process.env.NEXTAUTH_URL || "http://localhost:3000"
-            }/invite/accept?token=${token}`;
+          const inviteLink = `${
+            process.env.APP_URL || "http://localhost:3000"
+          }/invite/accept?token=${token}`;
 
-            const { data, error } = await resend.emails.send({
-              from: "Clario Team <onboarding@resend.dev>",
+          try {
+            await transporter.sendMail({
+              from: `"${process.env.SMTP_FROM_NAME || "Clario Team"}" <${
+                process.env.SMTP_FROM || "noreply@clario.com"
+              }>`,
               to: inviteeUser.email,
-              subject: `You've been invited to join ${teamMembership.team.name}`,
+              subject: `🎉 You're invited to join ${teamMembership.team.name}`,
               html: `
                 <!DOCTYPE html>
-                <html>
+                <html lang="en">
                 <head>
-                  <meta charset="utf-8">
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>Invitation</title>
                   <style>
                     body {
                       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                      background-color: #f4f6fa;
                       margin: 0;
                       padding: 0;
-                      background-color: #f6f9fc;
                     }
                     .container {
                       max-width: 600px;
-                      margin: 0 auto;
-                      background: #ffffff;
+                      margin: 30px auto;
+                      background: #fff;
                       border-radius: 12px;
                       overflow: hidden;
-                      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
                     }
                     .header {
                       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                      padding: 40px 20px;
-                      text-align: center;
                       color: white;
+                      text-align: center;
+                      padding: 40px 20px;
+                    }
+                    .header h1 {
+                      margin: 0;
+                      font-size: 28px;
                     }
                     .content {
-                      padding: 40px 30px;
+                      padding: 30px 20px;
                       color: #333;
+                    }
+                    .content h2 {
+                      font-size: 22px;
+                      margin-top: 0;
+                    }
+                    .content p {
+                      line-height: 1.6;
+                      font-size: 16px;
                     }
                     .button {
                       display: inline-block;
+                      padding: 16px 30px;
                       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                      color: white;
-                      padding: 16px 32px;
+                      color: white !important;
                       text-decoration: none;
                       border-radius: 8px;
                       font-weight: 600;
                       margin: 20px 0;
                     }
                     .footer {
-                      padding: 20px;
                       text-align: center;
-                      color: #666;
+                      padding: 20px;
                       font-size: 14px;
-                      background: #f8f9fa;
+                      color: #888;
+                      background: #f0f1f5;
+                    }
+                    @media (max-width: 480px) {
+                      .content, .header {
+                        padding: 20px 15px;
+                      }
+                      .button {
+                        padding: 14px 20px;
+                      }
                     }
                   </style>
                 </head>
                 <body>
                   <div class="container">
                     <div class="header">
-                      <h1>🎉 You're Invited!</h1>
+                      <h1>You're Invited!</h1>
                     </div>
                     <div class="content">
                       <h2>Join ${teamMembership.team.name}</h2>
                       <p><strong>${dbUser.name}</strong> has invited you to join their team on Clario.</p>
                       <p>Collaborate on documents, whiteboards, and projects together.</p>
-
                       <div style="text-align: center;">
                         <a href="${inviteLink}" class="button">Accept Invitation</a>
                       </div>
-
-                      <p style="color: #666; font-size: 14px;">
-                        This invitation will expire in 7 days. If the button doesn't work, copy and paste this link into your browser:
+                      <p style="font-size: 14px; color: #666;">
+                        This invitation will expire in 7 days. If the button doesn’t work, copy and paste this link into your browser:
                       </p>
-                      <p style="background: #f8f9fa; padding: 12px; border-radius: 6px; word-break: break-all;">
-                        ${inviteLink}
-                      </p>
+                      <p style="word-break: break-all; background: #f0f1f5; padding: 12px; border-radius: 6px;">${inviteLink}</p>
                     </div>
                     <div class="footer">
                       <p>© 2025 Clario. All rights reserved.</p>
@@ -241,27 +252,12 @@ export async function POST(request: NextRequest) {
                   </div>
                 </body>
                 </html>
-              `,
+                `,
             });
 
-            if (error) {
-              console.error(
-                `❌ Failed to send email to ${inviteeUser.email}:`,
-                error
-              );
-              emailResults.push({
-                email: inviteeUser.email,
-                success: false,
-                error: error.message,
-              });
-            } else {
-              console.log(`✅ Email sent to ${inviteeUser.email}`);
-              emailResults.push({
-                email: inviteeUser.email,
-                success: true,
-              });
-            }
-          } catch (emailError) {
+            console.log(`✅ Email sent to ${inviteeUser.email}`);
+            emailResults.push({ email: inviteeUser.email, success: true });
+          } catch (emailError: any) {
             console.error(
               `❌ Email error for ${inviteeUser.email}:`,
               emailError
@@ -269,19 +265,12 @@ export async function POST(request: NextRequest) {
             emailResults.push({
               email: inviteeUser.email,
               success: false,
-              error: "Email service error",
+              error: emailError.message || "Email service error",
             });
           }
         } catch (userError: any) {
           console.error(`❌ Error processing user ${userId}:`, userError);
         }
-      }
-
-      if (invites.length === 0 && users.length > 0) {
-        return NextResponse.json(
-          { error: "Failed to create any invites" },
-          { status: 400 }
-        );
       }
 
       return NextResponse.json({
@@ -298,14 +287,12 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error("❌ Invite error:", error);
-
     if (error.code === "P1001") {
       return NextResponse.json(
         { error: "Database temporarily unavailable" },
         { status: 503 }
       );
     }
-
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
