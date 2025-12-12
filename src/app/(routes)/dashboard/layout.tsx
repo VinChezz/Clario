@@ -63,16 +63,42 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user) {
-      if (!skipTeamCheck) {
-        checkTeam();
-      } else {
-        console.log("⚡ Skipping team check");
-        setIsChecking(false);
-      }
+      check2FAStatus();
     } else {
       setIsChecking(false);
     }
-  }, [user, skipTeamCheck]);
+  }, [user]);
+
+  const check2FAStatus = async () => {
+    try {
+      const resp = await fetch("/api/auth/2fa/status", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const securityStatus = await resp.json();
+      console.log("2FA Status:", securityStatus);
+
+      if (securityStatus.isEnabled) {
+        setIsChecking(false);
+      } else {
+        if (!skipTeamCheck) {
+          await checkTeam();
+        } else {
+          console.log("⚡ Skipping team check");
+          setIsChecking(false);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Error checking 2FA status:", err);
+
+      if (!skipTeamCheck) {
+        await checkTeam();
+      } else {
+        setIsChecking(false);
+      }
+    }
+  };
 
   const checkTeam = async () => {
     try {
@@ -85,11 +111,13 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       const result = await resp.json();
 
       if (Array.isArray(result) && result.length === 0) {
+        console.log("⚠️ No team found, redirecting to create team");
         router.push("/teams/create");
+      } else {
+        setIsChecking(false);
       }
     } catch (err) {
       console.error("❌ Error checking team:", err);
-    } finally {
       setIsChecking(false);
     }
   };
@@ -114,6 +142,17 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     if (isLargeTablet) return "w-64";
     return "w-64";
   };
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TourProvider>
