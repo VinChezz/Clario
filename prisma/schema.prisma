@@ -15,10 +15,13 @@ model User {
   image       String?
   bio         String?
   timezone    String?      @default("UTC")
-  language    String?      @default("en")
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   lastLoginAt DateTime?
+
+  customStatus        String?
+  showPresence        Boolean            @default(true)
+  availabilityStatus  AvailabilityStatus @default(AVAILABLE)
 
   plan              Plan   @default(FREE)
   totalCreatedFiles Int    @default(0)
@@ -39,7 +42,6 @@ model User {
 
   CommentMention CommentMention[]
   userSecurity UserSecurity?
-
 }
 
 
@@ -187,7 +189,6 @@ model UserSettings {
   userId    String @unique
   theme     Theme @default(LIGHT)
   fontSize  FontSize @default(MEDIUM)
-  language  String @default("en")
   timezone  String @default("UTC")
 
   emailNotifications Boolean @default(true)
@@ -347,3 +348,12 @@ enum Plan {
   PRO
   ENTERPRISE
 }
+
+enum AvailabilityStatus {
+  AVAILABLE
+  FOCUS
+  MEETING
+  OOO
+  CUSTOM
+}
+
