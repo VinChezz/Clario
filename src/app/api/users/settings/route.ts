@@ -33,6 +33,8 @@ export async function GET() {
           email: user.email!,
           image: user.picture,
           lastLoginAt: new Date(),
+          availabilityStatus: "AVAILABLE",
+          showPresence: true,
         },
         include: {
           teamMembers: {
@@ -63,7 +65,9 @@ export async function GET() {
             image: true,
             bio: true,
             timezone: true,
-            language: true,
+            availabilityStatus: true,
+            customStatus: true,
+            showPresence: true,
             plan: true,
             totalCreatedFiles: true,
             maxFiles: true,
@@ -89,7 +93,9 @@ export async function GET() {
               image: true,
               bio: true,
               timezone: true,
-              language: true,
+              availabilityStatus: true,
+              customStatus: true,
+              showPresence: true,
               plan: true,
               totalCreatedFiles: true,
               maxFiles: true,
@@ -143,7 +149,15 @@ export async function PATCH(request: NextRequest) {
     const userData: any = {};
     const settingsData: any = {};
 
-    const userFields = ["name", "bio", "timezone", "language", "image"];
+    const userFields = [
+      "name",
+      "bio",
+      "timezone",
+      "image",
+      "availabilityStatus",
+      "customStatus",
+      "showPresence",
+    ];
 
     const settingsFields = [
       "theme",
@@ -190,8 +204,10 @@ export async function PATCH(request: NextRequest) {
             image: true,
             bio: true,
             timezone: true,
-            language: true,
             plan: true,
+            availabilityStatus: true,
+            customStatus: true,
+            showPresence: true,
             totalCreatedFiles: true,
             maxFiles: true,
             maxTeams: true,
