@@ -143,17 +143,6 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     return "w-64";
   };
 
-  if (isChecking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <TourProvider>
       <FileDataProvider>
