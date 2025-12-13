@@ -30,14 +30,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import InviteModal from "./invite-button/InviteModal";
 import { TeamMember } from "./SideNavTopSection";
 import { toast } from "sonner";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
-import { useTour } from "../../../_context/TourContext";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useRouter } from "next/navigation";
+import {
+  Zap,
+  Coffee,
+  Users,
+  Plane,
+  MessageSquare,
+  ChevronDown,
+  X,
+} from "lucide-react";
+import { useUserStatus } from "@/hooks/useUserStatus";
 
 interface HeaderProps {
   onTeamUpdate?: () => void;
@@ -47,63 +66,251 @@ interface HeaderProps {
 export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   const { user }: any = useKindeBrowserClient();
   const { activeTeam, setActiveTeam } = useActiveTeam();
+  const { userStatus, updateStatus, isLoading } = useUserStatus();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [dbUser, setDbUser] = useState<any>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [userSettings, setUserSettings] = useState<any>(null);
   const isMobile = useIsMobile();
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [customStatusModalOpen, setCustomStatusModalOpen] = useState(false);
+  const [customStatusInput, setCustomStatusInput] = useState("");
+
   const router = useRouter();
 
+  const statusSuggestions = [
+    { text: "Working remotely", emoji: "🏠" },
+    { text: "Focusing on a deadline", emoji: "⏰" },
+    { text: "Taking a break", emoji: "☕" },
+    { text: "In deep work", emoji: "🎯" },
+    { text: "Lunch break", emoji: "🍽️" },
+    { text: "Working late", emoji: "🌙" },
+    { text: "Vacation mode", emoji: "🏖️" },
+    { text: "Creative flow", emoji: "🎨" },
+  ];
+
   useEffect(() => {
-    const fetchUserSettings = async () => {
-      try {
-        const response = await fetch("/api/users/settings");
-        if (response.ok) {
-          const data = await response.json();
-          setUserSettings(data);
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark";
+    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+      .matches
+      ? "dark"
+      : "light";
+    const initialTheme = savedTheme || systemTheme;
 
-          if (data.theme === "DARK") {
-            setTheme("dark");
-            document.documentElement.classList.add("dark");
-          } else if (data.theme === "LIGHT") {
-            setTheme("light");
-            document.documentElement.classList.remove("dark");
-          } else {
-            const systemTheme = window.matchMedia(
-              "(prefers-color-scheme: dark)"
-            ).matches
-              ? "dark"
-              : "light";
-            setTheme(systemTheme);
-            document.documentElement.classList.toggle(
-              "dark",
-              systemTheme === "dark"
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch user settings:", error);
-      }
-    };
-
-    fetchUserSettings();
+    setTheme(initialTheme);
+    document.documentElement.classList.toggle("dark", initialTheme === "dark");
   }, []);
 
-  useEffect(() => {
-    if (userSettings?.theme === "SYSTEM") {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const updateAvailabilityStatus = async (
+    status: string,
+    customText?: string
+  ) => {
+    try {
+      await updateStatus({
+        availabilityStatus: status,
+        ...(customText && { customStatus: customText }),
+      });
 
-      const handleChange = (e: MediaQueryListEvent) => {
-        const newTheme = e.matches ? "dark" : "light";
-        setTheme(newTheme);
-        document.documentElement.classList.toggle("dark", newTheme === "dark");
-      };
-
-      mediaQuery.addEventListener("change", handleChange);
-      return () => mediaQuery.removeEventListener("change", handleChange);
+      toast.success(
+        `Status updated to ${getStatusLabel(
+          status,
+          customText || userStatus?.customStatus
+        )}`
+      );
+      setShowStatusDropdown(false);
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      toast.error("Failed to update status");
     }
-  }, [userSettings?.theme]);
+  };
+
+  const handleCustomStatusSubmit = () => {
+    if (customStatusInput.trim() && customStatusInput.length <= 50) {
+      updateAvailabilityStatus("CUSTOM", customStatusInput.trim());
+      setCustomStatusModalOpen(false);
+      setCustomStatusInput("");
+    }
+  };
+
+  const openCustomStatusModal = () => {
+    setCustomStatusInput(userStatus?.customStatus || "");
+    setCustomStatusModalOpen(true);
+    setShowStatusDropdown(false);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setCustomStatusInput(suggestion);
+  };
+
+  const getStatusLabel = (status: string, customStatusText?: string) => {
+    const labels: Record<string, string> = {
+      AVAILABLE: "Available",
+      FOCUS: "Focus mode",
+      MEETING: "In a meeting",
+      OOO: "Out of office",
+      CUSTOM: customStatusText || "Custom",
+    };
+    return labels[status] || status.toLowerCase().replace("_", " ");
+  };
+
+  const StatusBadge = () => {
+    const availabilityStatus = userStatus?.availabilityStatus || "AVAILABLE";
+    const customStatusText = userStatus?.customStatus || "";
+
+    const statusConfig: Record<
+      string,
+      {
+        color: string;
+        icon: React.ReactNode;
+        gradient: string;
+      }
+    > = {
+      AVAILABLE: {
+        color:
+          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800",
+        icon: <Zap className="h-3.5 w-3.5" />,
+        gradient: "from-green-400 to-emerald-500",
+      },
+      FOCUS: {
+        color:
+          "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800",
+        icon: <Coffee className="h-3.5 w-3.5" />,
+        gradient: "from-purple-500 to-violet-600",
+      },
+      MEETING: {
+        color:
+          "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+        icon: <Users className="h-3.5 w-3.5" />,
+        gradient: "from-blue-500 to-cyan-500",
+      },
+      OOO: {
+        color:
+          "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
+        icon: <Plane className="h-3.5 w-3.5" />,
+        gradient: "from-red-500 to-orange-500",
+      },
+      CUSTOM: {
+        color:
+          "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 dark:from-gray-800 dark:to-gray-900 dark:text-gray-300 border-gray-300 dark:border-gray-700",
+        icon: <MessageSquare className="h-3.5 w-3.5" />,
+        gradient: "from-gray-500 to-slate-600",
+      },
+    };
+
+    const config = statusConfig[availabilityStatus] || statusConfig.AVAILABLE;
+    const displayText = getStatusLabel(availabilityStatus, customStatusText);
+
+    return (
+      <div className="relative">
+        <Badge
+          variant="outline"
+          className={`${config.color} px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:opacity-90 transition-all duration-200 backdrop-blur-sm border rounded-full group`}
+          onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+        >
+          <div
+            className={`p-1.5 rounded-full bg-linear-to-r ${config.gradient} text-white`}
+          >
+            {config.icon}
+          </div>
+          <span className="font-medium capitalize text-sm">{displayText}</span>
+          <ChevronDown className="h-3 w-3 transition-transform duration-200 group-hover:rotate-180" />
+        </Badge>
+
+        {showStatusDropdown && (
+          <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-xl border dark:border-gray-700 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="p-3">
+              <div className="mb-2 px-2">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Set your status
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                {[
+                  {
+                    value: "AVAILABLE",
+                    label: "Available",
+                    icon: <Zap className="h-4 w-4" />,
+                  },
+                  {
+                    value: "FOCUS",
+                    label: "Focus mode",
+                    icon: <Coffee className="h-4 w-4" />,
+                  },
+                  {
+                    value: "MEETING",
+                    label: "In a meeting",
+                    icon: <Users className="h-4 w-4" />,
+                  },
+                  {
+                    value: "OOO",
+                    label: "Out of office",
+                    icon: <Plane className="h-4 w-4" />,
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    className={`flex items-center justify-between w-full p-3 rounded-lg transition-all duration-150 ${
+                      availabilityStatus === option.value
+                        ? "bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-800/30"
+                        : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    }`}
+                    onClick={() => updateAvailabilityStatus(option.value)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`p-2 rounded-lg ${
+                          availabilityStatus === option.value
+                            ? "bg-linear-to-r from-blue-500 to-indigo-500 text-white"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                        }`}
+                      >
+                        {option.icon}
+                      </div>
+                      <div className="text-left">
+                        <span className="font-medium text-gray-900 dark:text-white block">
+                          {option.label}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {option.value === "AVAILABLE" &&
+                            "Ready to collaborate"}
+                          {option.value === "FOCUS" && "Do not disturb"}
+                          {option.value === "MEETING" && "Busy in a meeting"}
+                          {option.value === "OOO" && "Away from keyboard"}
+                        </span>
+                      </div>
+                    </div>
+                    {availabilityStatus === option.value && (
+                      <div className="w-2 h-2 rounded-full bg-linear-to-r from-blue-500 to-indigo-500"></div>
+                    )}
+                  </button>
+                ))}
+
+                <div className="pt-2 border-t dark:border-gray-700">
+                  <button
+                    className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-150 group"
+                    onClick={openCustomStatusModal}
+                  >
+                    <div className="p-2 rounded-lg bg-linear-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-600 dark:text-gray-400 group-hover:from-gray-200 group-hover:to-gray-300 dark:group-hover:from-gray-700 dark:group-hover:to-gray-800">
+                      <MessageSquare className="h-4 w-4" />
+                    </div>
+                    <div className="text-left">
+                      <span className="font-medium text-gray-900 dark:text-white block">
+                        Custom status
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {userStatus?.customStatus || "Set a custom message"}
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const updateThemeInSettings = async (newTheme: "light" | "dark") => {
     try {
@@ -114,10 +321,9 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         body: JSON.stringify({ theme: themeValue }),
       });
 
-      setUserSettings((prev: any) => ({ ...prev, theme: themeValue }));
+      localStorage.setItem("theme", newTheme);
     } catch (error) {
       console.error("Failed to update theme in settings:", error);
-
       localStorage.setItem("theme", newTheme);
     }
   };
@@ -356,6 +562,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                   </div>
                 </Button>
               </PopoverTrigger>
+
               <PopoverContent
                 className="w-85 p-0 rounded-3xl backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 border border-white/20 dark:border-gray-800/20 transition-all duration-300 z-30"
                 align="start"
@@ -492,6 +699,8 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <StatusBadge />
+
           <Button
             variant="ghost"
             size="icon"
@@ -534,6 +743,146 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
           </Button>
         </div>
       </div>
+
+      <Dialog
+        open={customStatusModalOpen}
+        onOpenChange={setCustomStatusModalOpen}
+      >
+        <DialogContent
+          className="sm:max-w-md rounded-2xl"
+          showCloseButton={false}
+        >
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <div className="p-2 rounded-lg bg-linear-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
+                  <MessageSquare className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                </div>
+                Set Custom Status
+              </DialogTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={() => setCustomStatusModalOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">
+              Set a custom message that will be visible to your team members
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="custom-status" className="text-sm font-medium">
+                  Status Message
+                </Label>
+                <span
+                  className={`text-xs ${
+                    customStatusInput.length > 50
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-gray-500 dark:text-gray-400"
+                  }`}
+                >
+                  {customStatusInput.length}/50
+                </span>
+              </div>
+              <Textarea
+                id="custom-status"
+                placeholder="What's your current status?"
+                value={customStatusInput}
+                onChange={(e) => setCustomStatusInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleCustomStatusSubmit();
+                  }
+                }}
+                className="min-h-[100px] resize-none rounded-xl border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                maxLength={50}
+              />
+              {customStatusInput.length > 50 && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  Status must be less than 50 characters
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Quick Suggestions</Label>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Click to apply
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {statusSuggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    className={`p-3 rounded-xl border text-left transition-all duration-200 ${
+                      customStatusInput === suggestion.text
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-700"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/30"
+                    }`}
+                    onClick={() => handleSuggestionClick(suggestion.text)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{suggestion.emoji}</span>
+                      <span className="text-sm font-medium truncate">
+                        {suggestion.text}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {customStatusInput && (
+              <div className="space-y-2 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Preview
+                </p>
+                <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/30 rounded-lg">
+                  <Badge
+                    variant="outline"
+                    className="bg-linear-to-r from-gray-100 to-gray-200 text-gray-800 dark:from-gray-800 dark:to-gray-900 dark:text-gray-300 border-gray-300 dark:border-gray-700 px-3 py-1.5"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 mr-2" />
+                    <span className="font-medium capitalize">
+                      {customStatusInput || "Custom status"}
+                    </span>
+                  </Badge>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">
+                    Will appear in header
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 rounded-lg"
+              onClick={() => setCustomStatusModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCustomStatusSubmit}
+              disabled={
+                !customStatusInput.trim() || customStatusInput.length > 50
+              }
+              className="flex-1 rounded-lg bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
+              Set Status
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <InviteModal
         isOpen={isInviteModalOpen}
