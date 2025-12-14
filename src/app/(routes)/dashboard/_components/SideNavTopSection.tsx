@@ -39,6 +39,7 @@ import {
   useIsLandscape,
 } from "@/hooks/useMediaQuery";
 import { Plan } from "@prisma/client";
+import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 
 export interface TeamMember {
   id: string;
@@ -88,7 +89,6 @@ function SideNavTopSection({
   onRefreshFiles,
 }: SideNavTopSectionProps) {
   const router = useRouter();
-  const [activeTeam, setActiveTeam] = useState<TEAM>();
   const [teamList, setTeamList] = useState<TEAM[]>();
   const [teamsModalOpen, setTeamsModalOpen] = useState(false);
   const [filesModalOpen, setFilesModalOpen] = useState(false);
@@ -108,6 +108,7 @@ function SideNavTopSection({
   const isHorizontalMobileDevice = useIsHorizontalMobile();
   const isHorizontalTablet = useIsHorizontalTablet();
   const isLandscapeDevice = useIsLandscape();
+  const { activeTeam, setActiveTeam } = useActiveTeam();
 
   const memoizedLocalFileList = useMemo(
     () => localFileList,
@@ -190,7 +191,15 @@ function SideNavTopSection({
       }
       const data: TEAM[] = await res.json();
       setTeamList(data);
-      if (data.length > 0) {
+
+      if (activeTeam) {
+        const updatedActiveTeam = data.find((t) => t.id === activeTeam.id);
+        if (updatedActiveTeam) {
+          setActiveTeam(updatedActiveTeam);
+        } else if (data.length > 0) {
+          setActiveTeam(data[0]);
+        }
+      } else if (data.length > 0) {
         setActiveTeam(data[0]);
       }
     } catch (e: any) {
