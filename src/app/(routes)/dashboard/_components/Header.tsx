@@ -57,6 +57,7 @@ import {
   X,
 } from "lucide-react";
 import { useUserStatus } from "@/hooks/useUserStatus";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 
 interface HeaderProps {
   onTeamUpdate?: () => void;
@@ -75,6 +76,12 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [customStatusModalOpen, setCustomStatusModalOpen] = useState(false);
   const [customStatusInput, setCustomStatusInput] = useState("");
+  const [confirmationModal, setConfirmationModal] = useState({
+    isOpen: false,
+    memberId: "",
+    memberName: "",
+    isLoading: false,
+  });
 
   const router = useRouter();
 
@@ -136,6 +143,24 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
     setCustomStatusInput(userStatus?.customStatus || "");
     setCustomStatusModalOpen(true);
     setShowStatusDropdown(false);
+  };
+
+  const openRemoveConfirmation = (memberId: string, memberName: string) => {
+    setConfirmationModal({
+      isOpen: true,
+      memberId,
+      memberName,
+      isLoading: false,
+    });
+  };
+
+  const closeConfirmationModal = () => {
+    setConfirmationModal({
+      isOpen: false,
+      memberId: "",
+      memberName: "",
+      isLoading: false,
+    });
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -376,7 +401,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   ) => {
     if (newRole === "ADMIN" && !isCurrentUserCreator) {
       toast.error("Only team creator can assign ADMIN role");
-      return;
+      return false;
     }
 
     try {
@@ -393,23 +418,32 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
       if (!response.ok) {
         const error = await response.json();
         toast.error(error.error || "Failed to update role");
-        return;
+        return false;
       }
 
-      toast.success(`Member role updated to ${newRole}`);
+      if (activeTeam?.members) {
+        const updatedMembers = activeTeam.members.map((member) =>
+          member.id === memberId ? { ...member, role: newRole } : member
+        );
+
+        setActiveTeam({
+          ...activeTeam,
+          members: updatedMembers,
+        });
+
+        setTeamMembers(updatedMembers);
+      }
+
+      toast.success(`Member role updated to ${getRoleText(newRole)}`);
       onTeamUpdate?.();
+      return true;
     } catch (error) {
       toast.error("Failed to update role");
+      return false;
     }
   };
 
   const removeMember = async (memberId: string, memberName: string) => {
-    if (
-      !confirm(`Are you sure you want to remove ${memberName} from the team?`)
-    ) {
-      return;
-    }
-
     try {
       const response = await fetch("/api/teams/members", {
         method: "DELETE",
@@ -423,13 +457,54 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
       if (!response.ok) {
         const error = await response.json();
         toast.error(error.error || "Failed to remove member");
-        return;
+        return false;
       }
 
-      toast.success(`Member removed from team`);
-      onTeamUpdate?.();
+      if (activeTeam?.members) {
+        const updatedMembers = activeTeam.members.filter(
+          (member) => member.id !== memberId
+        );
+
+        setActiveTeam({
+          ...activeTeam,
+          members: updatedMembers,
+          _count: {
+            ...activeTeam._count,
+            members: updatedMembers.length,
+          },
+        });
+
+        setTeamMembers(updatedMembers);
+      }
+
+      toast.success(`${memberName} removed from team`);
+      return true;
     } catch (error) {
       toast.error("Failed to remove member");
+      return false;
+    }
+  };
+
+  const handleConfirmRemove = async () => {
+    const { memberId, memberName } = confirmationModal;
+
+    if (!memberId || !memberName) return;
+
+    setConfirmationModal((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      const success = await removeMember(memberId, memberName);
+
+      if (success) {
+        closeConfirmationModal();
+        onTeamUpdate?.();
+      } else {
+        setConfirmationModal((prev) => ({ ...prev, isLoading: false }));
+      }
+    } catch (error) {
+      console.error("Error in handleConfirmRemove:", error);
+      setConfirmationModal((prev) => ({ ...prev, isLoading: false }));
+      toast.error("An error occurred while removing the member");
     }
   };
 
@@ -666,7 +741,10 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() =>
-                                    removeMember(member.id, member.user.name)
+                                    openRemoveConfirmation(
+                                      member.id,
+                                      member.user.name
+                                    )
                                   }
                                   className="text-sm text-red-600 dark:text-red-400 cursor-pointer focus:text-red-600 dark:focus:text-red-400 backdrop-blur-sm"
                                 >
@@ -890,6 +968,18 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         teamId={activeTeam?.id}
         teamName={activeTeam?.name}
         onInviteSent={onTeamUpdate}
+      />
+
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={closeConfirmationModal}
+        onConfirm={handleConfirmRemove}
+        title="Remove Team Member"
+        description={`Are you sure you want to remove ${confirmationModal.memberName} from the team? This action cannot be undone.`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={confirmationModal.isLoading}
       />
     </header>
   );
