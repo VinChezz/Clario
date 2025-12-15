@@ -28,8 +28,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
   const [dbUser, setDbUser] = useState<any>(null);
   const [contentLoaded, setContentLoaded] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
-  const { updateFromFileList, fileCount, hasFiles, isStorageFull } =
-    useFileData();
+  const { updateFromFileList, fileCount } = useFileData();
   const { activeTeam } = useActiveTeam();
 
   const isMobile = useIsMobile();
@@ -117,7 +116,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50/30 dark:from-gray-900 dark:to-blue-950/30">
+    <div className="min-h-screen bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] transform transition-transform duration-300 ease-out lg:static lg:translate-x-0">
       <div className="flex flex-col min-h-screen">
         <div className="flex-1 flex flex-col min-w-0">
           <Header onMenuToggle={onMenuToggle} />
@@ -126,14 +125,16 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
             <ContentLoader>
               <div className="mb-4 sm:mb-6 lg:mb-8">
                 <h1
-                  className={`${virgil.className} text-3xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2`}
+                  className={`${virgil.className} text-3xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-[#f0f0f0] mb-1 sm:mb-2`}
                 >
                   Welcome back,
-                  <span className={`${virgil.className}  text-indigo-500`}>
+                  <span
+                    className={`${virgil.className} text-indigo-500 dark:text-[#3b82f6]`}
+                  >
                     {user?.given_name ? ` ${user.given_name}` : ""}!
                   </span>
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-sm lg:text-lg">
+                <p className="text-gray-600 dark:text-[#a0a0a0] text-sm sm:text-sm lg:text-lg">
                   Here are your recent files and documents
                 </p>
               </div>
@@ -150,18 +151,18 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
               >
                 <StaggeredItem>
                   <div
-                    className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300"
+                    className="bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-[#2a2a2d] hover:shadow-md transition-all duration-300 group"
                     id="total-files-card"
                   >
                     <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300">
                         <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-[#a0a0a0] mb-1">
                           Total Files
                         </p>
-                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
+                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#f0f0f0]">
                           {fileCount}
                         </p>
                       </div>
@@ -171,18 +172,18 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
 
                 <StaggeredItem>
                   <div
-                    className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300"
+                    className="bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-[#2a2a2d] hover:shadow-md transition-all duration-300 group"
                     id="team-members-card"
                   >
                     <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300">
                         <Users className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-[#a0a0a0] mb-1">
                           Team Members
                         </p>
-                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
+                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#f0f0f0]">
                           8
                         </p>
                       </div>
@@ -193,7 +194,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
                 <StaggeredItem>
                   <div
                     className={`
-                    bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300
+                    bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-[#2a2a2d] hover:shadow-md transition-all duration-300 group
                     ${isMobile ? "col-span-1" : ""}
                     ${isTablet ? "col-span-2" : ""}
                     ${!isMobile && !isTablet ? "col-span-1" : ""}
@@ -201,15 +202,15 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
                     id="storage-card"
                   >
                     <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300">
                         <Cloud className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 dark:text-purple-400" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-[#a0a0a0] mb-1">
                           Storage Used
                         </p>
                         <div className="flex items-center gap-3">
-                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
+                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#f0f0f0]">
                             65%
                           </p>
                         </div>
@@ -222,7 +223,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
 
             <ContentLoader>
               <div
-                className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8"
+                className="bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a2a2d] p-4 sm:p-6 lg:p-8"
                 id="file-list-container"
               >
                 <FileList files={fileList} onFileUpdate={handleFileUpdate} />
