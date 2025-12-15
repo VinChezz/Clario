@@ -130,114 +130,70 @@ export default function SideNav({
 
   return (
     <>
-      {(isMobile || isCollapsibleTablet) && isMobileMenuOpen && (
+      <div
+        className={cn(
+          "fixed top-0 left-0 bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 flex flex-col w-80 h-screen",
+          isMobileMenuOpen
+            ? "translate-x-0"
+            : "-translate-x-full lg:translate-x-0"
+        )}
+      >
+        <div
+          className={cn(
+            "flex items-center justify-between border-gray-100 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c]/95 backdrop-blur-sm shrink-0",
+            "p-4"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <img
+                src={"/logo-1.png"}
+                alt={"logo"}
+                width={32}
+                height={32}
+                className="rounded-lg"
+              />
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-[#f0f0f0]">
+              Clario
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCloseSidebar}
+            className="h-8 w-8 lg:hidden text-gray-600 dark:text-[#a0a0a0] hover:bg-gray-100 dark:hover:bg-[#2a2a2d]"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4">
+            <SideNavTopSection
+              user={user}
+              setActiveTeamInfo={setActiveTeam}
+              onItemClick={onCloseSidebar}
+              fileList_={fileList_}
+            />
+          </div>
+
+          <div className="dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] shrink-0 p-4">
+            <SideNavBottomSection
+              totalFiles={totalFiles}
+              onFileCreate={onFileCreate}
+              onAction={onCloseSidebar}
+            />
+          </div>
+        </div>
+      </div>
+
+      {isMobileMenuOpen && (
         <div
           onClick={onCloseSidebar}
           className="fixed inset-0 bg-black/40 backdrop-blur-lg z-40 lg:hidden animate-in fade-in duration-300"
         />
       )}
-
-      <div
-        className={cn(
-          "fixed top-0 left-0 bg-white shadow-xl border-r border-gray-200 z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 flex flex-col",
-          getSidebarWidth(),
-          getSidebarHeight(),
-          getSidebarVisibility(),
-          isDesktop && "fixed lg:relative"
-        )}
-        style={
-          (isMobile || isCollapsibleTablet) && windowHeight
-            ? { height: `${windowHeight}px` }
-            : {}
-        }
-      >
-        {isHorizontalMobileDevice && isLandscapeDevice ? (
-          <div className={cn("flex justify-end")}>
-            {(isMobile || isCollapsibleTablet) && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onCloseSidebar}
-                className="h-9 w-9"
-              >
-                {!isLargeTablet && <X className="h-4 w-4 text-gray-600" />}
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div
-            className={cn(
-              "flex items-center justify-between border-b border-gray-100 bg-white/95 backdrop-blur-sm shrink-0",
-              "p-3"
-            )}
-          >
-            <div className="flex items-center gap-2 px-2">
-              <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Image
-                  src={"/logo-1.png"}
-                  alt={"logo"}
-                  width={32}
-                  height={32}
-                  className="rounded-lg"
-                />
-              </div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                Clario
-              </div>
-            </div>
-            {(isMobile || isCollapsibleTablet) && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onCloseSidebar}
-                className="h-8 w-8"
-              >
-                {!isLargeTablet && <X className="h-4 w-4 text-gray-600" />}
-              </Button>
-            )}
-          </div>
-        )}
-
-        {isCollapsibleTablet && !isMobileMenuOpen && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleSidebar}
-            className="fixed top-4 left-4 z-40 h-9 w-9 bg-white shadow-lg border border-gray-200 hover:bg-gray-50 lg:hidden"
-          >
-            <Menu className="h-4 w-4 text-gray-700" />
-          </Button>
-        )}
-
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className={cn("flex-1 overflow-y-auto", getPadding())}>
-            <SideNavTopSection
-              user={user}
-              setActiveTeamInfo={setActiveTeam}
-              onItemClick={onCloseSidebar}
-              isMobile={isMobile}
-              isTablet={isCollapsibleTablet}
-              fileList_={fileList_}
-            />
-          </div>
-
-          <div
-            className={cn(
-              "border-t border-gray-100 bg-white shrink-0",
-              getPadding()
-            )}
-          >
-            <SideNavBottomSection
-              totalFiles={totalFiles}
-              onFileCreate={onFileCreate}
-              onAction={onCloseSidebar}
-              isMobile={isMobile}
-              isTablet={isCollapsibleTablet}
-              windowHeight={windowHeight}
-            />
-          </div>
-        </div>
-      </div>
     </>
   );
 }

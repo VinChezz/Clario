@@ -151,7 +151,6 @@ export default function FileList({
       const filesResponse = await fetch(`/api/files?teamId=${activeTeam.id}`);
       const allFiles = await filesResponse.json();
 
-      // Фильтруем файлы из корзины
       const activeFiles = allFiles.filter(
         (file: FILE) => !file.deletedAt && !file.isDeleted
       );
@@ -477,10 +476,10 @@ export default function FileList({
           <div className="flex flex-col gap-3 lg:gap-4">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <h2 className="text-xl lg:text-2xl font-bold text-gray-900 truncate">
+                <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#f0f0f0] truncate">
                   All Files
                 </h2>
-                <p className="text-gray-500 mt-1 text-sm lg:text-base">
+                <p className="text-gray-500 dark:text-[#a0a0a0] mt-1 text-sm lg:text-base">
                   {filteredAndSortedFiles.length} file
                   {filteredAndSortedFiles.length !== 1 ? "s" : ""}
                   {searchQuery && ` matching "${searchQuery}"`}
@@ -492,7 +491,7 @@ export default function FileList({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 shrink-0"
+                    className="h-9 w-9 shrink-0 text-gray-600 dark:text-[#a0a0a0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                     onClick={() => setIsSearchOpen(!isSearchOpen)}
                   >
                     {isSearchOpen ? (
@@ -515,14 +514,14 @@ export default function FileList({
                   placeholder="Search files..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 rounded-lg border-gray-300 focus:border-blue-500 h-10"
+                  className="w-full pl-10 rounded-lg h-10 border-gray-300 dark:border-[#2a2a2d] focus:border-blue-500 dark:focus:border-blue-500 bg-white dark:bg-[#252528] text-gray-900 dark:text-[#f0f0f0]"
                 />
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-[#707070]">
                   <SearchIcon className="h-4 w-4" />
                 </div>
                 {searchQuery && (
                   <button
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-[#707070] hover:text-gray-600 dark:hover:text-[#a0a0a0]"
                     onClick={() => setSearchQuery("")}
                   >
                     <X className="h-4 w-4" />
@@ -533,7 +532,7 @@ export default function FileList({
               <div className="flex items-center gap-2 lg:gap-3 z-50">
                 <Button
                   variant="outline"
-                  className="gap-2 flex-1 lg:flex-initial h-10"
+                  className="gap-2 flex-1 lg:flex-initial h-10 border-gray-300 dark:border-[#2a2a2d] text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                   onClick={() => {
                     setTrashModalOpen(true);
                     fetchDeletedFiles();
@@ -547,20 +546,32 @@ export default function FileList({
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
-                      className="gap-2 flex-1 lg:flex-initial h-10"
+                      className="gap-2 flex-1 lg:flex-initial h-10 border-gray-300 dark:border-[#2a2a2d] text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                     >
                       <FilterIcon className="h-4 w-4" />
                       <span className="lg:inline">Sort</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setSortBy("name")}>
+                  <DropdownMenuContent
+                    align="end"
+                    className="bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]"
+                  >
+                    <DropdownMenuItem
+                      onClick={() => setSortBy("name")}
+                      className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                    >
                       Name
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSortBy("date")}>
+                    <DropdownMenuItem
+                      onClick={() => setSortBy("date")}
+                      className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                    >
                       Date Modified
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSortBy("size")}>
+                    <DropdownMenuItem
+                      onClick={() => setSortBy("size")}
+                      className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                    >
                       Size
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -571,17 +582,26 @@ export default function FileList({
                   onValueChange={(v) => setViewMode(v as ViewMode)}
                   className="flex-1 lg:flex-initial"
                 >
-                  <TabsList className="bg-gray-100 p-1 w-full lg:w-auto grid grid-cols-3 lg:flex h-10">
-                    <TabsTrigger value="grid" className="gap-2 px-2 lg:px-3">
+                  <TabsList className="p-1 w-full lg:w-auto grid grid-cols-3 lg:flex h-10 bg-gray-100 dark:bg-[#252528] border border-gray-200 dark:border-[#2a2a2d] z-0">
+                    <TabsTrigger
+                      value="grid"
+                      className="gap-2 px-2 lg:px-3 text-gray-700 dark:text-[#f0f0f0] data-[state=active]:bg-white data-[state=active]:text-gray-900 dark:data-[state=active]:bg-[#1a1a1c] dark:data-[state=active]:text-[#f0f0f0]"
+                    >
                       <Grid3x3 className="h-4 w-4" />
                       <span className="hidden sm:inline">Grid</span>
                     </TabsTrigger>
-                    <TabsTrigger value="list" className="gap-2 px-2 lg:px-3">
+                    <TabsTrigger
+                      value="list"
+                      className="gap-2 px-2 lg:px-3 text-gray-700 dark:text-[#f0f0f0] data-[state=active]:bg-white data-[state=active]:text-gray-900 dark:data-[state=active]:bg-[#1a1a1c] dark:data-[state=active]:text-[#f0f0f0]"
+                    >
                       <List className="h-4 w-4" />
                       <span className="hidden sm:inline">List</span>
                     </TabsTrigger>
                     {!isMobile && (
-                      <TabsTrigger value="table" className="gap-2 px-3">
+                      <TabsTrigger
+                        value="table"
+                        className="gap-2 px-3 text-gray-700 dark:text-[#f0f0f0] data-[state=active]:bg-white data-[state=active]:text-gray-900 dark:data-[state=active]:bg-[#1a1a1c] dark:data-[state=active]:text-[#f0f0f0]"
+                      >
                         <LayoutGrid className="h-4 w-4" />
                         <span className="hidden sm:inline">Table</span>
                       </TabsTrigger>
@@ -631,23 +651,23 @@ export default function FileList({
           )}
 
           {viewMode === "table" && !isMobile && (
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm pb-4">
+            <div className="bg-white dark:bg-[#1a1a1c] border border-gray-200 dark:border-[#2a2a2d] rounded-2xl overflow-hidden shadow-sm pb-4">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-linear-to-r from-gray-50 to-blue-50 hover:bg-gray-50">
-                    <TableHead className="font-semibold text-gray-700 py-4">
+                  <TableRow className="bg-linear-to-r from-gray-50 to-blue-50 dark:from-[#252528] dark:to-blue-900/20 hover:bg-gray-50 dark:hover:bg-[#252528]">
+                    <TableHead className="font-semibold text-gray-700 dark:text-[#f0f0f0] py-4 px-6">
                       Name
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-700 py-4">
+                    <TableHead className="font-semibold text-gray-700 dark:text-[#f0f0f0] py-4 px-6">
                       Type
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-700 py-4">
+                    <TableHead className="font-semibold text-gray-700 dark:text-[#f0f0f0] py-4 px-6">
                       Size
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-700 py-4">
+                    <TableHead className="font-semibold text-gray-700 dark:text-[#f0f0f0] py-4 px-6">
                       Modified
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-700 py-4">
+                    <TableHead className="font-semibold text-gray-700 dark:text-[#f0f0f0] py-4 px-6">
                       Author
                     </TableHead>
                     <TableHead className="w-20 py-4"></TableHead>
@@ -657,10 +677,10 @@ export default function FileList({
                   {filteredAndSortedFiles.map((file, index) => (
                     <TableRow
                       key={file.id || index}
-                      className="cursor-pointer hover:bg-blue-50/50 transition-colors group border-b border-gray-100 last:border-b-0"
+                      className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors group border-b border-gray-100 dark:border-[#2a2a2d] last:border-b-0"
                       onClick={() => router.push(`/workspace/${file.id}`)}
                     >
-                      <TableCell className="py-4">
+                      <TableCell className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-12 h-12 rounded-xl bg-linear-to-br ${getFilePreviewGradient(
@@ -670,32 +690,32 @@ export default function FileList({
                             <FileText className="h-6 w-6 text-white" />
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                            <div className="font-medium text-gray-900 dark:text-[#f0f0f0] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               {file.fileName}
                             </div>
-                            <div className="text-sm text-gray-500 mt-1">
+                            <div className="text-sm text-gray-500 dark:text-[#a0a0a0] mt-1">
                               Created {formatDate(file.createdAt)}
                             </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="py-4">
+                      <TableCell className="py-4 px-4">
                         <Badge
                           variant="secondary"
-                          className={getFileTypeColor(file.fileName)}
+                          className="text-[10px] lg:text-xs shrink-0"
                         >
                           {file.fileName.split(".").pop()?.toUpperCase()}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-4 text-gray-600 text-sm">
+                      <TableCell className="py-4 px-6 text-gray-600 dark:text-[#a0a0a0] text-sm">
                         {formatFileSize(file.size || 0)}
                       </TableCell>
-                      <TableCell className="py-4 text-gray-600 text-sm">
+                      <TableCell className="py-4 px-6 text-gray-600 dark:text-[#a0a0a0] text-sm">
                         <div className="flex items-center gap-2">
-                          <Clock className="h-3.5 w-3.5 text-gray-400" />
+                          <Clock className="h-3.5 w-3.5 text-gray-400 dark:text-[#707070]" />
                           <div>
                             <div>{formatDate(file.updatedAt)}</div>
-                            <div className="text-gray-400">
+                            <div className="text-gray-400 dark:text-[#707070]">
                               {formatTime(file.updatedAt)}
                             </div>
                           </div>
@@ -713,7 +733,7 @@ export default function FileList({
                               height={32}
                               className="rounded-full"
                             />
-                            <span className="text-sm text-gray-700 font-medium">
+                            <span className="text-sm text-gray-700 dark:text-[#f0f0f0] font-medium">
                               {file.createdBy.name}
                             </span>
                           </div>
@@ -729,14 +749,17 @@ export default function FileList({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-9 w-9 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-9 w-9 opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 dark:text-[#a0a0a0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuContent
+                              align="end"
+                              className="w-48 bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]"
+                            >
                               <DropdownMenuItem
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleFileAction("download", file, e);
@@ -745,7 +768,7 @@ export default function FileList({
                                 <Download className="h-4 w-4" /> Download
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleFileAction("rename", file, e);
@@ -754,7 +777,7 @@ export default function FileList({
                                 <Edit3 className="h-4 w-4" /> Rename
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleFileAction("share", file, e);
@@ -764,7 +787,7 @@ export default function FileList({
                                 Share
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleFileAction("archive", file, e);
@@ -773,7 +796,7 @@ export default function FileList({
                                 <Archive className="h-4 w-4" /> Archive
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleFileAction("copy", file, e);
@@ -781,9 +804,9 @@ export default function FileList({
                               >
                                 <Copy className="h-4 w-4" /> Make a Copy
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
+                              <DropdownMenuSeparator className="bg-gray-200 dark:bg-[#2a2a2d]" />
                               <DropdownMenuItem
-                                className="flex items-center gap-2 text-red-600"
+                                className="flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleFileAction("delete", file, e);
@@ -815,9 +838,11 @@ export default function FileList({
       />
 
       <Dialog open={trashModalOpen} onOpenChange={setTrashModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[600px] flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[600px] flex flex-col bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Trash</DialogTitle>
+            <DialogTitle className="text-lg font-bold text-gray-900 dark:text-[#f0f0f0]">
+              Trash
+            </DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto space-y-3">
@@ -825,15 +850,15 @@ export default function FileList({
               deletedFiles.map((file) => (
                 <div
                   key={file.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50"
+                  className="flex items-center justify-between p-4 rounded-lg border bg-gray-50 dark:bg-[#252528] border-gray-200 dark:border-[#2a2a2d]"
                 >
                   <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-gray-400" />
+                    <FileText className="h-5 w-5 text-gray-400 dark:text-[#707070]" />
                     <div>
-                      <p className="font-medium text-gray-900 text-sm">
+                      <p className="font-medium text-gray-900 dark:text-[#f0f0f0] text-sm">
                         {file.fileName}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
                         Deleted {new Date(file.deletedAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -844,7 +869,7 @@ export default function FileList({
                       variant="outline"
                       size="sm"
                       onClick={() => handleRestoreFile(file.id)}
-                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                      className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 border-green-200 dark:border-green-800/50"
                     >
                       Restore
                     </Button>
@@ -852,10 +877,14 @@ export default function FileList({
                 </div>
               ))
             ) : (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12 text-gray-400 dark:text-[#707070]">
                 <Trash2 className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                <p className="text-sm font-semibold mb-1">Trash is empty</p>
-                <p className="text-xs">Deleted files will appear here</p>
+                <p className="text-sm font-semibold mb-1 text-gray-900 dark:text-[#f0f0f0]">
+                  Trash is empty
+                </p>
+                <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                  Deleted files will appear here
+                </p>
               </div>
             )}
           </div>
@@ -883,10 +912,12 @@ const CreateFileDialog = ({
   activeTeam: any;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="sm:max-w-md">
+    <DialogContent className="sm:max-w-md dark:bg-gray-800 dark:border-gray-700">
       <DialogHeader>
-        <DialogTitle>Create New File</DialogTitle>
-        <DialogDescription>
+        <DialogTitle className="dark:text-gray-100">
+          Create New File
+        </DialogTitle>
+        <DialogDescription className="dark:text-gray-400">
           Give your new file a descriptive name
         </DialogDescription>
       </DialogHeader>
@@ -908,12 +939,13 @@ const CreateFileDialog = ({
           }}
           disabled={isCreating}
           autoFocus
+          className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder:text-gray-500"
         />
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
           <p>• File will be created in your current team</p>
           <p>• You can add content after creation</p>
           {!activeTeam?.id && (
-            <p className="text-red-500 font-medium">
+            <p className="text-red-500 dark:text-red-400 font-medium">
               • Please select a team first
             </p>
           )}
@@ -925,7 +957,7 @@ const CreateFileDialog = ({
           <Button
             onClick={() => onSubmit(false)}
             disabled={!fileName.trim() || isCreating || !activeTeam?.id}
-            className="bg-linear-to-r from-blue-600 to-indigo-600"
+            className="bg-linear-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500"
           >
             {isCreating ? (
               <>
@@ -940,7 +972,7 @@ const CreateFileDialog = ({
           <Button
             onClick={() => onSubmit(true)}
             disabled={!fileName.trim() || isCreating || !activeTeam?.id}
-            className="bg-linear-to-r from-green-600 to-emerald-600"
+            className="bg-linear-to-r from-green-600 to-emerald-600 dark:from-green-500 dark:to-emerald-500"
           >
             {isCreating ? (
               <>
@@ -968,7 +1000,7 @@ const FileGridItem = ({
   formatFileSize,
 }: any) => (
   <div
-    className="group bg-white border border-gray-200 rounded-xl lg:rounded-2xl overflow-hidden hover:shadow-2xl hover:border-gray-300 transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
+    className="group bg-white dark:bg-[#1a1a1c] border border-gray-200 dark:border-[#2a2a2d] rounded-xl lg:rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
     onClick={onFileClick}
   >
     <div className="relative">
@@ -985,11 +1017,9 @@ const FileGridItem = ({
         <div className="absolute top-2 lg:top-3 left-2 lg:left-3">
           <Badge
             variant="secondary"
-            className={`${getFileTypeColor(
-              file.fileName
-            )} text-[10px] lg:text-xs font-medium`}
+            className="text-[10px] lg:text-xs shrink-0"
           >
-            {file.fileName.split(".").pop()?.toUpperCase() || "FILE"}
+            {file.fileName.split(".").pop()?.toUpperCase()}
           </Badge>
         </div>
 
@@ -998,7 +1028,7 @@ const FileGridItem = ({
             <Button
               variant="secondary"
               size="icon"
-              className="h-7 w-7 lg:h-8 lg:w-8 bg-white/90 hover:bg-white backdrop-blur-sm shadow-sm"
+              className="h-7 w-7 lg:h-8 lg:w-8 bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 backdrop-blur-sm shadow-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -1009,25 +1039,21 @@ const FileGridItem = ({
             </Button>
 
             <DropdownMenu>
-              <DropdownMenuTrigger
-                asChild
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-              >
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="h-7 w-7 lg:h-8 lg:w-8 bg-white/90 hover:bg-white backdrop-blur-sm shadow-sm"
+                  className="h-7 w-7 lg:h-8 lg:w-8 bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 backdrop-blur-sm shadow-sm"
                 >
-                  <MoreHorizontal className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent
+                align="end"
+                className="w-48 bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]"
+              >
                 <DropdownMenuItem
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                   onClick={(e) => {
                     e.stopPropagation();
                     onFileAction("download", file, e);
@@ -1036,7 +1062,7 @@ const FileGridItem = ({
                   <Download className="h-4 w-4" /> Download
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                   onClick={(e) => {
                     e.stopPropagation();
                     onFileAction("rename", file, e);
@@ -1045,16 +1071,17 @@ const FileGridItem = ({
                   <Edit3 className="h-4 w-4" /> Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                   onClick={(e) => {
                     e.stopPropagation();
                     onFileAction("share", file, e);
                   }}
                 >
-                  <Share className="h-4 w-4" /> Share
+                  <Share className="h-4 w-4" />
+                  Share
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                   onClick={(e) => {
                     e.stopPropagation();
                     onFileAction("archive", file, e);
@@ -1063,7 +1090,7 @@ const FileGridItem = ({
                   <Archive className="h-4 w-4" /> Archive
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                   onClick={(e) => {
                     e.stopPropagation();
                     onFileAction("copy", file, e);
@@ -1071,11 +1098,9 @@ const FileGridItem = ({
                 >
                   <Copy className="h-4 w-4" /> Make a Copy
                 </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
+                <DropdownMenuSeparator className="bg-gray-200 dark:bg-[#2a2a2d]" />
                 <DropdownMenuItem
-                  className="flex items-center gap-2 text-red-600"
+                  className="flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                   onClick={(e) => {
                     e.stopPropagation();
                     onFileAction("delete", file, e);
@@ -1092,13 +1117,13 @@ const FileGridItem = ({
 
     <div className="p-3 lg:p-5">
       <div className="flex items-start justify-between mb-2 lg:mb-3">
-        <h3 className="font-semibold text-sm lg:text-base text-gray-900 truncate flex-1 group-hover:text-blue-600 transition-colors">
+        <h3 className="font-semibold text-sm lg:text-base text-gray-900 dark:text-gray-100 truncate flex-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           {file.fileName}
         </h3>
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 lg:h-8 lg:w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="h-7 w-7 lg:h-8 lg:w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -1110,19 +1135,19 @@ const FileGridItem = ({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           <Clock className="h-3 w-3" />
           <span>Edited {formatDate(file.updatedAt)}</span>
         </div>
 
         {file.size && (
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 dark:text-gray-400">
             Size: {formatFileSize(file.size)}
           </div>
         )}
 
         {file.createdBy && (
-          <div className="flex items-center gap-2 pt-2 lg:pt-3 border-t border-gray-100">
+          <div className="flex items-center gap-2 pt-2 lg:pt-3 dark:border-gray-700">
             <Image
               src={file.createdBy.image || "/default-avatar.png"}
               alt={file.createdBy.name}
@@ -1130,7 +1155,7 @@ const FileGridItem = ({
               height={20}
               className="rounded-full"
             />
-            <span className="text-xs text-gray-600 truncate">
+            <span className="text-xs text-gray-600 dark:text-gray-300 truncate">
               {file.createdBy.name}
             </span>
           </div>
@@ -1153,7 +1178,7 @@ const FileListItem = ({
   formatFileSize,
 }: any) => (
   <div
-    className="bg-white border border-gray-200 rounded-xl p-3 lg:p-5 hover:shadow-lg hover:border-gray-300 transition-all cursor-pointer group"
+    className="bg-white dark:bg-[#1a1a1c] border border-gray-200 dark:border-[#2a2a2d] rounded-xl p-3 lg:p-5 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer group"
     onClick={onFileClick}
   >
     <div className="flex items-center gap-3 lg:gap-4">
@@ -1167,21 +1192,13 @@ const FileListItem = ({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1 lg:mb-2">
-          <h3 className="font-semibold text-sm lg:text-base text-gray-900 truncate group-hover:text-blue-600 transition-colors flex-1">
+          <h3 className="font-semibold text-sm lg:text-base text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-1">
             {file.fileName}
           </h3>
-          <Badge
-            variant="secondary"
-            className={`${getFileTypeColor(
-              file.fileName
-            )} text-[10px] lg:text-xs shrink-0`}
-          >
-            {file.fileName.split(".").pop()?.toUpperCase()}
-          </Badge>
         </div>
 
         <div className="flex items-center gap-2 lg:gap-4 flex-wrap text-xs lg:text-sm">
-          <div className="flex items-center gap-1.5 lg:gap-2 text-gray-500">
+          <div className="flex items-center gap-1.5 lg:gap-2 text-gray-500 dark:text-gray-400">
             <Clock className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
             <span>
               {formatDate(file.updatedAt)}
@@ -1190,12 +1207,14 @@ const FileListItem = ({
           </div>
 
           {file.size && (
-            <div className="text-gray-500">• {formatFileSize(file.size)}</div>
+            <div className="text-gray-500 dark:text-gray-400">
+              • {formatFileSize(file.size)}
+            </div>
           )}
 
           {file.createdBy && !isMobile && (
             <div className="flex items-center gap-2">
-              <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+              <div className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
               <Image
                 src={file.createdBy.image || "/default-avatar.png"}
                 alt={file.createdBy.name}
@@ -1203,19 +1222,28 @@ const FileListItem = ({
                 height={20}
                 className="rounded-full"
               />
-              <span className="text-gray-600">{file.createdBy.name}</span>
+              <span className="text-gray-600 dark:text-gray-300">
+                {file.createdBy.name}
+              </span>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-1 lg:gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+      <Badge variant="secondary" className="text-[10px] lg:text-xs shrink-0">
+        {file.fileName.split(".").pop()?.toUpperCase()}
+      </Badge>
+
+      <div
+        className="flex items-center gap-1 lg:gap-2 opacity-0
+      group-hover:opacity-100 transition-opacity shrink-0"
+      >
         {!isMobile && (
           <>
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -1227,7 +1255,7 @@ const FileListItem = ({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -1239,24 +1267,21 @@ const FileListItem = ({
           </>
         )}
         <DropdownMenu>
-          <DropdownMenuTrigger
-            asChild
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-          >
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 lg:h-9 lg:w-9"
+              className="h-9 w-9 opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 dark:text-[#a0a0a0] hover:bg-gray-100 dark:hover:bg-[#252528]"
             >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent
+            align="end"
+            className="w-48 bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]"
+          >
             <DropdownMenuItem
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
               onClick={(e) => {
                 e.stopPropagation();
                 onFileAction("download", file, e);
@@ -1265,7 +1290,7 @@ const FileListItem = ({
               <Download className="h-4 w-4" /> Download
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
               onClick={(e) => {
                 e.stopPropagation();
                 onFileAction("rename", file, e);
@@ -1274,17 +1299,17 @@ const FileListItem = ({
               <Edit3 className="h-4 w-4" /> Rename
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
               onClick={(e) => {
                 e.stopPropagation();
-                onFileAction("copy", file, e);
+                onFileAction("share", file, e);
               }}
             >
-              <Copy className="h-4 w-4" /> Make a Copy
+              <Share className="h-4 w-4" />
+              Share
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
               onClick={(e) => {
                 e.stopPropagation();
                 onFileAction("archive", file, e);
@@ -1293,7 +1318,17 @@ const FileListItem = ({
               <Archive className="h-4 w-4" /> Archive
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="flex items-center gap-2 text-red-600"
+              className="flex items-center gap-2 text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+              onClick={(e) => {
+                e.stopPropagation();
+                onFileAction("copy", file, e);
+              }}
+            >
+              <Copy className="h-4 w-4" /> Make a Copy
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-gray-200 dark:bg-[#2a2a2d]" />
+            <DropdownMenuItem
+              className="flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
               onClick={(e) => {
                 e.stopPropagation();
                 onFileAction("delete", file, e);

@@ -58,6 +58,8 @@ import {
 } from "lucide-react";
 import { useUserStatus } from "@/hooks/useUserStatus";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { useTheme } from "@/app/_context/AppearanceContext";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface HeaderProps {
   onTeamUpdate?: () => void;
@@ -71,7 +73,6 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [dbUser, setDbUser] = useState<any>(null);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const isMobile = useIsMobile();
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [customStatusModalOpen, setCustomStatusModalOpen] = useState(false);
@@ -83,7 +84,9 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
     isLoading: false,
   });
 
+  const { theme, toggleTheme: contextToggleTheme, isDark } = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const statusSuggestions = [
     { text: "Working remotely", emoji: "🏠" },
@@ -96,17 +99,24 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
     { text: "Creative flow", emoji: "🎨" },
   ];
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark";
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-      .matches
-      ? "dark"
-      : "light";
-    const initialTheme = savedTheme || systemTheme;
-
-    setTheme(initialTheme);
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-  }, []);
+  const themeMutation = useMutation({
+    mutationFn: async (newTheme: "LIGHT" | "DARK" | "AUTO") => {
+      const res = await fetch("/api/users/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: newTheme }),
+      });
+      if (!res.ok) throw new Error("Failed to update theme");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-settings"] });
+    },
+    onError: (error) => {
+      console.error("Failed to save theme:", error);
+      toast.error("Failed to save theme settings");
+    },
+  });
 
   const updateAvailabilityStatus = async (
     status: string,
@@ -178,6 +188,14 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
     return labels[status] || status.toLowerCase().replace("_", " ");
   };
 
+  const handleToggleTheme = () => {
+    const newTheme = theme === "LIGHT" ? "DARK" : "LIGHT";
+
+    contextToggleTheme();
+
+    themeMutation.mutate(newTheme);
+  };
+
   const StatusBadge = () => {
     const availabilityStatus = userStatus?.availabilityStatus || "AVAILABLE";
     const customStatusText = userStatus?.customStatus || "";
@@ -242,7 +260,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         </Badge>
 
         {showStatusDropdown && (
-          <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-xl border dark:border-gray-700 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-xl border dark:border-gray-700 z-90 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="p-3">
               <div className="mb-2 px-2">
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -335,31 +353,6 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         )}
       </div>
     );
-  };
-
-  const updateThemeInSettings = async (newTheme: "light" | "dark") => {
-    try {
-      const themeValue = newTheme === "dark" ? "DARK" : "LIGHT";
-      await fetch("/api/users/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: themeValue }),
-      });
-
-      localStorage.setItem("theme", newTheme);
-    } catch (error) {
-      console.error("Failed to update theme in settings:", error);
-      localStorage.setItem("theme", newTheme);
-    }
-  };
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-
-    updateThemeInSettings(newTheme);
-
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
   const navigateToSettings = () => {
@@ -798,9 +791,10 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
               "backdrop-blur-xl transition-all duration-300 hover:scale-110 hover:bg-white/20 dark:hover:bg-gray-800/20",
               isMobile ? "h-9 w-9" : "h-11 w-11"
             )}
-            onClick={toggleTheme}
+            onClick={handleToggleTheme}
+            title={`Switch to ${theme === "LIGHT" ? "dark" : "light"} theme`}
           >
-            {theme === "light" ? (
+            {theme === "LIGHT" ? (
               <Moon className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
             ) : (
               <Sun className={isMobile ? "h-4 w-4" : "h-5 w-5"} />

@@ -295,10 +295,12 @@ function SideNavTopSection({
       path: "/teams/create",
       icon: Users,
       description: "Start new team",
-      color: "text-blue-600",
-      buttonClass: "hover:border-blue-300 hover:bg-blue-50",
-      textClass: "group-hover:text-blue-700",
-      iconClass: "bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm",
+      color: "text-blue-600 dark:text-blue-400",
+      buttonClass:
+        "hover:border-blue-300 hover:bg-blue-50 dark:hover:border-blue-700 dark:hover:bg-blue-900/20",
+      textClass: "group-hover:text-blue-700 dark:group-hover:text-blue-300",
+      iconClass:
+        "bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm dark:from-blue-600 dark:to-blue-700",
       iconColor: "text-white",
       isDisabled: userPlan === Plan.FREE && currentTeamsCount >= 1,
       disabledTooltip:
@@ -310,11 +312,13 @@ function SideNavTopSection({
       path: "/settings",
       icon: Settings,
       description: "Manage preferences",
-      color: "text-gray-600",
-      buttonClass: "hover:border-gray-300 hover:bg-gray-50",
+      color: "text-gray-600 dark:text-gray-400",
+      buttonClass:
+        "hover:border-gray-300 hover:bg-gray-50 dark:hover:border-gray-700 dark:hover:bg-gray-800/50",
       textClass: "",
-      iconClass: "bg-gradient-to-br from-gray-100 to-gray-200",
-      iconColor: "text-gray-600",
+      iconClass:
+        "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900",
+      iconColor: "text-gray-600 dark:text-gray-400",
     },
     {
       id: 3,
@@ -322,10 +326,12 @@ function SideNavTopSection({
       path: "/recent",
       icon: History,
       description: "Recent files",
-      color: "text-indigo-600",
-      buttonClass: "hover:border-indigo-300 hover:bg-indigo-50",
-      textClass: "group-hover:text-indigo-700",
-      iconClass: "bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm",
+      color: "text-indigo-600 dark:text-indigo-400",
+      buttonClass:
+        "hover:border-indigo-300 hover:bg-indigo-50 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20",
+      textClass: "group-hover:text-indigo-700 dark:group-hover:text-indigo-300",
+      iconClass:
+        "bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm dark:from-indigo-600 dark:to-indigo-700",
       iconColor: "text-white",
     },
     {
@@ -334,10 +340,12 @@ function SideNavTopSection({
       path: "/favorites",
       icon: Star,
       description: "Favorite files",
-      color: "text-yellow-600",
-      buttonClass: "hover:border-amber-300 hover:bg-amber-50",
-      textClass: "group-hover:text-amber-700",
-      iconClass: "bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm",
+      color: "text-yellow-600 dark:text-yellow-400",
+      buttonClass:
+        "hover:border-amber-300 hover:bg-amber-50 dark:hover:border-amber-700 dark:hover:bg-amber-900/20",
+      textClass: "group-hover:text-amber-700 dark:group-hover:text-amber-300",
+      iconClass:
+        "bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm dark:from-amber-600 dark:to-amber-700",
       iconColor: "text-white",
     },
   ];
@@ -608,7 +616,11 @@ function SideNavTopSection({
       <button
         onClick={() => setTeamsModalOpen(true)}
         className={cn(
-          "group flex items-center w-full rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:shadow-md transition-all duration-200",
+          "group flex items-center w-full rounded-xl border transition-all duration-200",
+          "border-gray-200 dark:border-[#2a2a2d]",
+          "bg-white dark:bg-[#1a1a1c]",
+          "hover:border-gray-300 dark:hover:border-[#3a3a3d]",
+          "hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
           buttonSize.padding,
           buttonSize.gap
         )}
@@ -616,13 +628,14 @@ function SideNavTopSection({
       >
         <div
           className={cn(
-            "rounded-xl bg-linear-to-br flex items-center justify-center text-white font-bold shadow-sm",
+            "rounded-xl bg-linear-to-br flex items-center justify-center text-white font-bold",
+            "shadow-sm dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)]",
             buttonSize.avatarSize,
             activeTeam && teamList
               ? getTeamColor(
                   teamList.findIndex((t) => t.id === activeTeam.id) || 0
                 )
-              : "from-gray-400 to-gray-500"
+              : "from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700"
           )}
         >
           {activeTeam ? getTeamInitials(activeTeam.name) : "T"}
@@ -631,12 +644,16 @@ function SideNavTopSection({
           <div className="flex items-center gap-1.5 mb-0.5">
             {activeTeam?.createdById === user?.id && (
               <Crown
-                className={cn("text-amber-500 shrink-0", buttonSize.crownSize)}
+                className={cn(
+                  "text-amber-500 dark:text-amber-400 shrink-0",
+                  buttonSize.crownSize
+                )}
               />
             )}
             <span
               className={cn(
-                "font-semibold text-gray-900 truncate",
+                "font-semibold truncate",
+                "text-gray-900 dark:text-[#f0f0f0]",
                 buttonSize.text
               )}
             >
@@ -645,7 +662,7 @@ function SideNavTopSection({
           </div>
           <span
             className={cn(
-              "text-gray-500",
+              "text-gray-500 dark:text-[#a0a0a0]",
               isHorizontalMobileDevice ||
                 isLandscapeDevice ||
                 isHorizontalTablet
@@ -658,7 +675,7 @@ function SideNavTopSection({
         </div>
         <ChevronRight
           className={cn(
-            "text-gray-400 group-hover:text-gray-600 transition-colors shrink-0",
+            "text-gray-400 dark:text-[#707070] group-hover:text-gray-600 dark:group-hover:text-[#a0a0a0] transition-colors shrink-0",
             buttonSize.chevronSize
           )}
         />
@@ -670,7 +687,11 @@ function SideNavTopSection({
           handleRefreshFiles();
         }}
         className={cn(
-          "group flex items-center w-full rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:shadow-md transition-all duration-200",
+          "group flex items-center w-full rounded-xl border transition-all duration-200",
+          "border-gray-200 dark:border-[#2a2a2d]",
+          "bg-white dark:bg-[#1a1a1c]",
+          "hover:border-gray-300 dark:hover:border-[#3a3a3d]",
+          "hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
           buttonSize.padding,
           buttonSize.gap
         )}
@@ -678,7 +699,9 @@ function SideNavTopSection({
       >
         <div
           className={cn(
-            "rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm",
+            "rounded-xl bg-linear-to-br flex items-center justify-center",
+            "from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-700",
+            "shadow-sm dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)]",
             buttonSize.avatarSize
           )}
         >
@@ -687,7 +710,8 @@ function SideNavTopSection({
         <div className="flex-1 text-left min-w-0">
           <span
             className={cn(
-              "font-semibold text-gray-900 block mb-0.5",
+              "font-semibold block mb-0.5",
+              "text-gray-900 dark:text-[#f0f0f0]",
               buttonSize.text
             )}
           >
@@ -695,7 +719,7 @@ function SideNavTopSection({
           </span>
           <p
             className={cn(
-              "text-gray-500",
+              "text-gray-500 dark:text-[#a0a0a0]",
               isHorizontalMobileDevice ||
                 isLandscapeDevice ||
                 isHorizontalTablet
@@ -708,7 +732,7 @@ function SideNavTopSection({
         </div>
         <ChevronRight
           className={cn(
-            "text-gray-400 group-hover:text-gray-600 transition-colors shrink-0",
+            "text-gray-400 dark:text-[#707070] group-hover:text-gray-600 dark:group-hover:text-[#a0a0a0] transition-colors shrink-0",
             buttonSize.chevronSize
           )}
         />
@@ -725,7 +749,8 @@ function SideNavTopSection({
                 onClick={() => onMenuClick(item)}
                 disabled={item.isDisabled}
                 className={cn(
-                  "flex items-center justify-center rounded-xl border border-gray-200 transition-all group w-full min-w-0 relative",
+                  "flex items-center justify-center rounded-xl border transition-all group w-full min-w-0 relative",
+                  "border-gray-200 dark:border-[#2a2a2d]",
                   item.buttonClass,
                   quickAccess.buttonClass,
                   quickAccess.gap,
@@ -744,7 +769,7 @@ function SideNavTopSection({
                   />
                 </div>
                 {item.isDisabled && (
-                  <Lock className="absolute right-2 h-3 w-3 text-gray-400" />
+                  <Lock className="absolute right-2 h-3 w-3 text-gray-400 dark:text-[#707070]" />
                 )}
               </button>
             ))
@@ -754,7 +779,8 @@ function SideNavTopSection({
                 onClick={() => onMenuClick(item)}
                 disabled={item.isDisabled}
                 className={cn(
-                  "flex items-center rounded-xl border border-gray-200 transition-all group text-left w-full min-w-0 relative",
+                  "flex items-center rounded-xl border transition-all group text-left w-full min-w-0 relative",
+                  "border-gray-200 dark:border-[#2a2a2d]",
                   item.buttonClass,
                   quickAccess.buttonClass,
                   quickAccess.gap,
@@ -781,8 +807,9 @@ function SideNavTopSection({
                 <div className="flex-1 min-w-0">
                   <span
                     className={cn(
-                      "font-medium text-gray-700 block truncate",
+                      "font-medium overflow-hidden",
                       quickAccess.textSize,
+                      "text-gray-700 dark:text-[#f0f0f0]",
                       item.textClass
                     )}
                   >
@@ -790,7 +817,7 @@ function SideNavTopSection({
                   </span>
                 </div>
                 {item.isDisabled && (
-                  <Lock className="h-3 w-3 text-gray-400 ml-auto" />
+                  <Lock className="h-3 w-3 text-gray-400 dark:text-[#707070] ml-auto" />
                 )}
               </button>
             ))}
@@ -800,19 +827,27 @@ function SideNavTopSection({
         <DialogContent
           className={cn(
             "p-0 gap-0 overflow-hidden rounded-2xl flex flex-col",
+            "bg-white dark:bg-[#1a1a1c]",
+            "border border-gray-200 dark:border-[#2a2a2d]",
             isHorizontalTablet ? "max-w-[70vw] max-h-[80vh]" : modalSizes.teams
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <DialogHeader
             className={cn(
-              "border-b bg-linear-to-br from-gray-50 to-white",
+              "border-b",
+              "bg-linear-to-br from-gray-50 to-white dark:from-[#1a1a1c] dark:to-[#0f0f10]",
+              "border-gray-200 dark:border-[#2a2a2d]",
               modalSizes.contentPadding,
               "pb-3"
             )}
           >
             <DialogTitle
-              className={cn("font-bold text-gray-900", modalSizes.title)}
+              className={cn(
+                "font-bold",
+                "text-gray-900 dark:text-[#f0f0f0]",
+                modalSizes.title
+              )}
             >
               Teams
             </DialogTitle>
@@ -820,13 +855,17 @@ function SideNavTopSection({
 
           <div className={cn("shrink-0", modalSizes.contentPadding, "pb-3")}>
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-[#707070]" />
               <Input
                 placeholder="Search teams..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
-                  "pl-10 text-sm border-gray-200 focus:border-blue-500 rounded-xl",
+                  "pl-10 text-sm rounded-xl",
+                  "border-gray-200 dark:border-[#2a2a2d]",
+                  "focus:border-blue-500 dark:focus:border-blue-500",
+                  "bg-white dark:bg-[#252528]",
+                  "text-gray-900 dark:text-[#f0f0f0]",
                   modalSizes.inputHeight
                 )}
               />
@@ -850,13 +889,14 @@ function SideNavTopSection({
                       "w-full flex items-center gap-3 rounded-xl transition-all",
                       modalSizes.teamItemPadding,
                       activeTeam?.id === team.id
-                        ? "bg-blue-50 border-2 border-blue-300 shadow-sm"
-                        : "hover:bg-gray-50 border-2 border-transparent hover:border-gray-200"
+                        ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-500 shadow-sm"
+                        : "hover:bg-gray-50 dark:hover:bg-[#252528] border-2 border-transparent hover:border-gray-200 dark:hover:border-[#3a3a3d]"
                     )}
                   >
                     <div
                       className={cn(
-                        "rounded-xl bg-linear-to-br flex items-center justify-center text-white font-bold shadow-sm",
+                        "rounded-xl bg-linear-to-br flex items-center justify-center text-white font-bold",
+                        "shadow-sm dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)]",
                         modalSizes.teamAvatar,
                         getTeamColor(index)
                       )}
@@ -868,14 +908,15 @@ function SideNavTopSection({
                         {team.createdById === user?.id && (
                           <Crown
                             className={cn(
-                              "h-3.5 w-3.5 text-amber-500 shrink-0",
+                              "h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0",
                               buttonSize.crownSize
                             )}
                           />
                         )}
                         <span
                           className={cn(
-                            "font-semibold text-gray-900 truncate",
+                            "font-semibold truncate",
+                            "text-gray-900 dark:text-[#f0f0f0]",
                             buttonSize.text
                           )}
                         >
@@ -884,7 +925,7 @@ function SideNavTopSection({
                       </div>
                       <span
                         className={cn(
-                          "text-gray-500",
+                          "text-gray-500 dark:text-[#a0a0a0]",
                           isHorizontalMobileDevice ||
                             isLandscapeDevice ||
                             isHorizontalTablet
@@ -896,20 +937,22 @@ function SideNavTopSection({
                       </span>
                     </div>
                     {activeTeam?.id === team.id && (
-                      <div className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                      <div className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-500 shrink-0" />
                     )}
                   </button>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-gray-400 dark:text-[#707070]">
                   <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                  <p className="text-sm font-medium">No teams found</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-[#f0f0f0]">
+                    No teams found
+                  </p>
                 </div>
               )}
             </div>
           </div>
 
-          <Separator className="mx-5" />
+          <Separator className="mx-5 bg-gray-200 dark:bg-[#2a2a2d]" />
 
           <div className={cn("shrink-0", modalSizes.contentPadding)}>
             <div
@@ -940,7 +983,8 @@ function SideNavTopSection({
                     }}
                     disabled={item.id === 1 && isCreateTeamDisabled}
                     className={cn(
-                      "flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 transition-all group relative",
+                      "flex items-center gap-2.5 p-2.5 rounded-xl border transition-all group relative",
+                      "border-gray-200 dark:border-[#2a2a2d]",
                       item.buttonClass,
                       isCreateTeamDisabled && "opacity-50 cursor-not-allowed"
                     )}
@@ -958,14 +1002,15 @@ function SideNavTopSection({
                     </div>
                     <span
                       className={cn(
-                        "text-sm font-medium text-gray-700",
-                        quickAccess.textSize
+                        "text-sm font-medium",
+                        quickAccess.textSize,
+                        "text-gray-700 dark:text-[#f0f0f0]"
                       )}
                     >
                       {item.name}
                     </span>
                     {isCreateTeamDisabled && (
-                      <Lock className="absolute right-2 h-3 w-3 text-gray-400" />
+                      <Lock className="absolute right-2 h-3 w-3 text-gray-400 dark:text-[#707070]" />
                     )}
                   </button>
                 );
@@ -973,30 +1018,36 @@ function SideNavTopSection({
             </div>
           </div>
 
-          <Separator className="mx-5" />
+          <Separator className="mx-5 bg-gray-200 dark:bg-[#2a2a2d]" />
 
-          <div className={cn("shrink-0 bg-gray-50", modalSizes.contentPadding)}>
+          <div
+            className={cn(
+              "shrink-0",
+              modalSizes.contentPadding,
+              "bg-gray-50 dark:bg-[#252528]"
+            )}
+          >
             {user && (
-              <div className="flex items-center gap-3 p-3 bg-white rounded-xl mb-2.5 shadow-sm border border-gray-200">
+              <div className="flex items-center gap-3 p-3 rounded-xl mb-2.5 shadow-sm border bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
                 <Image
                   src={user?.picture}
                   alt="user"
                   width={36}
                   height={36}
-                  className="rounded-full ring-2 ring-gray-100"
+                  className="rounded-full ring-2 ring-gray-100 dark:ring-[#2a2a2d]"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-gray-900 truncate">
+                  <p className="font-semibold text-sm truncate text-gray-900 dark:text-[#f0f0f0]">
                     {user?.given_name} {user?.family_name}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-xs truncate text-gray-500 dark:text-[#a0a0a0]">
                     {user?.email}
                   </p>
                 </div>
               </div>
             )}
             <LogoutLink>
-              <button className="w-full flex items-center justify-center gap-2 p-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-all border border-red-200">
+              <button className="w-full flex items-center justify-center gap-2 p-1.5 rounded-xl transition-all border bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border-red-200 dark:border-red-800/50">
                 <LogOut className="h-4 w-4" />
                 <span className="text-sm font-semibold">Logout</span>
               </button>
@@ -1009,22 +1060,28 @@ function SideNavTopSection({
         <DialogContent
           className={cn(
             "p-0 gap-0 rounded-2xl max-w-2xl",
+            "bg-white dark:bg-[#1a1a1c]",
+            "border border-gray-200 dark:border-[#2a2a2d]",
             isHorizontalMobileDevice || isLandscapeDevice
               ? "max-h-96"
               : "max-h-[600px]"
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <DialogHeader className="px-7 pt-6 pb-4 border-b">
+          <DialogHeader className="px-7 pt-6 pb-4 border-b border-gray-200 dark:border-[#2a2a2d] bg-linear-to-br from-gray-50 to-white dark:from-[#1a1a1c] dark:to-[#0f0f10]">
             <div className="flex items-center justify-between">
               <DialogTitle
-                className={cn("font-bold text-gray-900", modalSizes.title)}
+                className={cn(
+                  "font-bold",
+                  "text-gray-900 dark:text-[#f0f0f0]",
+                  modalSizes.title
+                )}
               >
                 Files
               </DialogTitle>
               <Badge
                 variant="secondary"
-                className="text-xs font-semibold bg-white shadow-sm px-3 py-1"
+                className="text-xs font-semibold px-3 py-1 bg-white dark:bg-[#252528] shadow-sm border-gray-200 dark:border-[#2a2a2d] text-gray-900 dark:text-[#f0f0f0]"
               >
                 {filteredFiles.length}
               </Badge>
@@ -1033,54 +1090,59 @@ function SideNavTopSection({
 
           <div className="p-7 space-y-3">
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-[#707070]" />
               <Input
                 placeholder="Search files..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
-                  "pl-10 text-sm border-gray-200 focus:border-indigo-500 rounded-xl",
+                  "pl-10 text-sm rounded-xl",
+                  "border-gray-200 dark:border-[#2a2a2d]",
+                  "focus:border-indigo-500 dark:focus:border-indigo-500",
+                  "bg-white dark:bg-[#252528]",
+                  "text-gray-900 dark:text-[#f0f0f0]",
                   modalSizes.inputHeight
                 )}
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              <button
-                onClick={() => setFileFilter("all")}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
-                  fileFilter === "all"
-                    ? "bg-linear-to-br from-blue-500 to-indigo-600 text-white shadow-md"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                )}
-              >
-                <FolderOpen className="h-3.5 w-3.5" />
-                All Files
-              </button>
-              <button
-                onClick={() => setFileFilter("recent")}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
-                  fileFilter === "recent"
-                    ? "bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-md"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                )}
-              >
-                <Clock className="h-3.5 w-3.5" />
-                Recent
-              </button>
-              <button
-                onClick={() => setFileFilter("favorites")}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
-                  fileFilter === "favorites"
-                    ? "bg-linear-to-br from-amber-500 to-orange-600 text-white shadow-md"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                )}
-              >
-                <Star className="h-3.5 w-3.5" />
-                Favorites
-              </button>
+              {[
+                {
+                  value: "all",
+                  label: "All Files",
+                  icon: FolderOpen,
+                  color:
+                    "from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700",
+                },
+                {
+                  value: "recent",
+                  label: "Recent",
+                  icon: Clock,
+                  color:
+                    "from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-700",
+                },
+                {
+                  value: "favorites",
+                  label: "Favorites",
+                  icon: Star,
+                  color:
+                    "from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700",
+                },
+              ].map((filter) => (
+                <button
+                  key={filter.value}
+                  onClick={() => setFileFilter(filter.value as any)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
+                    fileFilter === filter.value
+                      ? `bg-linear-to-br ${filter.color} text-white shadow-md dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)]`
+                      : "bg-gray-100 dark:bg-[#252528] text-gray-600 dark:text-[#a0a0a0] hover:bg-gray-200 dark:hover:bg-[#2a2a2d]"
+                  )}
+                >
+                  <filter.icon className="h-3.5 w-3.5" />
+                  {filter.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1100,16 +1162,16 @@ function SideNavTopSection({
                   <button
                     key={file.id}
                     onClick={() => handleFileClick(file.id)}
-                    className="group flex flex-col rounded-xl border border-gray-200 bg-white hover:bg-linear-to-br hover:from-indigo-50 hover:via-purple-50 hover:to-pink-50 hover:border-indigo-200 hover:shadow-md hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                    className="group flex flex-col rounded-xl border overflow-hidden transition-all duration-300 border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] hover:border-indigo-200 dark:hover:border-indigo-500/50 hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)] hover:-translate-y-1"
                   >
-                    <div className="w-full aspect-video bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center group-hover:from-transparent group-hover:to-transparent transition-all">
-                      <FileText className="h-8 w-8 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                    <div className="w-full aspect-video flex items-center justify-center bg-linear-to-br from-gray-50 to-gray-100 dark:from-[#252528] dark:to-[#2a2a2d] group-hover:from-transparent group-hover:to-transparent transition-all">
+                      <FileText className="h-8 w-8 text-gray-400 dark:text-[#707070] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
                     </div>
                     <div className="p-3">
-                      <p className="font-semibold text-sm text-gray-900 truncate mb-1">
+                      <p className="font-semibold text-sm truncate mb-1 text-gray-900 dark:text-[#f0f0f0]">
                         {file.fileName}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
                         {new Date(file.createdAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -1117,10 +1179,14 @@ function SideNavTopSection({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12 text-gray-400 dark:text-[#707070]">
                 <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                <p className="text-sm font-semibold mb-1">No files yet</p>
-                <p className="text-xs">Create your first file to get started</p>
+                <p className="text-sm font-semibold mb-1 text-gray-900 dark:text-[#f0f0f0]">
+                  No files yet
+                </p>
+                <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                  Create your first file to get started
+                </p>
               </div>
             )}
           </div>

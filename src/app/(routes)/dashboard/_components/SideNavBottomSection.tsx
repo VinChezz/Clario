@@ -96,23 +96,28 @@ const StorageIndicator = ({
   const getStorageStatus = () => {
     if (usagePercentage >= 100) {
       return {
-        color: "from-red-500 to-red-600",
-        bgColor: "from-red-50 to-red-100",
-        textColor: "text-red-600",
+        color: "from-red-500 to-red-600 dark:from-red-600 dark:to-red-700",
+        bgColor:
+          "from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20",
+        textColor: "text-red-600 dark:text-red-400",
         message: "Storage full",
       };
     } else if (usagePercentage >= 80 || showWarning) {
       return {
-        color: "from-yellow-500 to-orange-500",
-        bgColor: "from-yellow-50 to-orange-100",
-        textColor: "text-orange-600",
+        color:
+          "from-yellow-500 to-orange-500 dark:from-yellow-600 dark:to-orange-600",
+        bgColor:
+          "from-yellow-50 to-orange-100 dark:from-yellow-900/20 dark:to-orange-800/20",
+        textColor: "text-orange-600 dark:text-orange-400",
         message: `${remainingSlots} files left`,
       };
     } else {
       return {
-        color: "from-blue-500 to-indigo-600",
-        bgColor: "from-blue-50 to-indigo-100",
-        textColor: "text-blue-600",
+        color:
+          "from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700",
+        bgColor:
+          "from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-800/20",
+        textColor: "text-blue-600 dark:text-blue-400",
         message: `${remainingSlots} files left`,
       };
     }
@@ -135,7 +140,8 @@ const StorageIndicator = ({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
-        `bg-linear-to-br ${status.bgColor} rounded-xl border border-gray-200 shadow-sm`,
+        `bg-linear-to-br ${status.bgColor} rounded-xl border shadow-sm`,
+        "border-gray-200 dark:border-[#2a2a2d]",
         storageSize
       )}
       id="storage-section"
@@ -143,7 +149,8 @@ const StorageIndicator = ({
       <div className="flex items-center justify-between">
         <span
           className={cn(
-            "font-semibold text-gray-900",
+            "font-semibold",
+            "text-gray-900 dark:text-[#f0f0f0]",
             isHorizontalMobile || isLandscape
               ? "text-xs"
               : isTablet
@@ -155,7 +162,8 @@ const StorageIndicator = ({
         </span>
         <span
           className={cn(
-            "font-bold text-gray-900",
+            "font-bold",
+            "text-gray-900 dark:text-[#f0f0f0]",
             isHorizontalMobile || isLandscape
               ? "text-xs"
               : isTablet
@@ -168,7 +176,7 @@ const StorageIndicator = ({
       </div>
 
       <div className="space-y-1.5">
-        <div className="relative h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+        <div className="relative h-1.5 w-full rounded-full overflow-hidden bg-gray-200 dark:bg-[#2a2a2d]">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${Math.min(usagePercentage, 100)}%` }}
@@ -193,7 +201,7 @@ const StorageIndicator = ({
           </span>
           <span
             className={cn(
-              "text-gray-500",
+              "text-gray-500 dark:text-[#a0a0a0]",
               isHorizontalMobile || isLandscape
                 ? "text-[9px]"
                 : isTablet
@@ -208,7 +216,7 @@ const StorageIndicator = ({
 
       {plan === "FREE" && filesInTrash > 0 && (
         <div className="pt-1">
-          <div className="text-[10px] text-gray-500 flex justify-between">
+          <div className="text-[10px] text-gray-500 dark:text-[#707070] flex justify-between">
             <span>{actualFileCount} active</span>
             <span>{filesInTrash} in trash</span>
           </div>
@@ -223,10 +231,10 @@ const StorageIndicator = ({
               "w-full text-xs font-semibold text-center py-1.5 rounded-lg transition-colors",
               status.textColor,
               status.textColor.includes("red")
-                ? "bg-red-100 hover:bg-red-200"
+                ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30"
                 : status.textColor.includes("orange")
-                ? "bg-amber-100 hover:bg-amber-200"
-                : "bg-blue-100 hover:bg-blue-200"
+                ? "bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+                : "bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
             )}
           >
             Upgrade to get more space
@@ -251,15 +259,15 @@ const OrientationWarningModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md rounded-2xl">
+      <DialogContent className="max-w-md rounded-2xl bg-white dark:bg-[#1a1a1c] border border-gray-200 dark:border-[#2a2a2d]">
         <DialogHeader>
-          <div className="flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full mx-auto mb-4">
-            <RotateCcw className="h-6 w-6 text-amber-600" />
+          <div className="flex items-center justify-center w-12 h-12 bg-amber-100 dark:bg-amber-900/20 rounded-full mx-auto mb-4">
+            <RotateCcw className="h-6 w-6 text-amber-600 dark:text-amber-400" />
           </div>
-          <DialogTitle className="text-center text-lg font-semibold text-gray-900">
+          <DialogTitle className="text-center text-lg font-semibold text-gray-900 dark:text-[#f0f0f0]">
             Rotate your device
           </DialogTitle>
-          <DialogDescription className="text-center text-gray-600 mt-2">
+          <DialogDescription className="text-center text-gray-600 dark:text-[#a0a0a0] mt-2">
             {isTabletDevice || isLargeTabletDevice ? (
               <>
                 For comfortable viewing of the tour on a tablet, we recommend
@@ -276,13 +284,16 @@ const OrientationWarningModal = ({
 
         <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
           <DialogClose asChild>
-            <Button variant="outline" className="flex-1">
+            <Button
+              variant="outline"
+              className="flex-1 border-gray-300 dark:border-[#2a2a2d] text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-50 dark:hover:bg-[#252528]"
+            >
               Cancel
             </Button>
           </DialogClose>
           <Button
             onClick={onRetry}
-            className="flex-1 bg-blue-600 hover:bg-blue-700"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
           >
             <RotateCcw className="h-4 w-4 mr-2" />
             Try again
@@ -435,8 +446,8 @@ export default function SideNavBottomSection({
       return {
         status: "full",
         message: "Storage full",
-        color: "text-red-600",
-        bgColor: "bg-red-50",
+        color: "text-red-600 dark:text-red-400",
+        bgColor: "bg-red-50 dark:bg-red-900/20",
         buttonText: "Storage Full",
       };
     } else if (isStorageAlmostFull) {
@@ -445,16 +456,16 @@ export default function SideNavBottomSection({
         message: `${remainingSlots} slot${
           remainingSlots === 1 ? "" : "s"
         } left`,
-        color: "text-amber-600",
-        bgColor: "bg-amber-50",
+        color: "text-amber-600 dark:text-amber-400",
+        bgColor: "bg-amber-50 dark:bg-amber-900/20",
         buttonText: "Almost Full",
       };
     } else {
       return {
         status: "ok",
         message: `${remainingSlots} files left`,
-        color: "text-blue-600",
-        bgColor: "bg-blue-50",
+        color: "text-blue-600 dark:text-blue-400",
+        bgColor: "bg-blue-50 dark:bg-blue-900/20",
         buttonText: "New File",
       };
     }
@@ -652,7 +663,8 @@ export default function SideNavBottomSection({
             name: "Show Tour",
             icon: Play,
             onClick: handleStartTour,
-            className: "",
+            className:
+              "text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-50 dark:hover:bg-[#252528]",
           },
         ]
       : []),
@@ -665,8 +677,8 @@ export default function SideNavBottomSection({
         : "Link your GitHub repository",
       onClick: () => setGithubModalOpen(true),
       className: isGithubConnected
-        ? "text-green-600 hover:text-green-700 hover:bg-green-50"
-        : "",
+        ? "text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
+        : "text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-50 dark:hover:bg-[#252528]",
     },
     {
       id: 3,
@@ -677,7 +689,8 @@ export default function SideNavBottomSection({
         fetchDeletedFiles();
         onAction?.();
       },
-      className: "",
+      className:
+        "text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-50 dark:hover:bg-[#252528]",
     },
   ];
 
@@ -904,9 +917,6 @@ export default function SideNavBottomSection({
   const spacing = getSpacing();
   const storageInfo = getStorageInfo();
 
-  console.log("creator:", isCurrentUserCreator);
-  console.log("member role:", currentUserMember?.role);
-
   return (
     <>
       <div
@@ -923,7 +933,10 @@ export default function SideNavBottomSection({
               <button
                 key={menu.id}
                 className={cn(
-                  "w-full flex items-center text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200",
+                  "w-full flex items-center rounded-lg transition-all duration-200 hover:shadow-sm",
+                  "text-gray-700 dark:text-[#f0f0f0]",
+                  "hover:bg-gray-50 dark:hover:bg-[#252528]",
+                  "hover:border-gray-200 dark:hover:border-[#2a2a2d]",
                   buttonSize.padding,
                   buttonSize.text,
                   buttonSize.gap,
@@ -944,7 +957,7 @@ export default function SideNavBottomSection({
                     }}
                     className="ml-auto"
                   >
-                    <div className="h-3 w-3 border-2 border-gray-300 border-t-gray-600 rounded-full" />
+                    <div className="h-3 w-3 border-2 border-gray-300 dark:border-[#707070] rounded-full" />
                   </motion.div>
                 )}
               </button>
@@ -954,7 +967,8 @@ export default function SideNavBottomSection({
           {isHorizontalMobileDevice && isLandscapeDevice ? (
             <div
               className={cn(
-                "bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+                "bg-linear-to-br rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+                "from-purple-600 to-indigo-700 dark:from-purple-700 dark:to-indigo-800",
                 upgradeCard.padding
               )}
               onClick={handleUpgradeClick}
@@ -1003,12 +1017,14 @@ export default function SideNavBottomSection({
           ) : (
             <div
               className={cn(
-                "bg-linear-to-br from-purple-600 to-indigo-700 rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+                "bg-linear-to-br rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+                "from-purple-600 to-indigo-700 dark:from-purple-700 dark:to-indigo-800",
+                "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
                 upgradeCard.padding
               )}
               onClick={handleUpgradeClick}
             >
-              <div className="absolute inset-0 bg-[radial-linear(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.05),transparent_50%)]"></div>
 
               <div className="relative z-10">
                 <div
@@ -1089,7 +1105,9 @@ export default function SideNavBottomSection({
               {!canCreateFiles ? (
                 <Button
                   className={cn(
-                    "w-full bg-linear-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 shadow-lg cursor-not-allowed relative overflow-hidden",
+                    "w-full bg-linear-to-rhadow-lg cursor-not-allowed relative overflow-hidden",
+                    "from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700",
+                    "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
                     buttonSize.height,
                     buttonSize.text,
                     buttonSize.gap
@@ -1111,12 +1129,14 @@ export default function SideNavBottomSection({
                   <DialogTrigger className="w-full" asChild>
                     <Button
                       className={cn(
-                        "w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300",
+                        "w-full bg-linear-to-r shadow-lg hover:shadow-xl transition-all duration-300",
+                        storageInfo.status === "warning"
+                          ? "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 dark:from-amber-600 dark:to-orange-700 dark:hover:from-amber-700 dark:hover:to-orange-800"
+                          : "from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 dark:from-blue-500 dark:to-indigo-600 dark:hover:from-blue-600 dark:hover:to-indigo-700",
+                        "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
                         buttonSize.height,
                         buttonSize.text,
-                        buttonSize.gap,
-                        storageInfo.status === "warning" &&
-                          "bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                        buttonSize.gap
                       )}
                       disabled={!canCreateFiles}
                       id="create-file-button-sidenav"
@@ -1128,7 +1148,9 @@ export default function SideNavBottomSection({
 
                   <DialogContent
                     className={cn(
-                      "rounded-xl",
+                      "rounded-xl border",
+                      "bg-white dark:bg-[#1a1a1c]",
+                      "border-gray-200 dark:border-[#2a2a2d]",
                       isHorizontalMobileDevice || isLandscapeDevice
                         ? "sm:max-w-xs"
                         : isMobileDevice
@@ -1140,6 +1162,7 @@ export default function SideNavBottomSection({
                     <DialogHeader>
                       <DialogTitle
                         className={cn(
+                          "text-gray-900 dark:text-[#f0f0f0]",
                           isHorizontalMobileDevice || isLandscapeDevice
                             ? "text-base"
                             : isMobileDevice
@@ -1152,6 +1175,7 @@ export default function SideNavBottomSection({
                       </DialogTitle>
                       <DialogDescription
                         className={cn(
+                          "text-gray-600 dark:text-[#a0a0a0]",
                           isHorizontalMobileDevice || isLandscapeDevice
                             ? "text-xs"
                             : isMobileDevice
@@ -1161,7 +1185,7 @@ export default function SideNavBottomSection({
                         )}
                       >
                         {storageInfo.status === "warning" ? (
-                          <span className="text-amber-600">
+                          <span className="text-amber-600 dark:text-amber-400">
                             ⚠️ Only {remainingSlots} file
                             {remainingSlots === 1 ? "" : "s"} left
                           </span>
@@ -1175,7 +1199,11 @@ export default function SideNavBottomSection({
                       <Input
                         placeholder="Enter file name..."
                         className={cn(
-                          "border-gray-300 focus:border-blue-500 rounded-lg",
+                          "rounded-lg border",
+                          "border-gray-300 dark:border-[#2a2a2d]",
+                          "focus:border-blue-500 dark:focus:border-blue-500",
+                          "bg-white dark:bg-[#252528]",
+                          "text-gray-900 dark:text-[#f0f0f0]",
                           isHorizontalMobileDevice || isLandscapeDevice
                             ? "text-xs h-9"
                             : isMobileDevice
@@ -1220,7 +1248,8 @@ export default function SideNavBottomSection({
                         <Button
                           variant="outline"
                           className={cn(
-                            "border-gray-300 hover:bg-gray-50",
+                            "border-gray-300 dark:border-[#2a2a2d] hover:bg-gray-50 dark:hover:bg-[#252528]",
+                            "text-gray-700 dark:text-[#f0f0f0]",
                             isHorizontalMobileDevice || isLandscapeDevice
                               ? "text-xs h-8"
                               : isMobileDevice
@@ -1235,15 +1264,16 @@ export default function SideNavBottomSection({
                       <DialogClose asChild>
                         <Button
                           className={cn(
-                            "bg-linear-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700",
+                            "bg-linear-to-br hover:shadow-lg transition-all",
+                            storageInfo.status === "warning"
+                              ? "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 dark:from-amber-600 dark:to-orange-700 dark:hover:from-amber-700 dark:hover:to-orange-800"
+                              : "from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 dark:from-blue-500 dark:to-indigo-600 dark:hover:from-blue-600 dark:hover:to-indigo-700",
                             isHorizontalMobileDevice || isLandscapeDevice
                               ? "text-xs h-8"
                               : isMobileDevice
                               ? "text-sm h-9"
                               : "text-base h-11",
-                            isLargeTabletDevice && "text-lg h-12",
-                            storageInfo.status === "warning" &&
-                              "bg-linear-to-br from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                            isLargeTabletDevice && "text-lg h-12"
                           )}
                           disabled={!(fileInput && fileInput.length > 3)}
                           onClick={() => {
@@ -1265,44 +1295,47 @@ export default function SideNavBottomSection({
             <DialogContent
               className={cn(
                 "p-0 gap-0 overflow-hidden rounded-2xl max-w-3xl",
+                "bg-white dark:bg-[#1a1a1c]",
+                "border border-gray-200 dark:border-[#2a2a2d]",
                 isHorizontalMobileDevice || isLandscapeDevice
                   ? "max-h-[85vh]"
                   : "max-h-[80vh]"
               )}
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
-              <div className="px-8 pt-8 pb-6 bg-linear-to-br from-gray-50 to-white border-b border-gray-100">
+              <div
+                className={cn(
+                  "px-8 pt-8 pb-6 border-b",
+                  "bg-linear-to-br from-gray-50 to-white dark:from-[#1a1a1c] dark:to-[#0f0f10]",
+                  "border-gray-100 dark:border-[#2a2a2d]"
+                )}
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-linear-to-br from-red-500 to-rose-500 shadow-lg">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-linear-to-br shadow-lg from-red-500 to-rose-500 dark:from-red-600 dark:to-rose-600">
                       <Trash2 className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <DialogTitle className="text-2xl font-bold text-gray-900">
+                      <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-[#f0f0f0]">
                         Trash
                       </DialogTitle>
-                      <p className="text-gray-500 mt-1">
+                      <p className="text-gray-500 dark:text-[#a0a0a0] mt-1">
                         Files will be permanently deleted after 30 days
                       </p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge className="border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold">
-                      {deletedFiles.length} items
-                    </Badge>
                   </div>
                 </div>
               </div>
 
               {deletedFiles.length > 0 && (
-                <div className="px-8 py-4 border-b border-gray-100 bg-gray-50/50">
+                <div className="px-8 py-4 border-b border-gray-100 dark:border-[#2a2a2d] bg-gray-50/50 dark:bg-[#252528]/50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           id="select-all"
-                          className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                          className="h-4 w-4 rounded border cursor-pointer border-gray-300 dark:border-[#3a3a3d] text-red-600 dark:text-red-500 focus:ring-red-500 dark:focus:ring-red-600"
                           checked={
                             selectedFiles.length === deletedFiles.length &&
                             deletedFiles.length > 0
@@ -1317,18 +1350,18 @@ export default function SideNavBottomSection({
                         />
                         <label
                           htmlFor="select-all"
-                          className="text-sm font-medium text-gray-700 cursor-pointer select-none"
+                          className="text-sm font-medium cursor-pointer select-none text-gray-700 dark:text-[#f0f0f0]"
                         >
                           Select all
                         </label>
                       </div>
 
                       {selectedFiles.length > 0 && (
-                        <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
-                          <span className="text-sm text-gray-600">
+                        <div className="flex items-center gap-2 pl-4 border-l border-gray-200 dark:border-[#2a2a2d]">
+                          <span className="text-sm text-gray-600 dark:text-[#a0a0a0]">
                             {selectedFiles.length} selected
                           </span>
-                          <div className="h-4 w-px bg-gray-300" />
+                          <div className="h-4 w-px bg-gray-300 dark:bg-[#2a2a2d]" />
                           <button
                             onClick={() => {
                               selectedFiles.forEach((id) =>
@@ -1336,11 +1369,11 @@ export default function SideNavBottomSection({
                               );
                               setSelectedFiles([]);
                             }}
-                            className="text-sm font-medium text-green-600 hover:text-green-700 px-2 py-1 rounded-md hover:bg-green-50 transition-colors"
+                            className="text-sm font-medium px-2 py-1 rounded-md transition-colors text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
                           >
                             Restore
                           </button>
-                          <div className="h-4 w-px bg-gray-300" />
+                          <div className="h-4 w-px bg-gray-300 dark:bg-[#2a2a2d]" />
                           <button
                             onClick={() => {
                               if (
@@ -1353,7 +1386,8 @@ export default function SideNavBottomSection({
                                 deleteSelectedFiles();
                               }
                             }}
-                            className="text-sm font-medium text-red-600 hover:text-red-700 px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
+                            className="text-sm font-medium px-2 py-1 rounded-md transition-colors text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300
+                            hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
                             Delete
                           </button>
@@ -1365,7 +1399,7 @@ export default function SideNavBottomSection({
                       <Button
                         variant="destructive"
                         size="sm"
-                        className="gap-2 px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all"
+                        className="gap-2 px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
                         onClick={() => {
                           if (
                             confirm(
@@ -1408,11 +1442,13 @@ export default function SideNavBottomSection({
                         <div
                           key={file.id}
                           className={cn(
-                            "group relative bg-white border border-gray-200 rounded-xl p-4",
-                            "hover:border-gray-300 hover:shadow-lg transition-all duration-200",
-                            "cursor-pointer overflow-hidden",
+                            "group relative rounded-xl p-4 border transition-all duration-200 cursor-pointer overflow-hidden",
+                            "bg-white dark:bg-[#1a1a1c]",
+                            "border-gray-200 dark:border-[#2a2a2d]",
+                            "hover:border-gray-300 dark:hover:border-[#3a3a3d]",
+                            "hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]",
                             selectedFiles.includes(file.id) &&
-                              "ring-2 ring-red-500 border-red-500"
+                              "ring-2 ring-red-500 dark:ring-red-600 border-red-500 dark:border-red-600"
                           )}
                           onClick={() => {
                             if (selectedFiles.includes(file.id)) {
@@ -1431,7 +1467,7 @@ export default function SideNavBottomSection({
                             <input
                               type="checkbox"
                               id={`select-${file.id}`}
-                              className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                              className="h-5 w-5 rounded border cursor-pointer border-gray-300 dark:border-[#3a3a3d] text-red-600 dark:text-red-500 focus:ring-red-500 dark:focus:ring-red-600"
                               checked={selectedFiles.includes(file.id)}
                               onChange={(e) => {
                                 e.stopPropagation();
@@ -1450,23 +1486,23 @@ export default function SideNavBottomSection({
                           </div>
 
                           <div className="mb-4 relative">
-                            <div className="w-full aspect-video rounded-lg bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                              <FileText className="h-10 w-10 text-gray-400" />
-                              <div className="absolute inset-0 bg-linear-to-t from-black/5 to-transparent rounded-lg" />
+                            <div className="w-full aspect-video rounded-lg flex items-center justify-center bg-linear-to-br from-gray-100 to-gray-200 dark:from-[#252528] dark:to-[#2a2a2d]">
+                              <FileText className="h-10 w-10 text-gray-400 dark:text-[#707070]" />
+                              <div className="absolute inset-0 bg-linear-to-t from-black/5 to-transparent dark:from-black/10 dark:to-transparent rounded-lg" />
                             </div>
 
                             <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               <Button
                                 variant="secondary"
                                 size="icon"
-                                className="h-8 w-8 bg-white/90 backdrop-blur-sm shadow-md hover:shadow-lg"
+                                className="h-8 w-8 shadow-md hover:shadow-lg bg-white/90 dark:bg-[#252528]/90 backdrop-blur-sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleRestoreFile(file.id);
                                 }}
                               >
                                 <svg
-                                  className="h-4 w-4 text-green-600"
+                                  className="h-4 w-4 text-green-600 dark:text-green-400"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -1482,26 +1518,26 @@ export default function SideNavBottomSection({
                               <Button
                                 variant="secondary"
                                 size="icon"
-                                className="h-8 w-8 bg-white/90 backdrop-blur-sm shadow-md hover:shadow-lg"
+                                className="h-8 w-8 shadow-md hover:shadow-lg bg-white/90 dark:bg-[#252528]/90 backdrop-blur-sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setFileToDelete(file.id);
                                 }}
                               >
-                                <Trash2 className="h-4 w-4 text-red-600" />
+                                <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                               </Button>
                             </div>
                           </div>
 
                           <div>
-                            <h4 className="font-semibold text-gray-900 text-sm truncate mb-1">
+                            <h4 className="font-semibold text-sm truncate mb-1 text-gray-900 dark:text-[#f0f0f0]">
                               {file.fileName}
                             </h4>
-                            <p className="text-xs text-gray-500 mb-2">
+                            <p className="text-xs mb-2 text-gray-500 dark:text-[#a0a0a0]">
                               Deleted • {formatDate(file.deletedAt)}
                             </p>
 
-                            <div className="flex items-center justify-between text-xs text-gray-400">
+                            <div className="flex items-center justify-between text-xs text-gray-400 dark:text-[#707070]">
                               <div className="flex items-center gap-2">
                                 <svg
                                   className="h-3 w-3"
@@ -1526,7 +1562,7 @@ export default function SideNavBottomSection({
                             </div>
                           </div>
 
-                          <div className="absolute inset-0 bg-linear-to-br from-transparent to-gray-50/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none" />
+                          <div className="absolute inset-0 rounded-xl pointer-events-none bg-linear-to-br from-transparent to-gray-50/50 dark:from-transparent dark:to-[#252528]/50 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       ))}
                     </div>
@@ -1534,26 +1570,26 @@ export default function SideNavBottomSection({
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 px-8">
                     <div className="relative mb-6">
-                      <div className="w-24 h-24 rounded-full bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                        <Trash2 className="h-12 w-12 text-gray-400" />
+                      <div className="w-24 h-24 rounded-full flex items-center justify-center bg-linear-to-br from-gray-100 to-gray-200 dark:from-[#252528] dark:to-[#2a2a2d]">
+                        <Trash2 className="h-12 w-12 text-gray-400 dark:text-[#707070]" />
                       </div>
-                      <div className="absolute -inset-2 bg-linear-to-br from-transparent via-gray-50/50 to-transparent rounded-full animate-pulse" />
+                      <div className="absolute -inset-2 rounded-full animate-pulse bg-linear-to-br from-transparent via-gray-50/50 to-transparent dark:from-transparent dark:via-[#252528]/50 dark:to-transparent" />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-[#f0f0f0]">
                       Trash is empty
                     </h3>
-                    <p className="text-gray-500 text-center max-w-md mb-6">
+                    <p className="text-center max-w-md mb-6 text-gray-500 dark:text-[#a0a0a0]">
                       Files you delete will appear here. They'll be permanently
                       removed after 30 days.
                     </p>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-[#707070]">
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-gray-300" />
+                        <div className="w-2 h-2 rounded-fullbg-gray-300 dark:bg-[#3a3a3d]" />
                         <span>Files stay for 30 days</span>
                       </div>
-                      <div className="w-px h-4 bg-gray-300" />
+                      <div className="w-px h-4 bg-gray-300 dark:bg-[#2a2a2d]" />
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-gray-300" />
+                        <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-[#3a3a3d]" />
                         <span>Restore anytime</span>
                       </div>
                     </div>
@@ -1561,12 +1597,12 @@ export default function SideNavBottomSection({
                 )}
               </div>
 
-              <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50">
+              <div className="px-8 py-6 dark:border-[#2a2a2d] bg-gray-50/50 dark:bg-[#252528]/50">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-[#a0a0a0]">
                     {deletedFiles.length > 0 ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        <div className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse" />
                         <span>
                           {deletedFiles.length} item
                           {deletedFiles.length > 1 ? "s" : ""} will be deleted
@@ -1585,21 +1621,25 @@ export default function SideNavBottomSection({
             open={!!fileToDelete}
             onOpenChange={() => setFileToDelete(null)}
           >
-            <AlertDialogContent>
+            <AlertDialogContent className="bg-white dark:bg-[#1a1a1c] border border-gray-200 dark:border-[#2a2a2d]">
               <AlertDialogHeader>
-                <AlertDialogTitle>Permanently delete file?</AlertDialogTitle>
-                <AlertDialogDescription>
+                <AlertDialogTitle className="text-gray-900 dark:text-[#f0f0f0]">
+                  Permanently delete file?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-600 dark:text-[#a0a0a0]">
                   This action cannot be undone. The file will be permanently
                   deleted from the server and cannot be recovered.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel className="border-gray-300 dark:border-[#2a2a2d] text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-50 dark:hover:bg-[#252528]">
+                  Cancel
+                </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() =>
                     fileToDelete && handleDeletePermanently(fileToDelete)
                   }
-                  className="bg-red-600 hover:bg-red-700"
+                  className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
                 >
                   Delete Permanently
                 </AlertDialogAction>
