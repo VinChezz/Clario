@@ -1,4 +1,3 @@
-// components/settings/AppearanceSettings.tsx
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,9 +20,11 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Moon, Sun, Monitor, Type } from "lucide-react";
+import { useTheme } from "@/app/_context/AppearanceContext";
 
 export function AppearanceSettings() {
   const queryClient = useQueryClient();
+  const { theme, fontSize, setTheme, setFontSize } = useTheme();
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["user-settings"],
@@ -58,9 +59,17 @@ export function AppearanceSettings() {
     },
     onError: (err, newData, context) => {
       queryClient.setQueryData(["user-settings"], context?.previousSettings);
-      toast("Failed to update appearance settings");
+      toast.error("Failed to update appearance settings");
     },
-
+    onSuccess: (data, variables) => {
+      if (variables.theme) {
+        setTheme(variables.theme);
+      }
+      if (variables.fontSize) {
+        setFontSize(variables.fontSize);
+      }
+      toast.success("Appearance settings updated");
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["user-settings"] });
     },
@@ -86,6 +95,9 @@ export function AppearanceSettings() {
     );
   }
 
+  const currentTheme = theme || settings?.theme || "LIGHT";
+  const currentFontSize = fontSize || settings?.fontSize || "MEDIUM";
+
   return (
     <Card className="border shadow-sm dark:border-gray-700 dark:bg-gray-900/30">
       <CardHeader>
@@ -96,7 +108,7 @@ export function AppearanceSettings() {
         <div className="space-y-4">
           <Label>Theme</Label>
           <RadioGroup
-            value={settings?.theme || "LIGHT"}
+            value={currentTheme}
             onValueChange={handleThemeChange}
             className="grid grid-cols-3 gap-4"
           >
@@ -127,16 +139,12 @@ export function AppearanceSettings() {
           </RadioGroup>
         </div>
 
-        {/* Font Size */}
         <div className="space-y-4">
           <Label htmlFor="font-size" className="flex items-center gap-2">
             <Type className="h-4 w-4" />
             Font Size
           </Label>
-          <Select
-            value={settings?.fontSize || "MEDIUM"}
-            onValueChange={handleFontSizeChange}
-          >
+          <Select value={currentFontSize} onValueChange={handleFontSizeChange}>
             <SelectTrigger className="max-w-xs">
               <SelectValue placeholder="Select font size" />
             </SelectTrigger>
@@ -150,7 +158,7 @@ export function AppearanceSettings() {
             <div className="flex items-center justify-between text-sm">
               <span
                 className={`${
-                  settings?.fontSize === "SMALL"
+                  currentFontSize === "SMALL"
                     ? "font-semibold text-blue-600 dark:text-blue-400"
                     : "text-gray-500"
                 }`}
@@ -159,7 +167,7 @@ export function AppearanceSettings() {
               </span>
               <span
                 className={`${
-                  settings?.fontSize === "MEDIUM"
+                  currentFontSize === "MEDIUM"
                     ? "font-semibold text-blue-600 dark:text-blue-400"
                     : "text-gray-500"
                 }`}
@@ -168,7 +176,7 @@ export function AppearanceSettings() {
               </span>
               <span
                 className={`${
-                  settings?.fontSize === "LARGE"
+                  currentFontSize === "LARGE"
                     ? "font-semibold text-blue-600 dark:text-blue-400"
                     : "text-gray-500"
                 }`}
@@ -181,9 +189,9 @@ export function AppearanceSettings() {
                 className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-blue-600 dark:bg-blue-500 shadow-md"
                 animate={{
                   left:
-                    settings?.fontSize === "SMALL"
+                    currentFontSize === "SMALL"
                       ? "0%"
-                      : settings?.fontSize === "MEDIUM"
+                      : currentFontSize === "MEDIUM"
                       ? "49%"
                       : "98%",
                 }}
