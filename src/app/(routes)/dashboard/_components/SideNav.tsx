@@ -15,11 +15,7 @@ import {
   useIsTablet,
   useIsLargeTablet,
   useIsDesktop,
-  useWindowHeight,
-  useIsHorizontalMobile,
-  useIsLandscape,
 } from "@/hooks/useMediaQuery";
-import Image from "next/image";
 
 interface SideNavProps {
   onCloseSidebar?: () => void;
@@ -42,9 +38,6 @@ export default function SideNav({
   const isTablet = useIsTablet();
   const isLargeTablet = useIsLargeTablet();
   const isDesktop = useIsDesktop();
-  const isHorizontalMobileDevice = useIsHorizontalMobile();
-  const isLandscapeDevice = useIsLandscape();
-  const windowHeight = useWindowHeight();
 
   const isCollapsibleTablet = isTablet || isLargeTablet;
 
@@ -109,7 +102,7 @@ export default function SideNav({
 
   const getSidebarHeight = () => {
     if (isMobile || isCollapsibleTablet) {
-      return "h-screen";
+      return "h-[100dvh]";
     }
     return "h-screen";
   };
@@ -132,16 +125,24 @@ export default function SideNav({
     <>
       <div
         className={cn(
-          "fixed top-0 left-0 bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 flex flex-col w-80 h-screen",
-          isMobileMenuOpen
-            ? "translate-x-0"
-            : "-translate-x-full lg:translate-x-0"
+          "fixed top-0 left-0 bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 flex flex-col w-80",
+          getSidebarWidth(),
+          getSidebarHeight(),
+          getSidebarVisibility(),
+          isDesktop && "fixed lg:relative"
         )}
+        style={{
+          // Для iOS safe areas
+          height: isMobile ? "100dvh" : "100vh",
+          maxHeight: isMobile ? "-webkit-fill-available" : "none",
+        }}
       >
         <div
           className={cn(
             "flex items-center justify-between border-gray-100 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c]/95 backdrop-blur-sm shrink-0",
-            "p-4"
+            "p-4",
+
+            isMobile && "pt-[env(safe-area-inset-top,20px)]"
           )}
         >
           <div className="flex items-center gap-3">
@@ -178,7 +179,14 @@ export default function SideNav({
             />
           </div>
 
-          <div className="dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] shrink-0 p-4">
+          <div
+            className="dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] shrink-0 p-4"
+            style={{
+              paddingBottom: isMobile
+                ? "calc(1rem + env(safe-area-inset-bottom, 20px))"
+                : "1rem",
+            }}
+          >
             <SideNavBottomSection
               totalFiles={totalFiles}
               onFileCreate={onFileCreate}

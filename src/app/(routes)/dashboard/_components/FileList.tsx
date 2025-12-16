@@ -431,11 +431,19 @@ export default function FileList({
   const EmptyState = () => (
     <div className="h-full flex flex-col">
       <div className="flex-1 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-20 h-20 bg-linear-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mb-4 mx-auto">
-            <FileText className="h-10 w-10 text-blue-500" />
+        <div className="text-center max-w-md mx-auto">
+          <div className="relative mb-6">
+            <div className="relative w-24 h-24 bg-linear-to-br from-blue-50 to-indigo-50 dark:from-[#252528] dark:to-[#2a2a2d] rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-lg border border-gray-200/50 dark:border-[#2a2a2d]">
+              <div className="relative">
+                <div className="absolute -inset-4 bg-linear-to-r from-blue-500/20 to-indigo-500/20 dark:from-blue-400/20 dark:to-indigo-400/20 rounded-full blur-md" />
+                <FileText className="h-12 w-12 text-blue-600 dark:text-blue-400 relative z-10" />
+              </div>
+            </div>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No files yet</h3>
+
+          <h3 className="text-2xl font-bold dark:text-[#f0f0f0] mb-3 bg-linear-to-r from-gray-900 to-gray-700 dark:from-[#f0f0f0] dark:to-[#a0a0a0] bg-clip-text text-transparent">
+            No files yet
+          </h3>
           <p className="text-gray-500 mb-6 max-w-md">
             Create your first file to get started with your team workspace
           </p>
@@ -445,7 +453,7 @@ export default function FileList({
             id="create-file-button-filelist"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Create New File
+            Create new file
           </Button>
         </div>
       </div>

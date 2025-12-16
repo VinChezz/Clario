@@ -60,6 +60,7 @@ import { useUserStatus } from "@/hooks/useUserStatus";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { useTheme } from "@/app/_context/AppearanceContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSidebar } from "@/app/_context/SidebarContext";
 
 interface HeaderProps {
   onTeamUpdate?: () => void;
@@ -85,6 +86,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   });
 
   const { theme, toggleTheme: contextToggleTheme, isDark } = useTheme();
+  const { toggleSidebar } = useSidebar();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -260,7 +262,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         </Badge>
 
         {showStatusDropdown && (
-          <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-xl border dark:border-gray-700 z-90 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-xl border dark:border-gray-700 z-9999 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="p-3">
               <div className="mb-2 px-2">
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -502,13 +504,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   };
 
   const handleMenuClick = () => {
-    console.log("📱 Header: Menu button clicked");
-    console.log("📱 Header: onMenuToggle function:", onMenuToggle);
-    if (onMenuToggle) {
-      onMenuToggle();
-    } else {
-      console.error("❌ Header: onMenuToggle is undefined!");
-    }
+    toggleSidebar();
   };
 
   const getRoleText = (role: "VIEW" | "EDIT" | "ADMIN") => {
@@ -539,7 +535,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
   return (
     <header
-      className="sticky top-0 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 z-30"
+      className="sticky top-0 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 z-60"
       id="dashboard-header"
     >
       <div
