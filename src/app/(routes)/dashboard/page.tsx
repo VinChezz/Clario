@@ -28,6 +28,8 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
   const [dbUser, setDbUser] = useState<any>(null);
   const [contentLoaded, setContentLoaded] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const { updateFromFileList, fileCount } = useFileData();
   const { activeTeam } = useActiveTeam();
 
@@ -111,6 +113,10 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
     updateFromFileList(updatedFiles);
   };
 
+  const handleTeamUpdate = () => {
+    console.log("Team updated");
+  };
+
   if (isLoading || !contentLoaded) {
     return <GradientLoader />;
   }
@@ -119,7 +125,8 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
     <div className="min-h-screen bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] transform transition-transform duration-300 ease-out lg:static lg:translate-x-0">
       <div className="flex flex-col min-h-screen">
         <div className="flex-1 flex flex-col min-w-0">
-          <Header onMenuToggle={onMenuToggle} />
+          {/* Передаем onMenuToggle в Header */}
+          <Header onMenuToggle={onMenuToggle} onTeamUpdate={handleTeamUpdate} />
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
             <ContentLoader>

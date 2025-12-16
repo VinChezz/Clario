@@ -16,6 +16,7 @@ import GettingStartedTour from "./_components/GettingStartedTour";
 import { FileDataProvider } from "../../_context/FileDataContext";
 import { GithubProvider, useGithub } from "@/app/_context/GithubContext";
 import { CodeViewerModal } from "./_components/github-modal/_components/CodeViewer";
+import { SidebarProvider, useSidebar } from "@/app/_context/SidebarContext";
 
 function GlobalCodeViewer() {
   const { codeViewerState, setCodeViewerState } = useGithub();
@@ -50,7 +51,6 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user }: any = useKindeBrowserClient();
   const [fileList_, setFileList_] = useState();
   const [isChecking, setIsChecking] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -58,6 +58,8 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const isTablet = useIsTablet();
   const isLargeTablet = useIsLargeTablet();
   const isDesktop = useIsDesktop();
+
+  const { isSidebarOpen, closeSidebar } = useSidebar();
 
   const skipTeamCheck = searchParams.get("skipTeamCheck") === "true";
 
@@ -122,20 +124,6 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleMenuToggle = () => {
-    setIsSidebarOpen((prev) => !prev);
-  };
-
-  useEffect(() => {
-    if (!isMobile) {
-      setIsSidebarOpen(false);
-    }
-  }, [isMobile]);
-
-  const handleCloseSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
   const getSidebarWidth = () => {
     if (isMobile) return "w-72";
     if (isTablet) return "w-64";
@@ -152,28 +140,28 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
               {isMobile && isSidebarOpen && (
                 <div
                   className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
-                  onClick={handleCloseSidebar}
+                  onClick={closeSidebar}
                 />
               )}
 
               <div
                 className={`
-              fixed lg:static
-              top-0 left-0
-              h-screen
-              z-50
-              transition-all duration-300 ease-in-out
-              ${getSidebarWidth()}
-              ${
-                isSidebarOpen
-                  ? "translate-x-0 shadow-2xl"
-                  : "-translate-x-full lg:translate-x-0 lg:shadow-none"
-              }
-            `}
+                fixed lg:static
+                top-0 left-0
+                h-screen
+                z-50
+                transition-all duration-300 ease-in-out
+                ${getSidebarWidth()}
+                ${
+                  isSidebarOpen
+                    ? "translate-x-0 shadow-2xl"
+                    : "-translate-x-full lg:translate-x-0 lg:shadow-none"
+                }
+              `}
               >
                 <div className="h-full bg-background border-r border-gray-200">
                   <SideNav
-                    onCloseSidebar={handleCloseSidebar}
+                    onCloseSidebar={closeSidebar}
                     isMobileMenuOpen={isSidebarOpen}
                   />
                 </div>
@@ -194,4 +182,14 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default DashboardLayout;
+export default function DashboardLayoutWithSidebar({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <SidebarProvider>
+      <DashboardLayout>{children}</DashboardLayout>
+    </SidebarProvider>
+  );
+}
