@@ -740,7 +740,7 @@ export default function FileList({
                         )}
                       </TableCell>
                       <TableCell className="py-4">
-                        <div className="flex justify-end">
+                        <div className="flex pl-2">
                           <DropdownMenu>
                             <DropdownMenuTrigger
                               asChild
