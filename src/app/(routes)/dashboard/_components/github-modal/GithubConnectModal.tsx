@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,13 @@ import {
   RefreshCw,
   Copy,
   FileCode,
+  Eye,
+  Star,
+  GitFork,
+  Users,
+  Calendar,
+  Code,
+  Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
@@ -42,6 +50,7 @@ import {
   useIsSmallMobile,
 } from "@/hooks/useMediaQuery";
 import { CodeViewerModal } from "./_components/CodeViewer";
+import { Separator } from "@/components/ui/separator";
 
 interface GithubConnectModalProps {
   open: boolean;
@@ -66,7 +75,7 @@ export function GithubConnectModal({
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [activeTab, setActiveTab] = useState("connect");
+  const [activeTab, setActiveTab] = useState("overview");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -81,6 +90,7 @@ export function GithubConnectModal({
   const [isCopied, setIsCopied] = useState(false);
   const [codeViewerOpen, setCodeViewerOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [repoStats, setRepoStats] = useState<any>(null);
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
@@ -89,12 +99,20 @@ export function GithubConnectModal({
   const isHorizontalTablet = useIsHorizontalTablet();
   const isSmallMobile = useIsSmallMobile();
 
+  const getConnectDialogSize = () => {
+    if (isSmallMobile) return "max-w-[95vw]";
+    if (isMobile) return "max-w-[95vw]";
+    if (isTablet) return "max-w-[90vw]";
+    if (isLargeTablet) return "max-w-4xl";
+    return "min-w-[25vw]";
+  };
+
   const getDialogSize = () => {
     if (isSmallMobile) return "max-w-[95vw]";
     if (isMobile) return "max-w-[95vw]";
     if (isTablet) return "max-w-[90vw]";
     if (isLargeTablet) return "max-w-4xl";
-    return "max-w-4xl";
+    return "min-w-[45vw]";
   };
 
   const getHeaderSize = () => {
@@ -192,12 +210,32 @@ export function GithubConnectModal({
   useEffect(() => {
     if (open && connectedRepo && activeTeam?.id) {
       fetchBranches();
+      fetchRepoStats();
     }
   }, [open, connectedRepo, activeTeam]);
 
   const checkConnectedRepo = async () => {
     if (activeTeam?.id) {
       await checkRepoConnection(activeTeam.id);
+    }
+  };
+
+  const fetchRepoStats = async () => {
+    if (!activeTeam?.id) return;
+
+    try {
+      const url = new URL(`/api/github/data`, window.location.origin);
+      url.searchParams.set("teamId", activeTeam.id);
+      url.searchParams.set("type", "stats");
+
+      const response = await fetch(url.toString());
+      const result = await response.json();
+
+      if (result.success) {
+        setRepoStats(result.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch repo stats:", error);
     }
   };
 
@@ -417,13 +455,46 @@ export function GithubConnectModal({
   const handleFileClick = async (file: any) => {
     if (!activeTeam?.id) return;
 
-    openCodeViewer({
-      filePath: file.path,
-      fileName: file.name,
-      repoUrl: connectedRepo.fullUrl,
-      branch: selectedBranch,
-      teamId: activeTeam.id,
-    });
+    setSelectedFile(file);
+    setCodeViewerOpen(true);
+  };
+
+  const StatCard = ({
+    icon: Icon,
+    value,
+    label,
+    color = "blue",
+  }: {
+    icon: any;
+    value: string | number;
+    label: string;
+    color?: "blue" | "purple" | "green" | "orange";
+  }) => {
+    const colors = {
+      blue: "from-blue-500 to-cyan-500 dark:from-blue-400 dark:to-cyan-400",
+      purple:
+        "from-purple-500 to-pink-500 dark:from-purple-400 dark:to-pink-400",
+      green:
+        "from-green-500 to-emerald-500 dark:from-green-400 dark:to-emerald-400",
+      orange:
+        "from-orange-500 to-amber-500 dark:from-orange-400 dark:to-amber-400",
+    };
+
+    return (
+      <div className="flex flex-col items-center p-3 rounded-xl bg-white/50 dark:bg-[#252528]/50 backdrop-blur-sm border border-gray-200/50 dark:border-[#2a2a2d]/50">
+        <div
+          className={`w-10 h-10 rounded-lg bg-linear-to-br ${colors[color]} flex items-center justify-center mb-2`}
+        >
+          <Icon className="h-5 w-5 text-white" />
+        </div>
+        <div className="text-2xl font-bold text-gray-900 dark:text-[#f0f0f0]">
+          {value}
+        </div>
+        <div className="text-xs text-gray-500 dark:text-[#a0a0a0] mt-1">
+          {label}
+        </div>
+      </div>
+    );
   };
 
   if (!connectedRepo) {
@@ -431,14 +502,14 @@ export function GithubConnectModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className={cn(
-            "rounded-2xl border-0 bg-linear-to-br from-white to-gray-50/80 backdrop-blur-sm shadow-xl overflow-hidden flex flex-col w-max-[80vh] h-auto",
-            getDialogSize()
+            "rounded-2xl border border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] shadow-xl overflow-hidden flex flex-col",
+            getConnectDialogSize()
           )}
         >
-          <DialogHeader className="text-center space-y-3">
+          <DialogHeader className="text-center space-y-3 pt-6">
             <div
               className={cn(
-                "mx-auto bg-linear-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg",
+                "mx-auto bg-linear-to-br from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500 rounded-xl flex items-center justify-center shadow-lg",
                 getIconSize()
               )}
             >
@@ -451,33 +522,29 @@ export function GithubConnectModal({
             </div>
             <DialogTitle
               className={cn(
-                "font-bold bg-linear-to-br from-gray-900 to-gray-700 bg-clip-text text-transparent",
+                "font-bold text-gray-900 dark:text-[#f0f0f0]",
                 getHeaderSize()
               )}
             >
-              Connect Repository
+              Connect GitHub Repository
             </DialogTitle>
-            <p
-              className={cn(
-                "text-gray-500 font-normal",
-                isSmallMobile ? "text-xs" : "text-sm"
-              )}
-            >
-              Sync your GitHub repository to track issues and collaborate
-            </p>
+            <DialogDescription className="text-gray-500 dark:text-[#a0a0a0] text-sm">
+              Sync your GitHub repository to track issues, PRs, and collaborate
+              with your team
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 mt-2 px-1">
+          <div className="space-y-4 mt-2 px-6 pb-6">
             {error && (
-              <div className="w-full p-3 rounded-xl bg-linear-to-r from-red-50/90 to-orange-50/90 border border-red-200/80 backdrop-blur-sm">
+              <div className="w-full p-3 rounded-xl bg-red-50/90 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 backdrop-blur-sm">
                 <div className="flex items-start gap-2 w-full">
-                  <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                    <AlertCircle className="h-3 w-3 text-red-600" />
+                  <div className="w-5 h-5 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertCircle className="h-3 w-3 text-red-600 dark:text-red-400" />
                   </div>
                   <div className="flex-1">
                     <p
                       className={cn(
-                        "text-red-800 font-medium leading-relaxed",
+                        "text-red-800 dark:text-red-300 font-medium leading-relaxed",
                         isSmallMobile ? "text-xs" : "text-sm"
                       )}
                     >
@@ -489,15 +556,15 @@ export function GithubConnectModal({
             )}
 
             {success && (
-              <div className="w-full p-3 rounded-xl bg-linear-to-r from-green-50/90 to-emerald-50/90 border border-green-200/80 backdrop-blur-sm">
+              <div className="w-full p-3 rounded-xl bg-green-50/90 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 backdrop-blur-sm">
                 <div className="flex items-start gap-2 w-full">
-                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  <div className="w-5 h-5 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
                   </div>
                   <div className="flex-1">
                     <p
                       className={cn(
-                        "text-green-800 font-medium leading-relaxed",
+                        "text-green-800 dark:text-green-300 font-medium leading-relaxed",
                         isSmallMobile ? "text-xs" : "text-sm"
                       )}
                     >
@@ -512,7 +579,7 @@ export function GithubConnectModal({
               <div className="flex items-center justify-between">
                 <label
                   className={cn(
-                    "font-semibold text-gray-700",
+                    "font-semibold text-gray-700 dark:text-[#f0f0f0]",
                     isSmallMobile ? "text-xs" : "text-sm"
                   )}
                 >
@@ -520,7 +587,7 @@ export function GithubConnectModal({
                 </label>
                 <span
                   className={cn(
-                    "text-gray-400",
+                    "text-gray-400 dark:text-[#707070]",
                     isSmallMobile ? "text-[10px]" : "text-xs"
                   )}
                 >
@@ -536,11 +603,11 @@ export function GithubConnectModal({
                     setError(null);
                   }}
                   className={cn(
-                    "w-full rounded-xl border-2 bg-white/80 backdrop-blur-sm transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-offset-1",
+                    "w-full rounded-xl border-2 bg-white dark:bg-[#252528] backdrop-blur-sm transition-all duration-200 focus:ring-2 focus:ring-offset-1 dark:border-[#2a2a2d] dark:text-[#f0f0f0]",
                     getButtonSize(),
                     repoUrl && !isValidGithubUrl(repoUrl)
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
+                      ? "border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                      : "border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 dark:focus:border-blue-500"
                   )}
                 />
                 {isValidGithubUrl(repoUrl) && (
@@ -548,7 +615,7 @@ export function GithubConnectModal({
                 )}
               </div>
               {repoUrl && !isValidGithubUrl(repoUrl) && (
-                <div className="flex items-center gap-2 text-red-600 text-xs">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs">
                   <AlertCircle className="h-3 w-3" />
                   Please enter a valid GitHub repository URL
                 </div>
@@ -557,14 +624,14 @@ export function GithubConnectModal({
 
             <div
               className={cn(
-                "rounded-xl text-sm bg-linear-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/60 backdrop-blur-sm",
+                "rounded-xl text-sm bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 backdrop-blur-sm",
                 isSmallMobile ? "p-2" : "p-3"
               )}
             >
               <div className="flex items-start gap-2">
-                <div className="w-5 h-5 bg-blue-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-5 h-5 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
                   <svg
-                    className="w-2.5 h-2.5 text-blue-600"
+                    className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -574,7 +641,7 @@ export function GithubConnectModal({
                 <div className="flex-1">
                   <p
                     className={cn(
-                      "font-medium text-blue-900 mb-1",
+                      "font-medium text-blue-900 dark:text-blue-300 mb-1",
                       isSmallMobile ? "text-xs" : "text-sm"
                     )}
                   >
@@ -582,12 +649,16 @@ export function GithubConnectModal({
                   </p>
                   <p
                     className={cn(
-                      "text-blue-700 leading-relaxed",
+                      "text-blue-700 dark:text-blue-400 leading-relaxed",
                       isSmallMobile ? "text-xs" : "text-sm"
                     )}
                   >
-                    Connect your repository to sync issues, track progress, and
-                    collaborate with your team.
+                    • Read-only access to repository contents
+                    <br />
+                    • Sync issues and pull requests
+                    <br />
+                    • View files and code directly
+                    <br />• Secure OAuth-based connection
                   </p>
                 </div>
               </div>
@@ -626,7 +697,7 @@ export function GithubConnectModal({
 
             <p
               className={cn(
-                "text-center text-gray-400",
+                "text-center text-gray-400 dark:text-[#707070]",
                 isSmallMobile ? "text-[10px]" : "text-xs"
               )}
             >
@@ -643,18 +714,21 @@ export function GithubConnectModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className={cn(
-            "sm:max-w-3xl rounded-2xl max-h-[90vh] overflow-hidden flex flex-col border-0 bg-linear-to-br from-white to-gray-50/80 backdrop-blur-sm shadow-xl",
+            "rounded-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] shadow-xl",
             getDialogSize()
           )}
         >
           <DialogHeader
-            className={cn("shrink-0", isSmallMobile ? "pb-2" : "pb-3")}
+            className={cn(
+              "shrink-0 px-6 pt-6",
+              isSmallMobile ? "pb-2" : "pb-3"
+            )}
           >
-            <div className="flex items-center justify-between pt-3">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
                 <div
                   className={cn(
-                    "bg-linear-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg",
+                    "bg-linear-to-br from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500 rounded-xl flex items-center justify-center shadow-lg",
                     getIconSize()
                   )}
                 >
@@ -668,12 +742,35 @@ export function GithubConnectModal({
                 <div>
                   <DialogTitle
                     className={cn(
-                      "font-bold bg-linear-to-br from-gray-900 to-gray-700 bg-clip-text text-transparent",
+                      "font-bold text-gray-900 dark:text-[#f0f0f0] flex items-center gap-2",
                       getHeaderSize()
                     )}
                   >
-                    {connectedRepo.owner}/{connectedRepo.repo}
+                    <span className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+                      {connectedRepo.owner}/{connectedRepo.repo}
+                    </span>
+                    {repoStats?.stargazers_count && (
+                      <Badge
+                        variant="outline"
+                        className="gap-1 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/50"
+                      >
+                        <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                        {repoStats.stargazers_count}
+                      </Badge>
+                    )}
                   </DialogTitle>
+                  <div className="flex items-center gap-3 mt-1">
+                    <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-[#a0a0a0]">
+                      <GitBranch className="h-3 w-3" />
+                      <span>{selectedBranch}</span>
+                    </div>
+                    {repoStats?.language && (
+                      <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-[#a0a0a0]">
+                        <Code className="h-3 w-3" />
+                        <span>{repoStats.language}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <Button
@@ -681,14 +778,14 @@ export function GithubConnectModal({
                 size="sm"
                 onClick={handleDisconnect}
                 className={cn(
-                  "text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded-xl border border-red-200/60 transition-all duration-200",
+                  "text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800/50 transition-all duration-200",
                   isSmallMobile ? "h-7 text-xs" : "h-8 text-sm"
                 )}
               >
                 <XCircle
                   className={cn("mr-1", isSmallMobile ? "h-3 w-3" : "h-2 w-2")}
                 />
-                {isSmallMobile ? "Disconnect" : "Quit"}
+                {isSmallMobile ? "Disconnect" : "Disconnect"}
               </Button>
             </div>
           </DialogHeader>
@@ -696,18 +793,18 @@ export function GithubConnectModal({
           {error && (
             <div
               className={cn(
-                "w-full rounded-xl bg-linear-to-r from-red-50/90 to-orange-50/90 border border-red-200/80 backdrop-blur-sm shrink-0",
+                "w-full mx-6 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 backdrop-blur-sm shrink-0",
                 isSmallMobile ? "p-2" : "p-3"
               )}
             >
               <div className="flex items-start gap-2 w-full">
-                <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                  <AlertCircle className="h-3 w-3 text-red-600" />
+                <div className="w-5 h-5 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                  <AlertCircle className="h-3 w-3 text-red-600 dark:text-red-400" />
                 </div>
                 <div className="flex-1">
                   <p
                     className={cn(
-                      "text-red-800 font-medium leading-relaxed",
+                      "text-red-800 dark:text-red-300 font-medium leading-relaxed",
                       isSmallMobile ? "text-xs" : "text-sm"
                     )}
                   >
@@ -721,18 +818,18 @@ export function GithubConnectModal({
           {success && (
             <div
               className={cn(
-                "w-full rounded-xl bg-linear-to-r from-green-50/90 to-emerald-50/90 border border-green-200/80 backdrop-blur-sm shrink-0",
+                "w-full mx-6 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 backdrop-blur-sm shrink-0",
                 isSmallMobile ? "p-2" : "p-3"
               )}
             >
               <div className="flex items-start gap-2 w-full">
-                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                <div className="w-5 h-5 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
                 </div>
                 <div className="flex-1">
                   <p
                     className={cn(
-                      "text-green-800 font-medium leading-relaxed",
+                      "text-green-800 dark:text-green-300 font-medium leading-relaxed",
                       isSmallMobile ? "text-xs" : "text-sm"
                     )}
                   >
@@ -743,14 +840,18 @@ export function GithubConnectModal({
             </div>
           )}
 
+          <div className="px-6 py-3">
+            <Separator className="bg-gray-200 dark:bg-[#2a2a2d]" />
+          </div>
+
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
-            className="w-full flex-1 flex flex-col overflow-hidden"
+            className="w-full flex-1 flex flex-col overflow-hidden px-6 pb-6"
           >
             <TabsList
               className={cn(
-                "w-full shrink-0 bg-gray-100/80 rounded-xl border",
+                "w-full shrink-0 bg-gray-100/80 dark:bg-[#252528] rounded-xl border border-gray-200 dark:border-[#2a2a2d] mb-4",
                 getTabListLayout()
               )}
             >
@@ -768,7 +869,7 @@ export function GithubConnectModal({
                     if (tab.value === "tree" && !repoTree)
                       fetchGithubData("tree");
                   }}
-                  className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 font-medium transition-all duration-200"
+                  className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 dark:data-[state=active]:bg-[#252528] dark:data-[state=active]:text-blue-400 font-medium transition-all duration-200 text-gray-600 dark:text-[#a0a0a0]"
                 >
                   {tab.label}
                 </TabsTrigger>
@@ -778,27 +879,60 @@ export function GithubConnectModal({
             <TabsContent
               value="overview"
               className={cn(
-                "space-y-3 mt-3 overflow-y-auto flex-1",
+                "space-y-4 overflow-y-auto flex-1 opacity-100",
                 getContentPadding()
               )}
             >
+              {repoStats && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <StatCard
+                    icon={Star}
+                    value={repoStats.stargazers_count || 0}
+                    label="Stars"
+                    color="orange"
+                  />
+                  <StatCard
+                    icon={GitFork}
+                    value={repoStats.forks_count || 0}
+                    label="Forks"
+                    color="green"
+                  />
+                  <StatCard
+                    icon={Eye}
+                    value={repoStats.watchers_count || 0}
+                    label="Watchers"
+                    color="purple"
+                  />
+                  <StatCard
+                    icon={FileCode}
+                    value={
+                      repoStats.size
+                        ? `${(repoStats.size / 1024).toFixed(1)} MB`
+                        : "N/A"
+                    }
+                    label="Size"
+                    color="blue"
+                  />
+                </div>
+              )}
+
               <div className={cn("grid", getGridLayout())}>
                 <div
                   className={cn(
-                    "rounded-xl border border-green-200/60 bg-linear-to-br from-green-50/80 to-emerald-50/80 backdrop-blur-sm",
+                    "rounded-xl border border-green-200 dark:border-green-800/50 bg-green-50/80 dark:bg-green-900/20 backdrop-blur-sm",
                     getCardPadding()
                   )}
                 >
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(
-                        "bg-green-100 rounded-lg flex items-center justify-center",
+                        "bg-green-100 dark:bg-green-900/40 rounded-lg flex items-center justify-center",
                         isSmallMobile ? "w-8 h-8" : "w-10 h-10"
                       )}
                     >
                       <CheckCircle2
                         className={cn(
-                          "text-green-600",
+                          "text-green-600 dark:text-green-400",
                           isSmallMobile ? "h-4 w-4" : "h-5 w-5"
                         )}
                       />
@@ -806,7 +940,7 @@ export function GithubConnectModal({
                     <div className="flex-1 min-w-0">
                       <p
                         className={cn(
-                          "font-semibold text-green-900",
+                          "font-semibold text-green-900 dark:text-green-300",
                           isSmallMobile ? "text-xs" : "text-sm"
                         )}
                       >
@@ -815,7 +949,7 @@ export function GithubConnectModal({
                       <div className="flex items-center gap-1 mt-1 group">
                         <p
                           className={cn(
-                            "text-green-700 break-all opacity-80 flex-1",
+                            "text-green-700 dark:text-green-400 break-all opacity-80 flex-1",
                             isSmallMobile ? "text-[10px]" : "text-xs"
                           )}
                         >
@@ -834,7 +968,7 @@ export function GithubConnectModal({
                               setTimeout(() => setIsCopied(false), 2000);
                             }}
                             className={cn(
-                              "p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-green-100 rounded-lg shrink-0 cursor-pointer relative",
+                              "p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-green-100 dark:hover:bg-green-900/40 rounded-lg shrink-0 cursor-pointer relative",
                               isSmallMobile ? "h-5 w-5" : "h-6 w-6"
                             )}
                             title="Copy repository URL"
@@ -843,16 +977,16 @@ export function GithubConnectModal({
                               <CheckCircle2
                                 className={
                                   isSmallMobile
-                                    ? "h-2.5 w-2.5 text-green-600"
-                                    : "h-3 w-3 text-green-600"
+                                    ? "h-2.5 w-2.5 text-green-600 dark:text-green-400"
+                                    : "h-3 w-3 text-green-600 dark:text-green-400"
                                 }
                               />
                             ) : (
                               <Copy
                                 className={
                                   isSmallMobile
-                                    ? "h-2.5 w-2.5 text-green-600"
-                                    : "h-3 w-3 text-green-600"
+                                    ? "h-2.5 w-2.5 text-green-600 dark:text-green-400"
+                                    : "h-3 w-3 text-green-600 dark:text-green-400"
                                 }
                               />
                             )}
@@ -865,20 +999,20 @@ export function GithubConnectModal({
 
                 <div
                   className={cn(
-                    "rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur-sm",
+                    "rounded-xl border border-gray-200 dark:border-[#2a2a2d] bg-gray-50/80 dark:bg-[#252528]/80 backdrop-blur-sm",
                     getCardPadding()
                   )}
                 >
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(
-                        "bg-blue-100 rounded-lg flex items-center justify-center",
+                        "bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center",
                         isSmallMobile ? "w-8 h-8" : "w-10 h-10"
                       )}
                     >
                       <RefreshCw
                         className={cn(
-                          "text-blue-600",
+                          "text-blue-600 dark:text-blue-400",
                           isSmallMobile ? "h-4 w-4" : "h-5 w-5"
                         )}
                       />
@@ -886,7 +1020,7 @@ export function GithubConnectModal({
                     <div>
                       <p
                         className={cn(
-                          "font-semibold text-gray-900",
+                          "font-semibold text-gray-900 dark:text-[#f0f0f0]",
                           isSmallMobile ? "text-xs" : "text-sm"
                         )}
                       >
@@ -894,7 +1028,7 @@ export function GithubConnectModal({
                       </p>
                       <p
                         className={cn(
-                          "text-gray-600 mt-1",
+                          "text-gray-600 dark:text-[#a0a0a0] mt-1",
                           isSmallMobile ? "text-[10px]" : "text-xs"
                         )}
                       >
@@ -909,19 +1043,19 @@ export function GithubConnectModal({
 
               <div
                 className={cn(
-                  "flex items-center gap-2 rounded-xl border border-gray-200/60 bg-white/80 backdrop-blur-sm",
+                  "flex items-center gap-2 rounded-xl border border-gray-200 dark:border-[#2a2a2d] bg-gray-50/80 dark:bg-[#252528]/80 backdrop-blur-sm",
                   isSmallMobile ? "p-2" : "p-3"
                 )}
               >
                 <div
                   className={cn(
-                    "bg-purple-100 rounded-lg flex items-center justify-center shrink-0",
+                    "bg-purple-100 dark:bg-purple-900/40 rounded-lg flex items-center justify-center shrink-0",
                     isSmallMobile ? "w-8 h-8" : "w-10 h-10"
                   )}
                 >
                   <GitBranch
                     className={cn(
-                      "text-purple-600",
+                      "text-purple-600 dark:text-purple-400",
                       isSmallMobile ? "h-4 w-4" : "h-5 w-5"
                     )}
                   />
@@ -929,7 +1063,7 @@ export function GithubConnectModal({
                 <div className="flex-1 min-w-0">
                   <label
                     className={cn(
-                      "font-semibold text-gray-600 block mb-1",
+                      "font-semibold text-gray-600 dark:text-[#a0a0a0] block mb-1",
                       isSmallMobile ? "text-[10px]" : "text-xs"
                     )}
                   >
@@ -947,7 +1081,7 @@ export function GithubConnectModal({
                         }
                       }}
                       className={cn(
-                        "border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
+                        "border border-gray-200 dark:border-[#2a2a2d] rounded-lg bg-white dark:bg-[#1a1a1c] text-gray-900 dark:text-[#f0f0f0] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
                         isSmallMobile
                           ? "text-xs px-2 py-1 max-w-[120px]"
                           : "text-sm px-3 py-2 max-w-[150px]"
@@ -962,7 +1096,7 @@ export function GithubConnectModal({
                     <Badge
                       variant="outline"
                       className={cn(
-                        "bg-blue-50 text-blue-700 border-blue-200",
+                        "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/50",
                         isSmallMobile ? "text-[10px] px-1.5" : "text-xs"
                       )}
                     >
@@ -977,7 +1111,7 @@ export function GithubConnectModal({
                   onClick={fetchBranches}
                   disabled={isLoading}
                   className={cn(
-                    "shrink-0 rounded-lg border cursor-pointer",
+                    "shrink-0 rounded-lg border border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#252528] hover:bg-gray-100 dark:hover:bg-[#2a2a2d] cursor-pointer",
                     isSmallMobile ? "h-7 w-7" : "h-8 w-8"
                   )}
                   title="Refresh branches"
@@ -1030,20 +1164,20 @@ export function GithubConnectModal({
                     key={index}
                     variant="outline"
                     className={cn(
-                      "w-full justify-start rounded-lg border border-gray-200/60 bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200",
+                      "w-full justify-start rounded-lg border border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#252528] hover:bg-gray-50 dark:hover:bg-[#2a2a2d] hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 text-gray-700 dark:text-[#f0f0f0]",
                       isSmallMobile ? "h-10 text-xs" : "h-12 text-sm"
                     )}
                     onClick={item.action}
                   >
                     <div
                       className={cn(
-                        "bg-linear-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center mr-2",
+                        "bg-linear-to-br from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40 rounded-lg flex items-center justify-center mr-2",
                         isSmallMobile ? "w-7 h-7" : "w-8 h-8"
                       )}
                     >
                       <item.icon
                         className={cn(
-                          "text-blue-600",
+                          "text-blue-600 dark:text-blue-400",
                           isSmallMobile ? "h-3 w-3" : "h-4 w-4"
                         )}
                       />
@@ -1060,21 +1194,23 @@ export function GithubConnectModal({
             >
               {isLoading ? (
                 <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
                 </div>
               ) : issues.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <AlertCircle className="h-8 w-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-[#252528] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="h-8 w-8 text-gray-400 dark:text-[#707070]" />
                   </div>
-                  <p className="text-gray-500 font-medium">No issues found</p>
+                  <p className="text-gray-500 dark:text-[#a0a0a0] font-medium">
+                    No issues found
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3 pb-4">
                   {issues.map((issue) => (
                     <div
                       key={issue.id}
-                      className="p-4 border-2 border-gray-200/60 rounded-xl bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200 group"
+                      className="p-4 border-2 border-gray-200 dark:border-[#2a2a2d] rounded-xl bg-white dark:bg-[#252528] hover:bg-gray-50 dark:hover:bg-[#2a2a2d] hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 group"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -1085,27 +1221,27 @@ export function GithubConnectModal({
                               }
                               className={`rounded-lg ${
                                 issue.state === "open"
-                                  ? "bg-green-100 text-green-800 border-green-200"
-                                  : "bg-gray-100 text-gray-800 border-gray-200"
+                                  ? "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800/50"
+                                  : "bg-gray-100 dark:bg-[#2a2a2d] text-gray-800 dark:text-[#a0a0a0] border-gray-200 dark:border-[#2a2a2d]"
                               }`}
                             >
                               {issue.state}
                             </Badge>
-                            <span className="text-sm font-semibold text-gray-600">
+                            <span className="text-sm font-semibold text-gray-600 dark:text-[#a0a0a0]">
                               #{issue.number}
                             </span>
                           </div>
-                          <h4 className="font-semibold text-gray-900 mb-2">
+                          <h4 className="font-semibold text-gray-900 dark:text-[#f0f0f0] mb-2">
                             {issue.title}
                           </h4>
-                          <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                          <p className="text-sm text-gray-600 dark:text-[#a0a0a0] line-clamp-2 leading-relaxed">
                             {issue.body || "No description provided"}
                           </p>
                         </div>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                          className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-800/50"
                           onClick={() =>
                             addToDocument(
                               `Issue #${issue.number}: ${issue.title}\n\n${issue.body}`,
@@ -1113,7 +1249,7 @@ export function GithubConnectModal({
                             )
                           }
                         >
-                          <Plus className="h-4 w-4 text-blue-600" />
+                          <Plus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </Button>
                       </div>
                     </div>
@@ -1128,14 +1264,14 @@ export function GithubConnectModal({
             >
               {isLoading ? (
                 <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
                 </div>
               ) : pulls.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <GitPullRequest className="h-8 w-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-[#252528] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <GitPullRequest className="h-8 w-8 text-gray-400 dark:text-[#707070]" />
                   </div>
-                  <p className="text-gray-500 font-medium">
+                  <p className="text-gray-500 dark:text-[#a0a0a0] font-medium">
                     No pull requests found
                   </p>
                 </div>
@@ -1144,7 +1280,7 @@ export function GithubConnectModal({
                   {pulls.map((pr) => (
                     <div
                       key={pr.id}
-                      className="p-4 border-2 border-gray-200/60 rounded-xl bg-white/80 hover:bg-white hover:border-blue-300 transition-all duration-200 group"
+                      className="p-4 border-2 border-gray-200 dark:border-[#2a2a2d] rounded-xl bg-white dark:bg-[#252528] hover:bg-gray-50 dark:hover:bg-[#2a2a2d] hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 group"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -1155,27 +1291,27 @@ export function GithubConnectModal({
                               }
                               className={`rounded-lg ${
                                 pr.state === "open"
-                                  ? "bg-purple-100 text-purple-800 border-purple-200"
-                                  : "bg-gray-100 text-gray-800 border-gray-200"
+                                  ? "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800/50"
+                                  : "bg-gray-100 dark:bg-[#2a2a2d] text-gray-800 dark:text-[#a0a0a0] border-gray-200 dark:border-[#2a2a2d]"
                               }`}
                             >
                               {pr.state}
                             </Badge>
-                            <span className="text-sm font-semibold text-gray-600">
+                            <span className="text-sm font-semibold text-gray-600 dark:text-[#a0a0a0]">
                               #{pr.number}
                             </span>
                           </div>
-                          <h4 className="font-semibold text-gray-900 mb-2">
+                          <h4 className="font-semibold text-gray-900 dark:text-[#f0f0f0] mb-2">
                             {pr.title}
                           </h4>
-                          <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                          <p className="text-sm text-gray-600 dark:text-[#a0a0a0] line-clamp-2 leading-relaxed">
                             {pr.body || "No description provided"}
                           </p>
                         </div>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 hover:bg-blue-100 border border-blue-200 cursor-pointer"
+                          className="shrink-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-800/50 cursor-pointer"
                           onClick={() =>
                             addToDocument(
                               `PR #${pr.number}: ${pr.title}\n\n${pr.body}`,
@@ -1183,7 +1319,7 @@ export function GithubConnectModal({
                             )
                           }
                         >
-                          <Plus className="h-4 w-4 text-blue-600" />
+                          <Plus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </Button>
                       </div>
                     </div>
@@ -1195,14 +1331,16 @@ export function GithubConnectModal({
             <TabsContent value="readme" className="mt-4 overflow-y-auto flex-1">
               {isLoading ? (
                 <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
                 </div>
               ) : !readme ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <FileText className="h-8 w-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-[#252528] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="h-8 w-8 text-gray-400 dark:text-[#707070]" />
                   </div>
-                  <p className="text-gray-500 font-medium">README not found</p>
+                  <p className="text-gray-500 dark:text-[#a0a0a0] font-medium">
+                    README not found
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4 pb-4">
@@ -1224,20 +1362,20 @@ export function GithubConnectModal({
                           setIsCopied(true);
                           setTimeout(() => setIsCopied(false), 2000);
                         }}
-                        className="rounded-xl border-2 border-gray-200/60 bg-white/80 hover:bg-gray-50 hover:border-blue-300 transition-all duration-200 cursor-pointer flex items-center gap-2"
+                        className="rounded-xl border-2 border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#252528] hover:bg-gray-50 dark:hover:bg-[#2a2a2d] hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer flex items-center gap-2"
                         title="Copy README content"
                       >
                         {isCopied ? (
                           <>
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                            <span className="text-green-600 font-medium">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            <span className="text-green-600 dark:text-green-400 font-medium">
                               Copied!
                             </span>
                           </>
                         ) : (
                           <>
-                            <Copy className="h-4 w-4 text-gray-600" />
-                            <span className="text-gray-700 font-medium">
+                            <Copy className="h-4 w-4 text-gray-600 dark:text-[#a0a0a0]" />
+                            <span className="text-gray-700 dark:text-[#f0f0f0] font-medium">
                               Copy README
                             </span>
                           </>
@@ -1248,14 +1386,14 @@ export function GithubConnectModal({
                     <Button
                       size="sm"
                       onClick={() => addToDocument(readme, "readme")}
-                      className="rounded-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg transition-all duration-200 cursor-pointer"
+                      className="rounded-xl bg-linear-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 hover:from-blue-700 hover:to-purple-700 dark:hover:from-blue-600 dark:hover:to-purple-600 shadow-lg transition-all duration-200 cursor-pointer"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add to Document
                     </Button>
                   </div>
 
-                  <div className="relative p-6 border-2 border-gray-200/60 rounded-xl bg-white/80 backdrop-blur-sm overflow-auto group">
+                  <div className="relative p-6 border-2 border-gray-200 dark:border-[#2a2a2d] rounded-xl bg-white dark:bg-[#252528] overflow-auto group">
                     {!isSmallMobile && !isMobile && (
                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                         <Button
@@ -1267,19 +1405,19 @@ export function GithubConnectModal({
                             setIsCopied(true);
                             setTimeout(() => setIsCopied(false), 2000);
                           }}
-                          className="h-8 w-8 p-0 rounded-lg bg-white/90 backdrop-blur-sm border border-gray-300 shadow-sm hover:bg-white hover:border-blue-300 transition-all duration-200 cursor-pointer flex items-center justify-center"
+                          className="h-8 w-8 p-0 rounded-lg bg-white dark:bg-[#252528] backdrop-blur-sm border border-gray-300 dark:border-[#2a2a2d] shadow-sm hover:bg-gray-50 dark:hover:bg-[#2a2a2d] hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer flex items-center justify-center"
                           title="Copy README content"
                         >
                           {isCopied ? (
-                            <Copy className="h-4 w-4 text-green-600" />
+                            <Copy className="h-4 w-4 text-green-600 dark:text-green-400" />
                           ) : (
-                            <Copy className="h-4 w-4 text-gray-600" />
+                            <Copy className="h-4 w-4 text-gray-600 dark:text-[#a0a0a0]" />
                           )}
                         </Button>
                       </div>
                     )}
 
-                    <pre className="text-sm whitespace-pre-wrap wrap-break-word font-mono leading-relaxed text-gray-800 pt-2">
+                    <pre className="text-sm whitespace-pre-wrap wrap-break-word font-mono leading-relaxed text-gray-800 dark:text-[#f0f0f0] pt-2">
                       {readme}
                     </pre>
                   </div>
@@ -1290,24 +1428,26 @@ export function GithubConnectModal({
             <TabsContent value="tree" className="mt-4 overflow-y-auto flex-1">
               {isLoading ? (
                 <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
                 </div>
               ) : !repoTree?.tree ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <FolderTree className="h-8 w-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-[#252528] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FolderTree className="h-8 w-8 text-gray-400 dark:text-[#707070]" />
                   </div>
-                  <p className="text-gray-500 font-medium">No files found</p>
+                  <p className="text-gray-500 dark:text-[#a0a0a0] font-medium">
+                    No files found
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3 pb-4">
-                  <div className="flex items-center gap-2 p-3 rounded-xl border-2 border-gray-200/60 bg-white/80 backdrop-blur-sm">
+                  <div className="flex items-center gap-2 p-3 rounded-xl border-2 border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#252528]">
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={navigateToRoot}
                       disabled={!currentPath}
-                      className="h-8 w-8 rounded-lg bg-gray-100 hover:bg-gray-200"
+                      className="h-8 w-8 rounded-lg bg-gray-100 dark:bg-[#2a2a2d] hover:bg-gray-200 dark:hover:bg-[#353538]"
                     >
                       <Home className="h-4 w-4" />
                     </Button>
@@ -1316,12 +1456,12 @@ export function GithubConnectModal({
                         size="sm"
                         variant="ghost"
                         onClick={navigateBack}
-                        className="h-8 w-8 rounded-lg bg-gray-100 hover:bg-gray-200"
+                        className="h-8 w-8 rounded-lg bg-gray-100 dark:bg-[#2a2a2d] hover:bg-gray-200 dark:hover:bg-[#353538]"
                       >
                         <ChevronRight className="h-4 w-4 rotate-180" />
                       </Button>
                     )}
-                    <span className="text-sm font-medium text-gray-700 truncate flex-1">
+                    <span className="text-sm font-medium text-gray-700 dark:text-[#f0f0f0] truncate flex-1">
                       {currentPath ? `/${currentPath}` : "root"}
                     </span>
                   </div>
@@ -1332,15 +1472,15 @@ export function GithubConnectModal({
                         <button
                           key={folder.path}
                           onClick={() => navigateToFolder(folder.path)}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-blue-50 rounded-xl border-2 border-transparent hover:border-blue-200 transition-all duration-200 group cursor-pointer"
+                          className="w-full flex items-center gap-3 p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl border-2 border-transparent hover:border-blue-200 dark:hover:border-blue-800/50 transition-all duration-200 group cursor-pointer"
                         >
-                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <Folder className="h-4 w-4 text-blue-600" />
+                          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center">
+                            <Folder className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                           </div>
-                          <span className="text-sm font-medium text-gray-900 truncate flex-1 text-left">
+                          <span className="text-sm font-medium text-gray-900 dark:text-[#f0f0f0] truncate flex-1 text-left">
                             {folder.name}
                           </span>
-                          <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                          <ChevronRight className="h-4 w-4 text-gray-400 dark:text-[#707070] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
                         </button>
                       ))}
                     </div>
@@ -1349,16 +1489,16 @@ export function GithubConnectModal({
                   {getCurrentFolderContents().files.map((file: any) => (
                     <div
                       key={file.path}
-                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl border-2 border-transparent hover:border-gray-200 transition-all duration-200 group cursor-pointer"
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-[#2a2a2d] rounded-xl border-2 border-transparent hover:border-gray-200 dark:hover:border-[#353538] transition-all duration-200 group cursor-pointer"
                     >
                       <div
                         className="flex items-center gap-3 min-w-0 flex-1"
                         onClick={() => handleFileClick(file)}
                       >
-                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                          <FileCode className="h-4 w-4 text-gray-400" />
+                        <div className="w-8 h-8 bg-gray-100 dark:bg-[#2a2a2d] rounded-lg flex items-center justify-center">
+                          <FileCode className="h-4 w-4 text-gray-400 dark:text-[#707070]" />
                         </div>
-                        <span className="text-sm text-gray-900 truncate">
+                        <span className="text-sm text-gray-900 dark:text-[#f0f0f0] truncate">
                           {file.name}
                         </span>
                       </div>
@@ -1372,7 +1512,7 @@ export function GithubConnectModal({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="rounded-lg bg-gray-100 hover:bg-gray-200 cursor-pointer"
+                          className="rounded-lg bg-gray-100 dark:bg-[#2a2a2d] hover:bg-gray-200 dark:hover:bg-[#353538] cursor-pointer"
                         >
                           <ExternalLink className="h-4 w-4" />
                         </Button>
