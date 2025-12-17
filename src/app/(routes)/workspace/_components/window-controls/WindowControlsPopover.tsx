@@ -64,7 +64,6 @@ export function WindowControlsPopover({
 
   const effectiveWindowMode = isMobile ? "fullscreen" : windowMode;
 
-  // 🟦 Автоматически активировать fullscreen canvas на телефонах
   useEffect(() => {
     if (isMobile) {
       onWindowModeChange?.("fullscreen");
@@ -97,7 +96,7 @@ export function WindowControlsPopover({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 w-9 p-0 border-gray-300 hover:bg-gray-50"
+          className="h-9 w-9 p-0 border-gray-300 dark:border-[#2a2a2d] hover:bg-gray-50 dark:hover:bg-[#252528] text-gray-700 dark:text-[#f0f0f0]"
         >
           {effectiveWindowMode === "split" ? (
             <SplitViewIcon />
@@ -107,29 +106,32 @@ export function WindowControlsPopover({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-48 p-2" align="end">
+      <PopoverContent
+        className="w-48 p-2 bg-white dark:bg-[#1a1a1c] border border-gray-200 dark:border-[#2a2a2d] shadow-lg"
+        align="end"
+      >
         <div className="space-y-1">
           {!isMobile && (
             <button
               onClick={handleToggleFullscreen}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
                 effectiveWindowMode === "split"
-                  ? "bg-blue-50 text-blue-600 border border-blue-200"
-                  : "hover:bg-gray-100 text-gray-700"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50"
+                  : "hover:bg-gray-100 dark:hover:bg-[#252528] text-gray-700 dark:text-[#f0f0f0]"
               }`}
             >
               <div
                 className={`p-1 rounded ${
                   effectiveWindowMode === "split"
-                    ? "bg-blue-100"
-                    : "bg-gray-100"
+                    ? "bg-blue-100 dark:bg-blue-900/30"
+                    : "bg-gray-100 dark:bg-[#252528]"
                 }`}
               >
                 <SplitViewIcon />
               </div>
               <div className="flex flex-col items-start">
                 <span className="font-medium">Split View</span>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">
                   Both panels visible
                 </span>
               </div>
@@ -146,23 +148,25 @@ export function WindowControlsPopover({
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
                 effectiveWindowMode === "fullscreen" &&
                 activeComponent === "editor"
-                  ? "bg-blue-50 text-blue-600 border border-blue-200"
-                  : "hover:bg-gray-100 text-gray-700"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50"
+                  : "hover:bg-gray-100 dark:hover:bg-[#252528] text-gray-700 dark:text-[#f0f0f0]"
               }`}
             >
               <div
                 className={`p-1 rounded ${
                   effectiveWindowMode === "fullscreen" &&
                   activeComponent === "editor"
-                    ? "bg-blue-100"
-                    : "bg-gray-100"
+                    ? "bg-blue-100 dark:bg-blue-900/30"
+                    : "bg-gray-100 dark:bg-[#252528]"
                 }`}
               >
                 <FullscreenIcon />
               </div>
               <div className="flex flex-col items-start">
                 <span className="font-medium">Fullscreen Editor</span>
-                <span className="text-xs text-gray-500">Text editor only</span>
+                <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                  Text editor only
+                </span>
               </div>
             </button>
 
@@ -175,16 +179,16 @@ export function WindowControlsPopover({
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
                 effectiveWindowMode === "fullscreen" &&
                 activeComponent === "canvas"
-                  ? "bg-blue-50 text-blue-600 border border-blue-200"
-                  : "hover:bg-gray-100 text-gray-700"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50"
+                  : "hover:bg-gray-100 dark:hover:bg-[#252528] text-gray-700 dark:text-[#f0f0f0]"
               }`}
             >
               <div
                 className={`p-1 rounded ${
                   effectiveWindowMode === "fullscreen" &&
                   activeComponent === "canvas"
-                    ? "bg-blue-100"
-                    : "bg-gray-100"
+                    ? "bg-blue-100 dark:bg-blue-900/30"
+                    : "bg-gray-100 dark:bg-[#252528]"
                 }`}
               >
                 <svg
@@ -205,7 +209,9 @@ export function WindowControlsPopover({
               </div>
               <div className="flex flex-col items-start">
                 <span className="font-medium">Fullscreen Canvas</span>
-                <span className="text-xs text-gray-500">Whiteboard only</span>
+                <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                  Whiteboard only
+                </span>
               </div>
             </button>
           </div>
@@ -213,9 +219,9 @@ export function WindowControlsPopover({
           {effectiveWindowMode === "fullscreen" && (
             <button
               onClick={handleSwitchComponent}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-gray-100 text-gray-700 transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-[#252528] text-gray-700 dark:text-[#f0f0f0] transition-colors"
             >
-              <div className="p-1 rounded bg-gray-100">
+              <div className="p-1 rounded bg-gray-100 dark:bg-[#252528]">
                 <svg
                   width="20"
                   height="20"
@@ -236,7 +242,7 @@ export function WindowControlsPopover({
                 <span className="font-medium">
                   Switch to {activeComponent === "editor" ? "Canvas" : "Editor"}
                 </span>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">
                   Change active panel
                 </span>
               </div>
