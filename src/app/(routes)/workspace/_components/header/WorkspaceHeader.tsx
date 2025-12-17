@@ -91,7 +91,7 @@ export default function WorkspaceHeader({
   const hasWindowControls = onWindowModeChange && onActiveComponentChange;
 
   return (
-    <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-white">
+    <div className="px-4 py-3 border-b border-gray-100 dark:border-[#2a2a2d] flex justify-between items-center bg-white dark:bg-[#1a1a1c]">
       <div className="flex items-center gap-3">
         <Image
           src={"/logo-1.png"}
@@ -99,15 +99,15 @@ export default function WorkspaceHeader({
           width={32}
           height={32}
           onClick={() => redirect("/dashboard")}
-          className="cursor-pointer hover:opacity-80 transition-opacity"
+          className="cursor-pointer hover:opacity-80 transition-opacity dark:invert"
         />
 
         {file && (
           <div className="flex flex-col">
-            <h2 className="text-sm font-semibold text-gray-900 truncate max-w-[180px]">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-[#f0f0f0] truncate max-w-[180px]">
               {file.fileName}
             </h2>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">
               {activeTeam?.name || "Workspace"}
             </span>
           </div>
@@ -122,8 +122,8 @@ export default function WorkspaceHeader({
           disabled={!canEdit || isSaving}
           className={`h-9 px-3 gap-2 font-medium transition-all duration-200 ${
             canEdit
-              ? "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-              : "text-gray-400"
+              ? "text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528] hover:text-gray-900 dark:hover:text-[#f0f0f0]"
+              : "text-gray-400 dark:text-[#707070]"
           } ${isSaving ? "animate-pulse" : ""}`}
         >
           <Save className={`h-4 w-4 ${isSaving ? "animate-spin" : ""}`} />
@@ -139,7 +139,7 @@ export default function WorkspaceHeader({
         />
 
         {hasWindowControls && (
-          <div className="flex items-center gap-1 border-l border-gray-200 pl-2 ml-1">
+          <div className="flex items-center gap-1 border-l border-gray-200 dark:border-[#2a2a2d] pl-2 ml-1">
             <WindowControlsPopover
               windowMode={windowMode}
               activeComponent={activeComponent}
