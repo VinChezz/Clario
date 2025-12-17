@@ -180,22 +180,22 @@ export default function ShareButton({
           size="sm"
           onClick={handleTriggerClick}
           disabled={!canShare}
-          className="h-8 px-3 gap-2 font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100/50 transition-colors rounded-lg"
+          className="h-9 px-3 gap-2 font-medium text-gray-700 dark:text-[#f0f0f0] hover:text-gray-900 dark:hover:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528] transition-colors rounded-lg"
         >
-          <Link className="h-3.5 w-3.5" />
+          <Link className="h-4 w-4" />
           <span className="hidden sm:inline text-sm">Share</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md bg-linear-to-br from-white to-gray-50/50 border-0 shadow-2xl">
+      <DialogContent className="sm:max-w-md bg-linear-to-br from-white to-gray-50/50 dark:from-[#1a1a1c] dark:to-[#252528]/50 border-0 dark:border-[#2a2a2d] shadow-2xl">
         <div className="rounded-xl">
           <DialogHeader className="text-center space-y-1 pb-4">
             <div className="mx-auto w-10 h-10 bg-linear-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
               <Globe className="h-5 w-5 text-white" />
             </div>
-            <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-indigo-500">
               Share File
             </DialogTitle>
-            <DialogDescription className="text-gray-600 text-sm">
+            <DialogDescription className="text-gray-600 dark:text-[#a0a0a0] text-sm">
               {fileName}
               {!canShare && (
                 <Badge variant="destructive" className="ml-2 text-xs">
@@ -208,21 +208,21 @@ export default function ShareButton({
 
           {isLoading ? (
             <div className="flex justify-center py-6">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400"></div>
             </div>
           ) : (
             <div className="space-y-4 p-1">
-              <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200/50 shadow-sm">
+              <div className="bg-white/80 dark:bg-[#252528] backdrop-blur-sm rounded-lg p-4 border border-gray-200/50 dark:border-[#2a2a2d] shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center">
-                      <Shield className="h-4 w-4 text-blue-600" />
+                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-md flex items-center justify-center">
+                      <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="text-left">
-                      <Label className="text-xs font-semibold text-gray-900">
+                      <Label className="text-xs font-semibold text-gray-900 dark:text-[#f0f0f0]">
                         Public Access
                       </Label>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
                         Allow access via link
                       </p>
                     </div>
@@ -231,24 +231,24 @@ export default function ShareButton({
                     checked={shareInfo?.isPublic || false}
                     onCheckedChange={(checked) => handleShareToggle(checked)}
                     disabled={isUpdating || !canShare}
-                    className="data-[state=checked]:bg-blue-600 h-5 w-9"
+                    className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500 h-5 w-9"
                   />
                 </div>
               </div>
 
               {shareInfo?.isPublic && (
                 <div className="space-y-3">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200/50 shadow-sm">
+                  <div className="bg-white/80 dark:bg-[#252528] backdrop-blur-sm rounded-lg p-4 border border-gray-200/50 dark:border-[#2a2a2d] shadow-sm">
                     <div className="space-y-3">
                       <div>
-                        <Label className="text-xs font-semibold text-gray-700 mb-2 block">
+                        <Label className="text-xs font-semibold text-gray-700 dark:text-[#f0f0f0] mb-2 block">
                           Shareable Link
                         </Label>
                         <div className="flex gap-2">
                           <Input
                             value={getShareableLink()}
                             readOnly
-                            className="flex-1 font-mono text-xs bg-gray-50/80 border-gray-200 h-8"
+                            className="flex-1 font-mono text-xs bg-gray-50/80 dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d] h-8 text-gray-900 dark:text-[#f0f0f0]"
                           />
                           <Button
                             onClick={copyToClipboard}
@@ -256,8 +256,8 @@ export default function ShareButton({
                             variant={copied ? "default" : "outline"}
                             className={`shrink-0 transition-all duration-200 h-8 w-8 p-0 ${
                               copied
-                                ? "bg-green-600 hover:bg-green-700 border-green-600"
-                                : "border-gray-300 hover:bg-gray-50"
+                                ? "bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 border-green-600"
+                                : "border-gray-300 dark:border-[#2a2a2d] hover:bg-gray-50 dark:hover:bg-[#252528]"
                             }`}
                           >
                             {copied ? (
@@ -270,7 +270,7 @@ export default function ShareButton({
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-gray-700">
+                        <Label className="text-xs font-semibold text-gray-700 dark:text-[#f0f0f0]">
                           Access Level
                         </Label>
                         <Select
@@ -280,17 +280,23 @@ export default function ShareButton({
                           }
                           disabled={isUpdating || !canShare}
                         >
-                          <SelectTrigger className="bg-gray-50/80 border-gray-200 h-8 text-xs">
+                          <SelectTrigger className="bg-gray-50/80 dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d] h-8 text-xs text-gray-900 dark:text-[#f0f0f0]">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="VIEW" className="text-xs">
+                          <SelectContent className="bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
+                            <SelectItem
+                              value="VIEW"
+                              className="text-xs hover:bg-gray-100 dark:hover:bg-[#252528]"
+                            >
                               <div className="flex items-center gap-2">
                                 <Eye className="h-3.5 w-3.5" />
                                 View only
                               </div>
                             </SelectItem>
-                            <SelectItem value="EDIT" className="text-xs">
+                            <SelectItem
+                              value="EDIT"
+                              className="text-xs hover:bg-gray-100 dark:hover:bg-[#252528]"
+                            >
                               <div className="flex items-center gap-2">
                                 <Edit className="h-3.5 w-3.5" />
                                 Can edit
@@ -301,7 +307,7 @@ export default function ShareButton({
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-gray-700">
+                        <Label className="text-xs font-semibold text-gray-700 dark:text-[#f0f0f0]">
                           Quick Share
                         </Label>
                         <div className="flex gap-2">
@@ -309,10 +315,10 @@ export default function ShareButton({
                             onClick={shareToTelegram}
                             variant="outline"
                             size="sm"
-                            className="flex-1 gap-1 border-gray-300 hover:bg-gray-50 transition-colors h-8 text-xs"
+                            className="flex-1 gap-1 border-gray-300 dark:border-[#2a2a2d] hover:bg-gray-50 dark:hover:bg-[#252528] transition-colors h-8 text-xs text-gray-700 dark:text-[#f0f0f0]"
                           >
                             <svg
-                              className="w-10 h-10"
+                              className="w-4 h-4"
                               viewBox="0 0 48 48"
                               fill="none"
                               xmlns="http://www.w3.org/2000/svg"
@@ -352,17 +358,17 @@ export default function ShareButton({
                             onClick={shareToDiscord}
                             variant="outline"
                             size="sm"
-                            className="flex-1 gap-1 border-gray-300 hover:bg-gray-50 transition-colors h-8 text-xs"
+                            className="flex-1 gap-1 border-gray-300 dark:border-[#2a2a2d] hover:bg-gray-50 dark:hover:bg-[#252528] transition-colors h-8 text-xs text-gray-700 dark:text-[#f0f0f0]"
                           >
                             <svg
-                              width="48"
-                              height="48"
+                              width="16"
+                              height="16"
                               viewBox="0 0 48 48"
                               fill="none"
                               xmlns="http://www.w3.org/2000/svg"
                             >
                               <path
-                                d="M40.634 8.31121C37.5747 6.90744 34.294 5.87321 30.8638 5.28087C30.8013 5.26943 30.7389 5.298 30.7067 5.35514C30.2848 6.10557 29.8175 7.08457 29.4902 7.85406C25.8008 7.30172 22.1304 7.30172 18.5166 7.85406C18.1893 7.06747 17.705 6.10557 17.2811 5.35514C17.249 5.29991 17.1866 5.27134 17.1241 5.28087C13.6958 5.87132 10.4151 6.90555 7.35387 8.31121C7.32737 8.32263 7.30465 8.3417 7.28958 8.36644C1.06678 17.6632 -0.6379 26.7314 0.19836 35.6872C0.202144 35.731 0.22674 35.7729 0.260796 35.7995C4.36642 38.8146 8.34341 40.645 12.2466 41.8583C12.309 41.8773 12.3752 41.8545 12.415 41.803C13.3383 40.5422 14.1613 39.2127 14.867 37.8146C14.9086 37.7328 14.8688 37.6356 14.7837 37.6032C13.4783 37.108 12.2352 36.5042 11.0395 35.8186C10.9449 35.7634 10.9373 35.6281 11.0243 35.5633C11.2759 35.3748 11.5276 35.1786 11.7679 34.9805C11.8114 34.9443 11.872 34.9367 11.9231 34.9595C19.7786 38.5461 28.2831 38.5461 36.0459 34.9595C36.097 34.9348 36.1576 34.9424 36.203 34.9786C36.4433 35.1767 36.6949 35.3748 36.9484 35.5633C37.0354 35.6281 37.0298 35.7634 36.9352 35.8186C35.7394 36.5176 34.4964 37.108 33.189 37.6014C33.1039 37.6337 33.0661 37.7328 33.1077 37.8146C33.8285 39.2108 34.6515 40.5402 35.5578 41.8012C35.5957 41.8545 35.6637 41.8773 35.7262 41.8583C39.6483 40.645 43.6252 38.8146 47.7309 35.7995C47.7668 35.7729 47.7895 35.7329 47.7933 35.6891C48.7942 25.3352 46.117 16.3413 40.6964 8.36833C40.6832 8.3417 40.6605 8.32263 40.634 8.31121ZM16.04 30.234C13.675 30.234 11.7263 28.0627 11.7263 25.3962C11.7263 22.7296 13.6372 20.5583 16.04 20.5583C18.4617 20.5583 20.3916 22.7487 20.3538 25.3962C20.3538 28.0627 18.4428 30.234 16.04 30.234ZM31.9895 30.234C29.6245 30.234 27.6758 28.0627 27.6758 25.3962C27.6758 22.7296 29.5867 20.5583 31.9895 20.5583C34.4113 20.5583 36.3411 22.7487 36.3033 25.3962C36.3033 28.0627 34.4113 30.234 31.9895 30.234Z"
+                                d="M40.634 8.31121C37.5747 6.90744 34.294 5.87321 30.8638 5.28087C30.8013 5.26943 30.7389 5.298 30.7067 5.35514C30.2848 6.10557 29.8175 7.08457 29.4902 7.85406C25.8008 7.30172 22.1304 7.30172 18.5166 7.85406C18.1893 7.06747 17.705 6.10557 17.2811 5.35514C17.249 5.29991 17.1866 5.27134 17.1241 5.28087C13.6958 5.87132 10.4151 6.90555 7.35387 8.31121C7.32737 8.32263 7.30465 8.3417 7.28958 8.36644C1.06678 17.6632 -0.6379 26.7314 0.19836 35.6872C0.202144 35.731 0.22674 35.7729 0.260796 35.7995C4.36642 38.8146 8.34341 40.645 12.2466 41.8583C12.309 41.8773 12.3752 41.8545 12.415 41.803C13.3383 40.5422 14.1613 39.2127 14.867 37.8146C14.9086 37.7328 14.8688 37.6356 14.7837 37.6032C13.4783 37.108 12.2352 36.5042 11.0395 35.8186C10.9449 35.7634 10.9373 35.6281 11.0243 35.5633C11.2759 35.3748 11.5276 35.1786 11.7679 34.9805C11.8114 34.9443 11.872 34.9367 11.9231 34.9595C19.7786 38.5461 28.2831 38.5461 36.0459 34.9595C36.097 34.9348 36.1576 34.9424 36.203 34.9786C36.4433 35.1767 36.6949 35.3748 36.9484 35.5633C36.9484 35.5633 36.9484 35.5633 36.9484 35.5633C37.0354 35.6281 37.0298 35.7634 36.9352 35.8186C35.7394 36.5176 34.4964 37.108 33.189 37.6014C33.1039 37.6337 33.0661 37.7328 33.1077 37.8146C33.8285 39.2108 34.6515 40.5402 35.5578 41.8012C35.5957 41.8545 35.6637 41.8773 35.7262 41.8583C39.6483 40.645 43.6252 38.8146 47.7309 35.7995C47.7668 35.7729 47.7895 35.7329 47.7933 35.6891C48.7942 25.3352 46.117 16.3413 40.6964 8.36833C40.6832 8.3417 40.6605 8.32263 40.634 8.31121ZM16.04 30.234C13.675 30.234 11.7263 28.0627 11.7263 25.3962C11.7263 22.7296 13.6372 20.5583 16.04 20.5583C18.4617 20.5583 20.3916 22.7487 20.3538 25.3962C20.3538 28.0627 18.4428 30.234 16.04 30.234ZM31.9895 30.234C29.6245 30.234 27.6758 28.0627 27.6758 25.3962C27.6758 22.7296 29.5867 20.5583 31.9895 20.5583C34.4113 20.5583 36.3411 22.7487 36.3033 25.3962C36.3033 28.0627 34.4113 30.234 31.9895 30.234Z"
                                 fill="#5865F2"
                               />
                             </svg>
@@ -373,7 +379,7 @@ export default function ShareButton({
                         {discordShared && (
                           <Button
                             onClick={openDiscord}
-                            className="w-full h-8 bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-200 text-xs rounded-md"
+                            className="w-full h-8 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white transition-all duration-200 text-xs rounded-md"
                           >
                             <MessageCircle className="h-3.5 w-3.5 mr-1" />
                             Open Discord
@@ -384,16 +390,16 @@ export default function ShareButton({
                   </div>
 
                   {discordShared && (
-                    <div className="bg-linear-to-r from-indigo-50 to-purple-50/50 border border-indigo-200/50 rounded-lg p-3">
+                    <div className="bg-linear-to-r from-indigo-50 to-purple-50/50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200/50 dark:border-indigo-800/50 rounded-lg p-3">
                       <div className="flex items-start gap-2">
-                        <div className="bg-white p-1.5 rounded-md shadow-sm border border-indigo-100">
-                          <MessageCircle className="h-3.5 w-3.5 text-indigo-600" />
+                        <div className="bg-white dark:bg-[#252528] p-1.5 rounded-md shadow-sm border border-indigo-100 dark:border-indigo-800/50">
+                          <MessageCircle className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <div className="text-left">
-                          <p className="text-xs font-semibold text-indigo-900">
+                          <p className="text-xs font-semibold text-indigo-900 dark:text-indigo-300">
                             Discord Message Ready!
                           </p>
-                          <ol className="text-xs text-indigo-700/80 mt-0.5 list-decimal list-inside space-y-0.5">
+                          <ol className="text-xs text-indigo-700/80 dark:text-indigo-400 mt-0.5 list-decimal list-inside space-y-0.5">
                             <li>Click "Open Discord" above</li>
                             <li>Go to your desired channel</li>
                             <li>Paste the message (Ctrl+V)</li>
@@ -404,18 +410,18 @@ export default function ShareButton({
                     </div>
                   )}
 
-                  <div className="bg-linear-to-r from-blue-50 to-indigo-50/50 border border-blue-200/50 rounded-lg p-3">
+                  <div className="bg-linear-to-r from-blue-50 to-indigo-50/50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg p-3">
                     <div className="flex items-start gap-2">
-                      <div className="bg-white p-1.5 rounded-md shadow-sm border border-blue-100">
-                        <Shield className="h-3.5 w-3.5 text-blue-600" />
+                      <div className="bg-white dark:bg-[#252528] p-1.5 rounded-md shadow-sm border border-blue-100 dark:border-blue-800/50">
+                        <Shield className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                       </div>
                       <div className="text-left">
-                        <p className="text-xs font-semibold text-blue-900">
+                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-300">
                           {shareInfo?.permissions === "VIEW"
                             ? "View Only Access"
                             : "Edit Access Enabled"}
                         </p>
-                        <p className="text-xs text-blue-700/80">
+                        <p className="text-xs text-blue-700/80 dark:text-blue-400">
                           {shareInfo?.permissions === "VIEW"
                             ? "Users can view but cannot make changes"
                             : "Users can view and edit this file"}
@@ -427,13 +433,13 @@ export default function ShareButton({
               )}
 
               {!shareInfo?.isPublic && (
-                <div className="text-center py-6 bg-white/50 rounded-lg border border-gray-200/50">
-                  <Lock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  <p className="text-gray-600 font-medium text-sm">
+                <div className="text-center py-6 bg-white/50 dark:bg-[#252528]/50 rounded-lg border border-gray-200/50 dark:border-[#2a2a2d]">
+                  <Lock className="h-8 w-8 mx-auto mb-2 text-gray-300 dark:text-[#2a2a2d]" />
+                  <p className="text-gray-600 dark:text-[#a0a0a0] font-medium text-sm">
                     Enable public access to share the file via a link
                   </p>
                   {!canShare && (
-                    <p className="text-red-500 text-xs mt-1 bg-red-50/50 p-1.5 rounded-md">
+                    <p className="text-red-500 dark:text-red-400 text-xs mt-1 bg-red-50/50 dark:bg-red-900/20 p-1.5 rounded-md">
                       Only users with EDIT permissions can change share settings
                     </p>
                   )}
