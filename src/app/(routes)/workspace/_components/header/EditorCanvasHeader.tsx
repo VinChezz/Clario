@@ -78,18 +78,18 @@ export function EditorCanvasHeader({
   };
 
   return (
-    <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-3 h-14">
+    <div className="flex items-center justify-between bg-white dark:bg-[#1a1a1c] border-b border-gray-100 dark:border-[#2a2a2d] px-4 py-3 h-14">
       <div className="flex items-center gap-3">
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-gray-900">
+          <span className="text-sm font-semibold text-gray-900 dark:text-[#f0f0f0]">
             {getActiveComponentLabel()}
           </span>
           {permissions === "VIEW" ? (
-            <span className="text-xs text-amber-600 font-medium">
+            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
               View only • No editing permissions
             </span>
           ) : (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">
               {windowMode === "fullscreen" ? "Fullscreen" : "Editing"}
             </span>
           )}
@@ -98,7 +98,9 @@ export function EditorCanvasHeader({
         {hasUnsavedChanges && (
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
-            <span className="text-xs text-yellow-700 font-medium">Unsaved</span>
+            <span className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">
+              Unsaved
+            </span>
           </div>
         )}
       </div>
@@ -107,11 +109,11 @@ export function EditorCanvasHeader({
         {showCommentsButton && (
           <button
             onClick={onToggleCommentSidebar}
-            className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+            className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-[#f0f0f0] rounded-lg hover:bg-gray-50 dark:hover:bg-[#252528] transition-all duration-200 group"
           >
             <MessageCircleMore className="w-4 h-4" />
             {commentsCount > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 dark:bg-blue-600 text-white text-xs rounded-full flex items-center justify-center">
                 {commentsCount}
               </div>
             )}
@@ -123,11 +125,11 @@ export function EditorCanvasHeader({
           <button
             onClick={handleVersionClick}
             disabled={versionsLoading || !fetchVersions}
-            className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-[#f0f0f0] rounded-lg hover:bg-gray-50 dark:hover:bg-[#252528] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <History className="w-4 h-4" />
             {versions.length > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-600 text-white text-xs rounded-full flex items-center justify-center">
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-600 dark:bg-[#2a2a2d] text-white text-xs rounded-full flex items-center justify-center">
                 {versions.length}
               </div>
             )}
@@ -136,7 +138,7 @@ export function EditorCanvasHeader({
         )}
 
         {(showAllElements || fileType === "whiteboard") && (
-          <div className="flex items-center gap-3 pl-2 border-l border-gray-200">
+          <div className="flex items-center gap-3 pl-2 border-l border-gray-200 dark:border-[#2a2a2d]">
             <div className="flex items-center gap-2">
               <PresenceIndicator activeUsers={activeUsers} />
             </div>
