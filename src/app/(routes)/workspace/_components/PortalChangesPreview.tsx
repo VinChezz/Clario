@@ -18,29 +18,21 @@ export function PortalChangesPreview({
   onClose,
   isOpen,
 }: PortalChangesPreviewProps) {
-  if (!isOpen) return null;
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100] p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-100 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[88vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-[#1a1a1c] rounded-2xl shadow-2xl w-full max-w-6xl h-[88vh] flex flex-col overflow-hidden border border-gray-200 dark:border-[#2a2a2d]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b px-6 py-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50">
+        <div className="flex items-center justify-between border-b px-6 py-4 bg-linear-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-[#252528] dark:via-[#2a2a2d] dark:to-[#303035]">
           <div>
-            <h3 className="font-bold text-gray-900 text-xl">
+            <h3 className="font-bold text-gray-900 dark:text-[#f0f0f0] text-xl">
               Version Comparison
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-600 dark:text-[#a0a0a0] mt-1">
               {version.name || `Version ${version.version}`} •{" "}
               {version.createdAt
                 ? new Date(version.createdAt).toLocaleString()
@@ -49,12 +41,13 @@ export function PortalChangesPreview({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-white/80 transition-all duration-200"
+            className="text-gray-500 dark:text-[#a0a0a0] hover:text-gray-700 dark:hover:text-[#f0f0f0] p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#252528] transition-all duration-200"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="flex-1 p-6 overflow-hidden">
+
+        <div className="flex-1 p-6 overflow-hidden bg-gray-50/50 dark:bg-[#1f1f21]">
           <ChangesPreview
             version={version}
             previousVersion={previousVersion}
