@@ -129,8 +129,8 @@ export function PresenceIndicator({ activeUsers }: PresenceIndicatorProps) {
       <div className="flex items-center gap-2">
         {!isMobile && (
           <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span className="text-sm font-medium text-gray-700 hidden sm:inline">
+            <div className="w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full animate-pulse" />
+            <span className="text-sm font-medium text-gray-700 dark:text-[#f0f0f0] hidden sm:inline">
               {activeUsers.length} online
             </span>
           </div>
@@ -144,34 +144,34 @@ export function PresenceIndicator({ activeUsers }: PresenceIndicatorProps) {
               <TooltipTrigger asChild>
                 <div className="relative">
                   <Avatar
-                    className={`${avatarSize} border-2 border-white shadow-sm`}
+                    className={`${avatarSize} border-2 border-white dark:border-[#1a1a1c] shadow-sm`}
                   >
                     <AvatarImage src={user.user?.image} alt={user.user?.name} />
                     <AvatarFallback
                       className={`${
                         isMobile ? "text-xs" : "text-[10px]"
-                      } bg-gray-200`}
+                      } bg-gray-200 dark:bg-[#252528] text-gray-700 dark:text-[#f0f0f0]`}
                     >
                       {user.user?.name?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div
-                    className={`absolute ${statusDotSize} rounded-full border-2 border-white ${getStatusColor(
+                    className={`absolute ${statusDotSize} rounded-full border-2 border-white dark:border-[#1a1a1c] ${getStatusColor(
                       user.status,
                       user.lastActive
                     )}`}
                   />
                 </div>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
                 <div className="text-sm space-y-1">
-                  <p className="font-medium">
+                  <p className="font-medium dark:text-[#f0f0f0]">
                     {user.user?.name || "Unknown User"}
                   </p>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 dark:text-[#a0a0a0]">
                     {getStatusText(user.status, user.lastActive)}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-[#707070]">
                     Last active: {getTimeAgo(user.lastActive)}
                   </p>
                 </div>
@@ -183,14 +183,14 @@ export function PresenceIndicator({ activeUsers }: PresenceIndicatorProps) {
             <Tooltip key="more-users-tooltip">
               <TooltipTrigger asChild>
                 <div
-                  className={`${moreUsersSize} bg-gray-200 rounded-full flex items-center justify-center font-medium border-2 border-white shadow-sm`}
+                  className={`${moreUsersSize} bg-gray-200 dark:bg-[#252528] rounded-full flex items-center justify-center font-medium border-2 border-white dark:border-[#1a1a1c] shadow-sm text-gray-700 dark:text-[#f0f0f0]`}
                 >
                   +{users.length - (isMobile ? 3 : 4)}
                 </div>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
                 <div className="space-y-2">
-                  <p className="font-medium">
+                  <p className="font-medium dark:text-[#f0f0f0]">
                     {users.length - (isMobile ? 3 : 4)} more users
                   </p>
                   <div className="space-y-1">
@@ -203,12 +203,14 @@ export function PresenceIndicator({ activeUsers }: PresenceIndicatorProps) {
                       >
                         <Avatar className="h-4 w-4">
                           <AvatarImage src={user.user?.image} />
-                          <AvatarFallback className="text-[8px]">
+                          <AvatarFallback className="text-[8px] bg-gray-200 dark:bg-[#252528] text-gray-700 dark:text-[#f0f0f0]">
                             {user.user?.name?.charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <span>{user.user?.name}</span>
-                        <span className="text-gray-500">
+                        <span className="dark:text-[#f0f0f0]">
+                          {user.user?.name}
+                        </span>
+                        <span className="text-gray-500 dark:text-[#707070]">
                           {getStatusText(user.status, user.lastActive)}
                         </span>
                       </div>
