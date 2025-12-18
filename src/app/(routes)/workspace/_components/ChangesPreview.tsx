@@ -46,7 +46,6 @@ function computeLineDiff(oldContent: string, newContent: string): LineDiff[] {
     const newLine = newLines[j];
 
     if (oldLine === newLine) {
-      // Линии идентичны
       diff.push({
         oldLineNumber: i + 1,
         newLineNumber: j + 1,
@@ -56,11 +55,9 @@ function computeLineDiff(oldContent: string, newContent: string): LineDiff[] {
       i++;
       j++;
     } else {
-      // Ищем следующее совпадение
       let nextOldMatch = -1;
       let nextNewMatch = -1;
 
-      // Ищем старую линию в новых линиях
       for (let k = j; k < newLines.length; k++) {
         if (newLines[k] === oldLine) {
           nextNewMatch = k;
@@ -68,7 +65,6 @@ function computeLineDiff(oldContent: string, newContent: string): LineDiff[] {
         }
       }
 
-      // Ищем новую линию в старых линиях
       for (let k = i; k < oldLines.length; k++) {
         if (oldLines[k] === newLine) {
           nextOldMatch = k;
@@ -80,7 +76,6 @@ function computeLineDiff(oldContent: string, newContent: string): LineDiff[] {
         nextNewMatch !== -1 &&
         (nextOldMatch === -1 || nextNewMatch - j <= nextOldMatch - i)
       ) {
-        // Добавлены новые линии
         while (j < nextNewMatch) {
           diff.push({
             oldLineNumber: undefined,
@@ -94,7 +89,6 @@ function computeLineDiff(oldContent: string, newContent: string): LineDiff[] {
         nextOldMatch !== -1 &&
         (nextNewMatch === -1 || nextOldMatch - i <= nextNewMatch - j)
       ) {
-        // Удалены старые линии
         while (i < nextOldMatch) {
           diff.push({
             oldLineNumber: i + 1,
@@ -105,7 +99,6 @@ function computeLineDiff(oldContent: string, newContent: string): LineDiff[] {
           i++;
         }
       } else {
-        // Замена линии
         if (oldLine !== undefined) {
           diff.push({
             oldLineNumber: i + 1,
@@ -134,9 +127,8 @@ function computeLineDiff(oldContent: string, newContent: string): LineDiff[] {
 export function ChangesPreview({
   version,
   previousVersion,
-  onClose,
+
   isOpen = true,
-  showCloseButton = true,
 }: ChangesPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -178,98 +170,90 @@ export function ChangesPreview({
 
   return (
     <div
-      className="flex flex-col w-full h-full bg-white border rounded-xl shadow-sm overflow-hidden select-text"
+      className="flex flex-col w-full h-full bg-white dark:bg-[#1a1a1c] border dark:border-[#2a2a2d] rounded-xl shadow-sm overflow-hidden select-text"
       style={{
         userSelect: "text",
         WebkitUserSelect: "text",
       }}
     >
-      {/* Header с статистикой */}
-      <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+      <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b dark:border-[#2a2a2d] bg-gray-50 dark:bg-[#252528]">
         <div className="flex flex-col">
-          <span className="text-sm font-medium text-gray-800">
+          <span className="text-sm font-medium text-gray-800 dark:text-[#f0f0f0]">
             Version {version.version}
             {previousVersion && ` vs Version ${previousVersion.version}`}
           </span>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">
             {version.createdAt
               ? new Date(version.createdAt).toLocaleString()
               : "Unknown date"}
+            {version.author && ` • By ${version.author.name}`}
           </span>
         </div>
 
-        {/* Статистика изменений */}
         <div className="flex items-center gap-4 text-xs">
           {stats.added > 0 && (
-            <span className="text-green-600 font-medium">+{stats.added}</span>
+            <span className="text-green-600 dark:text-green-400 font-medium">
+              +{stats.added}
+            </span>
           )}
           {stats.removed > 0 && (
-            <span className="text-red-600 font-medium">-{stats.removed}</span>
+            <span className="text-red-600 dark:text-red-400 font-medium">
+              -{stats.removed}
+            </span>
           )}
           {stats.unchanged > 0 && (
-            <span className="text-gray-500">{stats.unchanged} unchanged</span>
+            <span className="text-gray-500 dark:text-[#a0a0a0]">
+              {stats.unchanged} unchanged
+            </span>
           )}
         </div>
-
-        {showCloseButton && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-6 w-6 p-0 text-gray-600 hover:text-red-500"
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        )}
       </div>
-
-      {/* Дифф */}
 
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto font-mono text-xs leading-tight bg-gray-50"
+        className="flex-1 overflow-y-auto font-mono text-xs leading-tight bg-gray-50 dark:bg-[#1f1f21]"
         style={{
           overscrollBehavior: "contain",
         }}
       >
         <div className="min-w-full">
           {lineDiff.length === 0 ? (
-            <div className="text-center text-gray-500 italic py-4">
+            <div className="text-center text-gray-500 dark:text-[#707070] italic py-4">
               No differences found.
             </div>
           ) : (
             lineDiff.map((line, idx) => {
               const bgClass =
                 line.type === "added"
-                  ? "bg-green-50"
+                  ? "bg-green-50 dark:bg-green-900/20"
                   : line.type === "removed"
-                  ? "bg-red-50"
-                  : "bg-white";
+                  ? "bg-red-50 dark:bg-red-900/20"
+                  : "bg-white dark:bg-[#1a1a1c]";
               const borderClass =
                 line.type === "added"
-                  ? "border-l-4 border-green-400"
+                  ? "border-l-4 border-green-400 dark:border-green-500"
                   : line.type === "removed"
-                  ? "border-l-4 border-red-400"
+                  ? "border-l-4 border-red-400 dark:border-red-500"
                   : "border-l-4 border-transparent";
 
               return (
                 <div
                   key={idx}
-                  className={`flex px-2 py-0.5 ${bgClass} ${borderClass} transition-colors duration-150 select-text`}
+                  className={`flex px-2 py-0.5 ${bgClass} ${borderClass} transition-colors duration-150 select-text hover:bg-opacity-80 dark:hover:bg-opacity-80`}
                 >
-                  <div className="w-10 text-right pr-2 text-gray-400 shrink-0">
+                  <div className="w-10 text-right pr-2 text-gray-400 dark:text-[#707070] shrink-0">
                     {line.oldLineNumber ?? ""}
                   </div>
-                  <div className="w-10 text-right pr-2 text-gray-400 shrink-0">
+                  <div className="w-10 text-right pr-2 text-gray-400 dark:text-[#707070] shrink-0">
                     {line.newLineNumber ?? ""}
                   </div>
                   <div
-                    className={`flex-1 select-text ${
+                    className={`flex-1 select-text font-mono ${
                       line.type === "removed"
-                        ? "line-through text-red-800"
+                        ? "line-through text-red-800 dark:text-red-300"
                         : line.type === "added"
-                        ? "text-green-800"
-                        : "text-gray-700"
+                        ? "text-green-800 dark:text-green-300"
+                        : "text-gray-700 dark:text-[#d0d0d0]"
                     }`}
                   >
                     {line.content || "<empty>"}
@@ -278,6 +262,24 @@ export function ChangesPreview({
               );
             })
           )}
+        </div>
+      </div>
+
+      <div className="shrink-0 px-3 py-1.5 border-t dark:border-[#2a2a2d] bg-gray-50 dark:bg-[#252528]">
+        <div className="flex items-center justify-between text-[10px] text-gray-500 dark:text-[#707070]">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-500"></div>
+              <span>Added</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-400 dark:border-red-500"></div>
+              <span>Removed</span>
+            </div>
+          </div>
+          <div className="text-right">
+            {lineDiff.length} line{lineDiff.length !== 1 ? "s" : ""}
+          </div>
         </div>
       </div>
     </div>
