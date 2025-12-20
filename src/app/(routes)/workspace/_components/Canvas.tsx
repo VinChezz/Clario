@@ -22,14 +22,17 @@ import { useLightweightPresence } from "@/hooks/useLightweightPresence";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import { CommentThread } from "./CommentThread";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useTheme } from "@/app/_context/AppearanceContext";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
   {
     ssr: false,
     loading: () => (
-      <div className="w-full h-full flex items-center justify-center bg-white">
-        <div className="text-gray-500">Loading whiteboard...</div>
+      <div className="w-full h-full flex items-center justify-center bg-white dark:bg-[#1a1a1c]">
+        <div className="text-gray-500 dark:text-gray-400">
+          Loading whiteboard...
+        </div>
       </div>
     ),
   }
@@ -78,10 +81,8 @@ export default function Canvas({
   >("selection");
   const [isInitialized, setIsInitialized] = useState(false);
   const [selection, setSelection] = useState<any>(null);
-
   const [showCommentSidebar, setShowCommentSidebar] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
-
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const lastSavedContent = useRef<string>("");
@@ -93,6 +94,9 @@ export default function Canvas({
   const lastSentContent = useRef<string>("");
   const isApplyingRemoteUpdate = useRef(false);
   const isMobile = useIsMobile();
+
+  const { isDark } = useTheme();
+  const theme = isDark ? "dark" : "light";
 
   const { activeTeam } = useActiveTeam();
 
@@ -155,6 +159,14 @@ export default function Canvas({
   } = useComments(fileId, currentUser);
 
   const canEdit = permissions === "EDIT" || permissions === "ADMIN";
+
+  useEffect(() => {
+    if (excalidrawRef.current && isInitialized) {
+      excalidrawRef.current.updateScene({
+        appState: { theme: isDark ? "dark" : "light" },
+      });
+    }
+  }, [isDark, isInitialized]);
 
   useEffect(() => {
     if (activeTeam && !currentUser) {
@@ -930,13 +942,13 @@ export default function Canvas({
     windowMode === "fullscreen" && currentComponent === "canvas";
 
   return (
-    <div className="flex h-full w-full bg-gray-100 overflow-hidden">
+    <div className="flex h-full w-full bg-gray-100 dark:bg-[#0a0a0a] overflow-hidden">
       <div
         className={`flex-1 relative transition-all duration-200 ${
           showVersionHistory || showCommentSidebar
-            ? "border-r border-gray-200"
+            ? "border-r border-gray-200 dark:border-[#2a2a2d]"
             : ""
-        } ${isFullscreen ? "bg-white" : ""}`}
+        } ${isFullscreen ? "bg-white dark:bg-[#1a1a1c]" : ""}`}
       >
         {fileData && (
           <div className="w-full h-full flex flex-col">
@@ -966,7 +978,7 @@ export default function Canvas({
             >
               <Excalidraw
                 excalidrawAPI={handleExcalidrawReady}
-                theme="light"
+                theme={theme}
                 initialData={{ elements: whiteBoardData }}
                 onChange={onChange}
                 onPointerDown={() => {
@@ -1031,7 +1043,7 @@ export default function Canvas({
         <div
           className={`${
             isMobile ? "fixed inset-0 z-50" : "w-96"
-          } bg-white border-l border-gray-200 shadow-lg flex flex-col`}
+          } bg-white dark:bg-[#1a1a1c] border-l border-gray-200 dark:border-[#2a2a2d] shadow-lg flex flex-col`}
         >
           <div className="flex-1 overflow-y-auto">
             <CommentThread
@@ -1055,7 +1067,7 @@ export default function Canvas({
         <div
           className={`${
             isMobile ? "fixed inset-0 z-50" : "w-96"
-          } bg-white border-l border-gray-200 shadow-lg flex flex-col`}
+          } bg-white dark:bg-[#1a1a1c] border-l border-gray-200 dark:border-[#2a2a2d] shadow-lg flex flex-col`}
         >
           <VersionHistory
             versions={versions}
