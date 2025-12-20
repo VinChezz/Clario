@@ -13,7 +13,7 @@ import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 
 const Editor = dynamic(() => import("../_components/Editor"), {
   loading: () => (
-    <div className="flex items-center justify-center h-full text-gray-500">
+    <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#a0a0a0]">
       Loading editor...
     </div>
   ),
@@ -22,7 +22,7 @@ const Editor = dynamic(() => import("../_components/Editor"), {
 
 const Canvas = dynamic(() => import("../_components/Canvas"), {
   loading: () => (
-    <div className="flex items-center justify-center h-full text-gray-500">
+    <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#a0a0a0]">
       Loading canvas...
     </div>
   ),
@@ -325,20 +325,20 @@ export default function WorkspacePage() {
 
   if (!activeTeam) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0a0a0a]">
         <div className="text-center p-8 max-w-md">
-          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gray-200 dark:bg-[#252528] rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">👥</span>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-[#f0f0f0] mb-2">
             No Active Team
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-[#a0a0a0] mb-6">
             Please select a team to continue working.
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="bg-blue-600 dark:bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium"
           >
             Reload Page
           </button>
@@ -349,18 +349,18 @@ export default function WorkspacePage() {
 
   if (error) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0a0a0a]">
         <div className="text-center p-8 max-w-md">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">⚠️</span>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-[#f0f0f0] mb-2">
             Error Loading File
           </h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-gray-600 dark:text-[#a0a0a0] mb-6">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="bg-blue-600 dark:bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium"
           >
             Try Again
           </button>
@@ -371,22 +371,24 @@ export default function WorkspacePage() {
 
   if (!fileData) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0a0a0a]">
         <div className="text-center p-8">
-          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gray-200 dark:bg-[#252528] rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">📄</span>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-[#f0f0f0] mb-2">
             File Not Found
           </h2>
-          <p className="text-gray-600">File with ID {fileId} was not found.</p>
+          <p className="text-gray-600 dark:text-[#a0a0a0]">
+            File with ID {fileId} was not found.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white overflow-hidden">
+    <div className="h-screen flex flex-col bg-white dark:bg-[#0a0a0a] overflow-hidden">
       <WorkspaceHeader
         file={fileData}
         onSave={handleSave}
@@ -400,10 +402,10 @@ export default function WorkspacePage() {
       {windowMode === "split" ? (
         <div
           ref={splitRef}
-          className="flex flex-1 relative overflow-hidden bg-gray-50"
+          className="flex flex-1 relative overflow-hidden bg-gray-50 dark:bg-[#0a0a0a]"
         >
           <div
-            className="flex-1 min-w-0 overflow-hidden bg-white rounded-r-lg shadow-sm border-r border-gray-100"
+            className="flex-1 min-w-0 overflow-hidden bg-white dark:bg-[#1a1a1c] rounded-r-lg shadow-sm border-r border-gray-100 dark:border-[#2a2a2d]"
             style={{ flexBasis: `${dividerPercent}%` }}
           >
             <Editor
@@ -426,14 +428,14 @@ export default function WorkspacePage() {
 
           <div
             onMouseDown={startDrag}
-            className={`w-1 cursor-col-resize z-20 bg-gray-300 hover:bg-blue-400 transition-colors ${
-              isDragging ? "bg-blue-500" : ""
+            className={`w-1 cursor-col-resize z-20 bg-gray-300 dark:bg-[#2a2a2d] hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors ${
+              isDragging ? "bg-blue-500 dark:bg-blue-600" : ""
             }`}
             aria-label="Resize panels"
           />
 
           <div
-            className="flex-1 min-w-0 overflow-hidden bg-white rounded-l-lg shadow-sm border-l border-gray-100"
+            className="flex-1 min-w-0 overflow-hidden bg-white dark:bg-[#1a1a1c] rounded-l-lg shadow-sm border-l border-gray-100 dark:border-[#2a2a2d]"
             style={{ flexBasis: `${100 - dividerPercent}%` }}
           >
             <Canvas
@@ -455,9 +457,9 @@ export default function WorkspacePage() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-hidden bg-gray-50">
+        <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#0a0a0a]">
           {activeComponent === "editor" ? (
-            <div className="h-full bg-white rounded-lg shadow-sm border border-gray-100">
+            <div className="h-full bg-white dark:bg-[#1a1a1c] rounded-lg shadow-sm border border-gray-100 dark:border-[#2a2a2d]">
               <Editor
                 fileId={fileId}
                 fileData={fileData}
@@ -476,7 +478,7 @@ export default function WorkspacePage() {
               />
             </div>
           ) : (
-            <div className="h-full bg-white rounded-lg shadow-sm border border-gray-100">
+            <div className="h-full bg-white dark:bg-[#1a1a1c] rounded-lg shadow-sm border border-gray-100 dark:border-[#2a2a2d]">
               <Canvas
                 fileId={fileId}
                 fileData={fileData}
