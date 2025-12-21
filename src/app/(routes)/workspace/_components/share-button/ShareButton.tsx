@@ -61,7 +61,7 @@ export default function ShareButton({
   const [discordShared, setDiscordShared] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  const canShare = permissions === "EDIT";
+  const canShare = permissions === "EDIT" || permissions === "ADMIN";
 
   const fetchShareInfo = async () => {
     if (!canShare) {
