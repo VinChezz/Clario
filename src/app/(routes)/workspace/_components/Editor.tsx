@@ -158,11 +158,9 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     return null;
   }
 
-  const containerClass = `sticky z-10 mx-auto my-3 flex justify-center items-center py-1.5 px-6 rounded-sm ${
-    isSplitMode ? "max-w-[75%]" : "max-w-[37vw]"
-  } ${
+  const containerClass = `sticky z-10 mx-auto my-4 flex justify-center items-center py-1.5 px-6 rounded-md max-w-[700px] ${
     isDark
-      ? "bg-[#232329]/95 shadow-[0_4px_20px_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.02)]"
+      ? "bg-[#232329] shadow-[0_4px_20px_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.02)]"
       : "bg-white shadow-[0_0.5px_1px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)] border border-black/5 backdrop-blur-sm"
   }`;
 
@@ -171,7 +169,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     w-8 h-8 rounded-md transition-all duration-150
     ${
       isDark
-        ? "hover:bg-[#2a2a2a] text-[#e0e0e0] hover:text-white hover:border-[#555]"
+        ? "hover:bg-[#31303B] text-[#e0e0e0] hover:text-white hover:border-[#555]"
         : "hover:bg-gray-200 text-gray-700 hover:text-gray-900 hover:border-gray-400"
     }
   `;
@@ -187,7 +185,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     w-8 h-8 rounded-md transition-all duration-150 ml-1
     ${
       isDark
-        ? "hover:bg-[#2a2a2a] text-[#e0e0e0] hover:text-white hover:border-[#555]"
+        ? "hover:bg-[#31303B text-[#e0e0e0] hover:text-white hover:border-[#555]"
         : "hover:bg-gray-200 text-gray-700 hover:text-gray-900 hover:border-gray-400"
     }
   `;
