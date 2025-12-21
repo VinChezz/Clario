@@ -23,6 +23,7 @@ import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import { CommentThread } from "./CommentThread";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/app/_context/AppearanceContext";
+import { useFilePermissions } from "@/hooks/useFilePermissions";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
@@ -72,9 +73,6 @@ export default function Canvas({
   onRefreshVersions,
 }: CanvasProps) {
   const [whiteBoardData, setWhiteBoardData] = useState<any>([]);
-  const [permissions, setPermissions] = useState<"ADMIN" | "VIEW" | "EDIT">(
-    "VIEW"
-  );
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentTool, setCurrentTool] = useState<
     "selection" | "rectangle" | "ellipse" | "arrow" | "line" | "text" | "hand"
@@ -158,7 +156,11 @@ export default function Canvas({
     fetchComments,
   } = useComments(fileId, currentUser);
 
-  const canEdit = permissions === "EDIT" || permissions === "ADMIN";
+  const {
+    permissions,
+    canEdit,
+    isLoading: permissionsLoading,
+  } = useFilePermissions();
 
   useEffect(() => {
     if (excalidrawRef.current && isInitialized) {
@@ -169,68 +171,21 @@ export default function Canvas({
   }, [isDark, isInitialized]);
 
   useEffect(() => {
-    if (activeTeam && !currentUser) {
-      console.log("🔄 ActiveTeam loaded, fetching user permissions...");
-
-      const fetchCurrentUser = async () => {
+    const loadUser = async () => {
+      if (!currentUser) {
         try {
           const userRes = await fetch("/api/auth/user");
           if (!userRes.ok) throw new Error("Failed to fetch user");
           const dbUser = await userRes.json();
           setCurrentUser(dbUser);
-
-          const savedPermissions = localStorage.getItem(
-            `file_permissions_${fileId}`
-          );
-          if (savedPermissions) {
-            const parsedPermissions = JSON.parse(savedPermissions);
-            if (
-              parsedPermissions.userId === dbUser.id &&
-              parsedPermissions.teamId === activeTeam.id
-            ) {
-              console.log(
-                "🔄 Restoring permissions from localStorage:",
-                parsedPermissions.role
-              );
-              setPermissions(parsedPermissions.role);
-              return;
-            }
-          }
-
-          const isCreator = activeTeam.createdById === dbUser.id;
-          const userMembership = activeTeam.members?.find(
-            (member: any) => member.userId === dbUser.id
-          );
-
-          let userRole: "ADMIN" | "VIEW" | "EDIT" = "VIEW";
-
-          if (isCreator) {
-            userRole = "ADMIN";
-          } else if (userMembership) {
-            userRole = userMembership.role as "ADMIN" | "VIEW" | "EDIT";
-          }
-
-          console.log("🔐 Final permissions setting:", userRole);
-          setPermissions(userRole);
-
-          localStorage.setItem(
-            `file_permissions_${fileId}`,
-            JSON.stringify({
-              userId: dbUser.id,
-              teamId: activeTeam.id,
-              role: userRole,
-              timestamp: Date.now(),
-            })
-          );
         } catch (err) {
-          console.error("Error:", err);
-          setPermissions("VIEW");
+          console.error("Error fetching user:", err);
         }
-      };
+      }
+    };
 
-      fetchCurrentUser();
-    }
-  }, [activeTeam, fileId, currentUser]);
+    loadUser();
+  }, []);
 
   useEffect(() => {
     console.log("🔄 Canvas: fileData changed", {
@@ -291,6 +246,8 @@ export default function Canvas({
     console.log("🔌 Starting realtime services...");
 
     fetchComments();
+
+    if (!canEdit) return;
 
     const unsubscribeContent = subscribeToContentUpdates((content, user) => {
       console.log("🎉 RECEIVED content update from:", user?.name, {
@@ -364,6 +321,7 @@ export default function Canvas({
   }, [
     currentUser,
     canEdit,
+    permissions,
     subscribeToContentUpdates,
     subscribeToContentSync,
     subscribeToCursorUpdates,
@@ -814,6 +772,11 @@ export default function Canvas({
 
   const handleAddComment = useCallback(
     (content: string, type = "QUESTION") => {
+      if (!canEdit) {
+        toast.error("No permission to add comments");
+        return;
+      }
+
       createComment({
         content,
         type: type,
@@ -822,18 +785,28 @@ export default function Canvas({
         setSelection(null);
       });
     },
-    [createComment, selection]
+    [createComment, selection, canEdit]
   );
 
   const handleReplyComment = useCallback(
     (commentId: string, content: string) => {
+      if (!canEdit) {
+        toast.error("No permission to reply to comments");
+        return;
+      }
+
       createReply(commentId, content);
     },
-    [createReply]
+    [createReply, canEdit]
   );
 
   const handleUpdateComment = useCallback(
     (commentId: string, content: string) => {
+      if (!canEdit) {
+        toast.error("No permission to update comments");
+        return;
+      }
+
       console.log("✏️ Updating comment:", commentId, content);
       updateComment(commentId, { content })
         .then((updatedComment) => {
@@ -843,11 +816,16 @@ export default function Canvas({
           console.error("❌ Failed to update comment:", error);
         });
     },
-    [updateComment]
+    [updateComment, canEdit]
   );
 
   const handleResolveComment = useCallback(
     (commentId: string) => {
+      if (!canEdit) {
+        toast.error("No permission to resolve comments");
+        return;
+      }
+
       console.log("🔄 Resolving comment:", commentId);
       const comment = comments.find((c) => c.id === commentId);
       if (comment) {
@@ -867,29 +845,44 @@ export default function Canvas({
         console.error("❌ Comment not found:", commentId);
       }
     },
-    [comments, updateComment]
+    [comments, updateComment, canEdit]
   );
 
   const handleDeleteComment = useCallback(
     (commentId: string) => {
+      if (!canEdit) {
+        toast.error("No permission to delete comments");
+        return;
+      }
+
       deleteComment(commentId);
     },
-    [deleteComment]
+    [deleteComment, canEdit]
   );
 
   const handleDeleteReply = useCallback(
     (commentId: string, replyId: string) => {
+      if (!canEdit) {
+        toast.error("No permission to delete replies");
+        return;
+      }
+
       deleteReply(commentId, replyId);
     },
-    [deleteReply]
+    [deleteReply, canEdit]
   );
 
   const handleToggleComments = useCallback(() => {
+    if (!canEdit) {
+      toast.error("No permission to view comments");
+      return;
+    }
+
     setShowCommentSidebar(!showCommentSidebar);
     if (!showCommentSidebar) {
       setShowVersionHistory(false);
     }
-  }, [showCommentSidebar]);
+  }, [showCommentSidebar, canEdit]);
 
   const handleToggleVersionHistory = useCallback(() => {
     setShowVersionHistory(!showVersionHistory);
@@ -923,7 +916,7 @@ export default function Canvas({
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
+      if (hasUnsavedChanges && canEdit) {
         e.preventDefault();
         e.returnValue =
           "You have unsaved changes in the whiteboard. Are you sure you want to leave?";
@@ -936,10 +929,10 @@ export default function Canvas({
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [hasUnsavedChanges]);
+  }, [hasUnsavedChanges, canEdit]);
 
   const showCommentsButton =
-    windowMode === "fullscreen" && currentComponent === "canvas";
+    windowMode === "fullscreen" && currentComponent === "canvas" && canEdit;
 
   return (
     <div className="flex h-full w-full bg-gray-100 dark:bg-[#0a0a0a] overflow-hidden">
@@ -973,39 +966,42 @@ export default function Canvas({
             <div
               ref={canvasContainerRef}
               className="flex-1 relative"
-              onMouseMove={handleCanvasMouseMove}
-              onMouseLeave={handleCanvasMouseLeave}
+              onMouseMove={canEdit ? handleCanvasMouseMove : undefined}
+              onMouseLeave={canEdit ? handleCanvasMouseLeave : undefined}
             >
               <Excalidraw
                 excalidrawAPI={handleExcalidrawReady}
                 theme={theme}
                 initialData={{ elements: whiteBoardData }}
-                onChange={onChange}
+                onChange={canEdit ? onChange : undefined}
                 onPointerDown={() => {
-                  if (excalidrawRef.current) {
+                  if (canEdit && excalidrawRef.current) {
                     const elements = excalidrawRef.current.getSceneElements();
                     sendImmediateUpdate(elements);
                   }
                 }}
-                onPointerUp={handlePointerUp}
-                onPaste={(data, event) => {
-                  setTimeout(() => {
-                    if (excalidrawRef.current) {
-                      const elements = excalidrawRef.current.getSceneElements();
-                      sendImmediateUpdate(elements);
-                      setHasUnsavedChanges(true);
-                    }
-                  }, 100);
-
-                  return false;
-                }}
-                viewModeEnabled={permissions === "VIEW"}
+                onPointerUp={canEdit ? handlePointerUp : undefined}
+                onPaste={
+                  canEdit
+                    ? (data, event) => {
+                        setTimeout(() => {
+                          if (excalidrawRef.current) {
+                            const elements =
+                              excalidrawRef.current.getSceneElements();
+                            sendImmediateUpdate(elements);
+                            setHasUnsavedChanges(true);
+                          }
+                        }, 100);
+                        return false;
+                      }
+                    : undefined
+                }
+                viewModeEnabled={!canEdit}
                 UIOptions={{
                   canvasActions: {
                     saveToActiveFile: false,
                     loadScene: false,
-                    export: false,
-                    toggleTheme: false,
+                    toggleTheme: true,
                     changeViewBackgroundColor: canEdit,
                   },
                   tools: {
@@ -1013,33 +1009,29 @@ export default function Canvas({
                   },
                 }}
               >
-                <MainMenu>
-                  <MainMenu.Item onSelect={handleClearCanvas}>
-                    Clear Canvas
-                  </MainMenu.Item>
-                  <MainMenu.DefaultItems.SaveAsImage />
-                  <MainMenu.DefaultItems.ChangeCanvasBackground />
-                </MainMenu>
-
-                <WelcomeScreen>
-                  <WelcomeScreen.Hints.MenuHint />
-                  <WelcomeScreen.Hints.ToolbarHint />
-                  <WelcomeScreen.Center>
-                    <WelcomeScreen.Center.MenuItemHelp />
-                  </WelcomeScreen.Center>
-                </WelcomeScreen>
+                <>
+                  <WelcomeScreen>
+                    <WelcomeScreen.Hints.MenuHint />
+                    <WelcomeScreen.Hints.ToolbarHint />
+                    <WelcomeScreen.Center>
+                      <WelcomeScreen.Center.MenuItemHelp />
+                    </WelcomeScreen.Center>
+                  </WelcomeScreen>
+                </>
               </Excalidraw>
 
-              <CanvasCursorOverlay
-                cursors={cursors}
-                containerRef={canvasContainerRef}
-              />
+              {canEdit && (
+                <CanvasCursorOverlay
+                  cursors={cursors}
+                  containerRef={canvasContainerRef}
+                />
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {showCommentSidebar && (
+      {showCommentSidebar && canEdit && (
         <div
           className={`${
             isMobile ? "fixed inset-0 z-50" : "w-96"
