@@ -77,6 +77,7 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
 import { Markdown } from "tiptap-markdown";
+import { useFilePermissions } from "@/hooks/useFilePermissions";
 
 const defaultContent = {
   type: "doc",
@@ -131,10 +132,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const colorWrapperRef = useRef<HTMLDivElement>(null);
   const highlightWrapperRef = useRef<HTMLDivElement>(null);
   const moreWrapperRef = useRef<HTMLDivElement>(null);
-
-  if (!editor) {
-    return null;
-  }
+  const { canEdit } = useFilePermissions();
 
   useEffect(() => {
     if (!showHeadingMenu) return;
@@ -151,6 +149,14 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showHeadingMenu]);
+
+  if (!editor) {
+    return null;
+  }
+
+  if (!canEdit) {
+    return null;
+  }
 
   const containerClass = `sticky z-10 mx-auto my-3 flex justify-center items-center py-1.5 px-6 rounded-sm ${
     isSplitMode ? "max-w-[75%]" : "max-w-[37vw]"
@@ -277,7 +283,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   return (
     <div className={containerClass}>
-      {/* History Controls */}
       <div className="flex items-center gap-1">
         <button
           onClick={() => editor.chain().focus().undo().run()}
@@ -404,7 +409,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       <Separator />
 
-      {/* Text Formatting */}
       <div className="flex items-center gap-1">
         <button
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -442,7 +446,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       <Separator />
 
-      {/* Color & Highlight */}
       <div className="flex items-center gap-1">
         <div className="relative" ref={colorWrapperRef}>
           <button
@@ -547,7 +550,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       <Separator />
 
-      {/* Text Alignment */}
       <div className="flex items-center gap-1">
         <button
           onClick={() => editor.chain().focus().setTextAlign("left").run()}
@@ -597,7 +599,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       <Separator />
 
-      {/* Lists */}
       <div className="flex items-center gap-1">
         <button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -621,7 +622,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       <Separator />
 
-      {/* Block Elements */}
       <div className="flex items-center gap-1">
         <button
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
@@ -736,9 +736,6 @@ export default function Editor({
 }: EditorProps) {
   const [editorData, setEditorData] = useState<any>(null);
   const { activeTeam } = useActiveTeam();
-  const [permissions, setPermissions] = useState<"ADMIN" | "VIEW" | "EDIT">(
-    "EDIT"
-  );
   const [selection, setSelection] = useState<any>(null);
   const [showCommentSidebar, setShowCommentSidebar] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -804,9 +801,13 @@ export default function Editor({
     onVersionRestore,
   });
 
-  const { isDark } = useTheme();
+  const {
+    permissions,
+    canEdit,
+    isLoading: permissionsLoading,
+  } = useFilePermissions();
 
-  const canEdit = permissions === "EDIT" || permissions === "ADMIN";
+  const { isDark } = useTheme();
 
   const isSplitMode = windowMode === "split";
 
@@ -911,7 +912,9 @@ export default function Editor({
       attributes: {
         class: `prose prose-lg dark:prose-invert focus:outline-none ${
           isSplitMode ? "max-w-full" : "max-w-none"
-        } min-h-[800px] p-4 ${isDark ? "dark-editor" : ""}`,
+        } min-h-[800px] p-4 ${isDark ? "dark-editor" : ""} ${
+          !canEdit ? "cursor-default pointer-events-none" : ""
+        }`,
       },
     },
     onUpdate: ({ editor }) => {
@@ -976,6 +979,37 @@ export default function Editor({
       }
     },
   });
+
+  useEffect(() => {
+    const loadUser = async () => {
+      if (!currentUser) {
+        try {
+          const userRes = await fetch("/api/auth/user");
+          if (!userRes.ok) throw new Error("Failed to fetch user");
+          const dbUser = await userRes.json();
+          setCurrentUser(dbUser);
+        } catch (err) {
+          console.error("Error fetching user:", err);
+        }
+      }
+    };
+
+    loadUser();
+  }, []);
+
+  useEffect(() => {
+    if (editor && !permissionsLoading) {
+      console.log("✅ Editor ready with permissions:", {
+        permissions,
+        canEdit,
+        isLoading: permissionsLoading,
+      });
+
+      if (editor.isEditable !== canEdit) {
+        editor.setEditable(canEdit);
+      }
+    }
+  }, [editor, canEdit, permissions, permissionsLoading]);
 
   useEffect(() => {
     if (editor) {
@@ -1064,70 +1098,6 @@ export default function Editor({
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (activeTeam && !currentUser) {
-      console.log("🔄 ActiveTeam loaded, fetching user permissions...");
-
-      const fetchCurrentUser = async () => {
-        try {
-          const userRes = await fetch("/api/auth/user");
-          if (!userRes.ok) throw new Error("Failed to fetch user");
-          const dbUser = await userRes.json();
-          setCurrentUser(dbUser);
-
-          const savedPermissions = localStorage.getItem(
-            `file_permissions_${fileId}`
-          );
-          if (savedPermissions) {
-            const parsedPermissions = JSON.parse(savedPermissions);
-            if (
-              parsedPermissions.userId === dbUser.id &&
-              parsedPermissions.teamId === activeTeam.id
-            ) {
-              console.log(
-                "🔄 Restoring permissions from localStorage:",
-                parsedPermissions.role
-              );
-              setPermissions(parsedPermissions.role);
-              return;
-            }
-          }
-
-          const isCreator = activeTeam.createdById === dbUser.id;
-          const userMembership = activeTeam.members?.find(
-            (member: any) => member.userId === dbUser.id
-          );
-
-          let userRole: "ADMIN" | "VIEW" | "EDIT" = "VIEW";
-
-          if (isCreator) {
-            userRole = "ADMIN";
-          } else if (userMembership) {
-            userRole = userMembership.role as "ADMIN" | "VIEW" | "EDIT";
-          }
-
-          console.log("🔐 Final permissions setting:", userRole);
-          setPermissions(userRole);
-
-          localStorage.setItem(
-            `file_permissions_${fileId}`,
-            JSON.stringify({
-              userId: dbUser.id,
-              teamId: activeTeam.id,
-              role: userRole,
-              timestamp: Date.now(),
-            })
-          );
-        } catch (err) {
-          console.error("Error:", err);
-          setPermissions("VIEW");
-        }
-      };
-
-      fetchCurrentUser();
-    }
-  }, [activeTeam, fileId, currentUser]);
 
   useEffect(() => {
     if (!fileData) {
@@ -1371,7 +1341,7 @@ export default function Editor({
   }, [currentUser, canEdit, updateLightPresence, updatePresence]);
 
   const handleEditorSave = useCallback(async () => {
-    if (!editor || isSaving.current) {
+    if (!editor || isSaving.current || !canEdit) {
       console.log("❌ Editor not ready or already saving, skipping save");
       return;
     }
@@ -1499,6 +1469,7 @@ export default function Editor({
     createManualVersion,
     fileData,
     windowMode,
+    canEdit,
   ]);
 
   useEffect(() => {
@@ -1721,8 +1692,7 @@ export default function Editor({
 
   const handleEditorMouseMove = useCallback(
     throttle((event: React.MouseEvent) => {
-      if (!currentUser || (permissions !== "EDIT" && permissions !== "ADMIN"))
-        return;
+      if (!currentUser || !canEdit) return;
 
       const editorElement = document.querySelector(".tiptap");
       if (!editorElement) return;
@@ -1774,6 +1744,7 @@ export default function Editor({
       sendTypingUpdate,
       updatePresence,
       updateLightPresence,
+      canEdit,
     ]
   );
 
@@ -1898,7 +1869,7 @@ export default function Editor({
             showVersionHistory || showCommentSidebar
               ? `border-r ${isDark ? "border-[#2b3133]" : "border-gray-200"}`
               : ""
-          } ${isFullscreen ? "" : isDark ? "bg-[#121212]" : "bg-white"}`}
+          } ${isFullscreen ? "" : isDark ? "bg-[#171717]" : "bg-white"}`}
         >
           {canEdit && (
             <EditorToolbar
@@ -1913,12 +1884,14 @@ export default function Editor({
               isSplitMode
                 ? "ml-4 sm:ml-6 mr-4 sm:mr-6 mt-4 sm:mt-6"
                 : "ml-4 sm:ml-12 mt-4 sm:mt-6 mr-4 sm:mr-6"
-            } tiptap-editor ${isDark ? "dark-editor dark" : ""}`}
-            onMouseMove={handleEditorMouseMove}
-            onMouseLeave={handleEditorMouseLeave}
-            onMouseUp={handleTextSelection}
-            onKeyDown={handleKeyDown}
-            onClick={handleEditorClick}
+            } tiptap-editor ${isDark ? "dark-editor dark" : ""} ${
+              !canEdit ? "select-none" : ""
+            }`}
+            onMouseMove={canEdit ? handleEditorMouseMove : undefined}
+            onMouseLeave={canEdit ? handleEditorMouseLeave : undefined}
+            onMouseUp={canEdit ? handleTextSelection : undefined}
+            onKeyDown={canEdit ? handleKeyDown : undefined}
+            onClick={canEdit ? handleEditorClick : undefined}
           >
             <EditorContent editor={editor} />
           </div>
