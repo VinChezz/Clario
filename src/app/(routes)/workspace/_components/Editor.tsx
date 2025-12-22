@@ -50,8 +50,11 @@ import {
   AlignRight,
   AlignJustify,
   TextCursor,
-  Pilcrow,
   Palette,
+  Plus,
+  Trash2,
+  Columns,
+  Rows,
 } from "lucide-react";
 
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -111,6 +114,363 @@ export const generateUserColor = (userId: string): string => {
     userId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
     colors.length;
   return colors[index];
+};
+
+const TableControls: React.FC<{ editor: any; isDark?: boolean }> = ({
+  editor,
+  isDark = false,
+}) => {
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [visible, setVisible] = useState(false);
+  const controlsRef = useRef<HTMLDivElement>(null);
+
+  const isTableActive = () => {
+    return (
+      editor?.isActive("table") ||
+      editor?.isActive("tableCell") ||
+      editor?.isActive("tableHeader")
+    );
+  };
+
+  const getCellCoordinates = () => {
+    if (!editor) return null;
+
+    const { view } = editor;
+    const { state } = view;
+    const { selection } = state;
+    const { $from } = selection;
+
+    const cellNode = $from.node(-1);
+    if (
+      !cellNode ||
+      (cellNode.type.name !== "tableCell" &&
+        cellNode.type.name !== "tableHeader")
+    ) {
+      return null;
+    }
+
+    const coords = view.coordsAtPos($from.pos);
+    return coords;
+  };
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleContextMenu = (e: Event) => {
+      const mouseEvent = e as MouseEvent;
+
+      const target = mouseEvent.target as HTMLElement;
+      const isTableCell = target.closest(
+        'td, th, [data-type="tableCell"], [data-type="tableHeader"]'
+      );
+
+      if (!isTableCell) {
+        setVisible(false);
+        return;
+      }
+
+      mouseEvent.preventDefault();
+
+      if (!isTableActive()) {
+        return;
+      }
+
+      const cellCoords = getCellCoordinates();
+      if (!cellCoords) return;
+
+      const editorElement = document.querySelector(".tiptap");
+      if (!editorElement) return;
+
+      const editorRect = editorElement.getBoundingClientRect();
+      const scrollTop =
+        window.pageYOffset || document.documentElement.scrollTop;
+      const scrollLeft =
+        window.pageXOffset || document.documentElement.scrollLeft;
+
+      setPosition({
+        top: mouseEvent.clientY - editorRect.top + scrollTop,
+        left: mouseEvent.clientX - editorRect.left + scrollLeft,
+      });
+
+      setVisible(true);
+    };
+
+    const handleCellClick = (e: Event) => {
+      const mouseEvent = e as MouseEvent;
+      const target = mouseEvent.target as HTMLElement;
+      const isTableCell = target.closest(
+        'td, th, [data-type="tableCell"], [data-type="tableHeader"'
+      );
+
+      if (!isTableCell || !isTableActive()) {
+        setVisible(false);
+        return;
+      }
+
+      if (mouseEvent.button === 2) return;
+
+      if (visible) {
+        setVisible(false);
+      }
+    };
+
+    let longPressTimer: NodeJS.Timeout;
+    const handleTouchStart = (e: Event) => {
+      const touchEvent = e as TouchEvent;
+      const target = touchEvent.target as HTMLElement;
+      const isTableCell = target.closest(
+        'td, th, [data-type="tableCell"], [data-type="tableHeader"]'
+      );
+
+      if (!isTableCell || !isTableActive()) return;
+
+      longPressTimer = setTimeout(() => {
+        const touch = touchEvent.touches[0];
+        const fakeMouseEvent = new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        });
+
+        target.dispatchEvent(fakeMouseEvent);
+      }, 500);
+    };
+
+    const handleTouchEnd = () => {
+      clearTimeout(longPressTimer);
+    };
+
+    const handleTouchCancel = () => {
+      clearTimeout(longPressTimer);
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        controlsRef.current &&
+        !controlsRef.current.contains(e.target as Node)
+      ) {
+        setVisible(false);
+      }
+    };
+
+    const editorElement = document.querySelector(".tiptap");
+    if (editorElement) {
+      editorElement.addEventListener(
+        "contextmenu",
+        handleContextMenu as EventListener
+      );
+      editorElement.addEventListener(
+        "mousedown",
+        handleCellClick as EventListener
+      );
+      editorElement.addEventListener(
+        "touchstart",
+        handleTouchStart as EventListener
+      );
+      editorElement.addEventListener("touchend", handleTouchEnd);
+      editorElement.addEventListener("touchcancel", handleTouchCancel);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        setVisible(false);
+      }
+    });
+
+    const handleScroll = () => {
+      if (visible) {
+        setVisible(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      const editorElement = document.querySelector(".tiptap");
+      if (editorElement) {
+        editorElement.removeEventListener(
+          "contextmenu",
+          handleContextMenu as EventListener
+        );
+        editorElement.removeEventListener(
+          "mousedown",
+          handleCellClick as EventListener
+        );
+        editorElement.removeEventListener(
+          "touchstart",
+          handleTouchStart as EventListener
+        );
+        editorElement.removeEventListener("touchend", handleTouchEnd);
+        editorElement.removeEventListener("touchcancel", handleTouchCancel);
+      }
+
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [editor, visible]);
+
+  const buttonClass = `
+    flex items-center justify-center gap-2
+    px-3 py-2 rounded-md transition-all duration-150 text-sm font-medium
+    w-full text-left
+    ${
+      isDark
+        ? "hover:bg-[#31303B] text-[#e0e0e0] hover:text-white"
+        : "hover:bg-gray-100 text-gray-700 hover:text-gray-900"
+    }
+  `;
+
+  const deleteButtonClass = `
+    flex items-center justify-center gap-2
+    px-3 py-2 rounded-md transition-all duration-150 text-sm font-medium
+    w-full text-left
+    ${
+      isDark
+        ? "text-red-400 hover:bg-red-900/20"
+        : "text-red-600 hover:bg-red-50"
+    }
+  `;
+
+  const deleteTableButtonClass = `
+    flex items-center justify-center gap-2
+    px-3 py-2 rounded-md transition-all duration-150 text-sm font-medium
+    w-full text-left border-t
+    ${
+      isDark
+        ? "text-red-400 hover:bg-red-900/20 border-[#404040]"
+        : "text-red-600 hover:bg-red-50 border-gray-200"
+    }
+  `;
+
+  const containerClass = `
+    fixed z-[9999] flex flex-col gap-1 p-2 rounded-lg border shadow-xl
+    ${
+      isDark
+        ? "bg-[#1e1e1e] border-[#404040] shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
+        : "bg-white border-gray-300 shadow-[0_2px_12px_rgba(0,0,0,0.15)]"
+    }
+  `;
+
+  const sectionClass = "flex flex-col gap-0.5";
+
+  const sectionTitleClass = `text-xs font-medium px-3 py-1.5 ${
+    isDark ? "text-gray-400" : "text-gray-500"
+  }`;
+
+  if (!visible || !isTableActive()) {
+    return null;
+  }
+
+  return (
+    <div
+      ref={controlsRef}
+      className={containerClass}
+      style={{
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        minWidth: "200px",
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div className={sectionClass}>
+        <div className={sectionTitleClass}>Columns</div>
+        <button
+          onClick={() => {
+            editor.chain().focus().addColumnBefore().run();
+            setVisible(false);
+          }}
+          className={buttonClass}
+          title="Insert column left"
+        >
+          <Columns className="w-4 h-4" />
+          <span>Insert column left</span>
+        </button>
+        <button
+          onClick={() => {
+            editor.chain().focus().addColumnAfter().run();
+            setVisible(false);
+          }}
+          className={buttonClass}
+          title="Insert column right"
+        >
+          <Columns className="w-4 h-4 rotate-180" />
+          <span>Insert column right</span>
+        </button>
+        <button
+          onClick={() => {
+            editor.chain().focus().deleteColumn().run();
+            setVisible(false);
+          }}
+          className={deleteButtonClass}
+          title="Delete column"
+        >
+          <Trash2 className="w-4 h-4" />
+          <span>Delete column</span>
+        </button>
+      </div>
+
+      <div
+        className={`${sectionClass} pt-1 border-t ${
+          isDark ? "border-[#404040]" : "border-gray-200"
+        }`}
+      >
+        <div className={sectionTitleClass}>Rows</div>
+        <button
+          onClick={() => {
+            editor.chain().focus().addRowBefore().run();
+            setVisible(false);
+          }}
+          className={buttonClass}
+          title="Insert row above"
+        >
+          <Rows className="w-4 h-4" />
+          <span>Insert row above</span>
+        </button>
+        <button
+          onClick={() => {
+            editor.chain().focus().addRowAfter().run();
+            setVisible(false);
+          }}
+          className={buttonClass}
+          title="Insert row below"
+        >
+          <Rows className="w-4 h-4 rotate-180" />
+          <span>Insert row below</span>
+        </button>
+        <button
+          onClick={() => {
+            editor.chain().focus().deleteRow().run();
+            setVisible(false);
+          }}
+          className={deleteButtonClass}
+          title="Delete row"
+        >
+          <Trash2 className="w-4 h-4" />
+          <span>Delete row</span>
+        </button>
+      </div>
+
+      <div
+        className={`pt-1 border-t ${
+          isDark ? "border-[#404040]" : "border-gray-200"
+        }`}
+      >
+        <button
+          onClick={() => {
+            editor.chain().focus().deleteTable().run();
+            setVisible(false);
+          }}
+          className={deleteTableButtonClass}
+          title="Delete table"
+        >
+          <Trash2 className="w-4 h-4" />
+          <span>Delete table</span>
+        </button>
+      </div>
+    </div>
+  );
 };
 
 interface EditorToolbarProps {
@@ -277,6 +637,33 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     if (editor.isActive("heading", { level: 4 }))
       return <Heading4 className="w-4 h-4" />;
     return <Type className="w-4 h-4" />;
+  };
+
+  const addTable = () => {
+    if (!editor) return;
+
+    try {
+      editor
+        .chain()
+        .focus()
+        .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+        .run();
+      setShowMoreMenu(false);
+    } catch (error) {
+      console.error("Error inserting table:", error);
+      toast.error("Failed to insert table");
+    }
+  };
+
+  const clearFormat = () => {
+    if (!editor) return;
+
+    try {
+      editor.chain().focus().clearNodes().unsetAllMarks().run();
+      setShowMoreMenu(false);
+    } catch (error) {
+      console.error("Error clearing format:", error);
+    }
   };
 
   return (
@@ -663,28 +1050,16 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           {showMoreMenu && (
             <div className={`${dropdownClass} top-full right-0 mt-1`}>
               <div className="py-1">
-                <button
-                  onClick={() => {
-                    editor
-                      .chain()
-                      .focus()
-                      .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-                      .run();
-                    setShowMoreMenu(false);
-                  }}
-                  className={dropdownItemClass}
-                >
+                <button onClick={addTable} className={dropdownItemClass}>
                   <div className="flex items-center gap-2">
                     <TableIcon className="w-4 h-4" />
                     <span>Insert Table</span>
                   </div>
                 </button>
-                <button
-                  onClick={() => {
-                    setShowMoreMenu(false);
-                  }}
-                  className={dropdownItemClass}
-                >
+
+                <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+
+                <button onClick={clearFormat} className={dropdownItemClass}>
                   <div className="flex items-center gap-2">
                     <TextCursor className="w-4 h-4" />
                     <span>Clear Format</span>
@@ -825,83 +1200,83 @@ export default function Editor({
         italic: false,
         strike: false,
       }),
+
       Placeholder.configure({
         placeholder: "Start writing your notes here...",
       }),
+
       Heading.configure({
         levels: [1, 2, 3, 4],
         HTMLAttributes: {
           class: "ce-header",
         },
       }),
+
       BulletList.configure({
         HTMLAttributes: {
           class: "list-disc pl-6 my-2",
         },
       }),
+
       OrderedList.configure({
         HTMLAttributes: {
           class: "list-decimal pl-6 my-2",
         },
       }),
+
       ListItem,
+
       CodeBlock.configure({
         HTMLAttributes: {
           class:
             "bg-gray-100 dark:bg-gray-800 rounded-lg p-4 font-mono text-sm my-4 border border-gray-200 dark:border-gray-700",
         },
       }),
+
       Code.configure({
         HTMLAttributes: {
           class:
             "bg-gray-100 dark:bg-gray-800 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded text-sm font-mono",
         },
       }),
+
       Blockquote.configure({
         HTMLAttributes: {
           class:
             "border-l-4 border-blue-500 dark:border-blue-400 pl-4 my-4 italic text-gray-700 dark:text-gray-300",
         },
       }),
+
       HorizontalRule.configure({
         HTMLAttributes: {
           class: "my-6 border-gray-300 dark:border-gray-600",
         },
       }),
+
       Bold,
       Italic,
       Strike,
       TextStyle,
       Color,
+
       Highlight.configure({
         multicolor: true,
       }),
+
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
+
       Table.configure({
         resizable: true,
         HTMLAttributes: {
-          class:
-            "border-collapse table-auto w-full my-4 border border-gray-300 dark:border-gray-600",
+          class: "editor-table",
         },
       }),
-      TableRow.configure({
-        HTMLAttributes: {
-          class: "border border-gray-300 dark:border-gray-600",
-        },
-      }),
-      TableHeader.configure({
-        HTMLAttributes: {
-          class:
-            "border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 font-bold p-2",
-        },
-      }),
-      TableCell.configure({
-        HTMLAttributes: {
-          class: "border border-gray-300 dark:border-gray-600 p-2",
-        },
-      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+
       Markdown,
     ],
     content: editorData || defaultContent,
@@ -1878,7 +2253,7 @@ export default function Editor({
           )}
 
           <div
-            className={`h-full overflow-y-auto ${
+            className={`h-full overflow-y-auto relative${
               isSplitMode
                 ? "ml-4 sm:ml-6 mr-4 sm:mr-6 mt-4 sm:mt-6"
                 : "ml-4 sm:ml-12 mt-4 sm:mt-6 mr-4 sm:mr-6"
@@ -1891,6 +2266,10 @@ export default function Editor({
             onKeyDown={canEdit ? handleKeyDown : undefined}
             onClick={canEdit ? handleEditorClick : undefined}
           >
+            {editor && canEdit && (
+              <TableControls editor={editor} isDark={isDark} />
+            )}
+
             <EditorContent editor={editor} />
           </div>
 
