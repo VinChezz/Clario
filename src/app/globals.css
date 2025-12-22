@@ -280,3 +280,96 @@ h5.ce-header {
 h6.ce-header {
   font-size: 0.85rem; /* ~13.6px */
 }
+
+/* ============================= */
+/* TABLE — LIGHT THEME */
+/* ============================= */
+
+.ProseMirror .editor-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 16px 0;
+  table-layout: fixed;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+/* Cells */
+.ProseMirror .editor-table th,
+.ProseMirror .editor-table td {
+  position: relative;
+  padding: 10px 12px;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: top;
+  background: #ffffff;
+  color: #111827;
+}
+
+/* Header */
+.ProseMirror .editor-table th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Remove outer borders duplication */
+.ProseMirror .editor-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ProseMirror .editor-table th:last-child,
+.ProseMirror .editor-table td:last-child {
+  border-right: none;
+}
+
+/* Hover row */
+.ProseMirror .editor-table tbody tr:hover td {
+  background: #f3f4f6;
+}
+
+/* Selected cell */
+.ProseMirror .editor-table .is-selected {
+  background: #e0e7ff !important;
+}
+
+.dark .ProseMirror .editor-table,
+[data-theme="dark"] .ProseMirror .editor-table {
+  background: #0f172a;
+  border: 1px solid #2d363f;
+}
+
+/* Cells */
+.dark .ProseMirror .editor-table th,
+.dark .ProseMirror .editor-table td,
+[data-theme="dark"] .ProseMirror .editor-table th,
+[data-theme="dark"] .ProseMirror .editor-table td {
+  background: #171717;
+  color: #e5e7eb;
+  border-right: 1px solid #2d363f;
+  border-bottom: 1px solid #2d363f;
+}
+
+/* Header */
+.dark .ProseMirror .editor-table th,
+[data-theme="dark"] .ProseMirror .editor-table th {
+  background: #171717;
+  color: #f9fafb;
+  font-weight: 600;
+}
+
+/* Hover row */
+.dark .ProseMirror .editor-table tbody tr:hover td,
+[data-theme="dark"] .ProseMirror .editor-table tbody tr:hover td {
+  background: #171717;
+}
+
+/* Selected cell */
+.dark .ProseMirror .editor-table .is-selected,
+[data-theme="dark"] .ProseMirror .editor-table .is-selected {
+  background: rgba(99, 102, 241, 0.25) !important;
+}
