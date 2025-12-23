@@ -55,6 +55,8 @@ import {
   Trash2,
   Columns,
   Rows,
+  MessageSquare,
+  X,
 } from "lucide-react";
 
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -81,6 +83,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
 import { Markdown } from "tiptap-markdown";
 import { useFilePermissions } from "@/hooks/useFilePermissions";
+import { CommentPopup } from "@/components/CommentPopup";
 
 const defaultContent = {
   type: "doc",
@@ -2289,40 +2292,13 @@ export default function Editor({
         </div>
 
         {selection && selection.text && permissions === "EDIT" && (
-          <div
-            className={`absolute ${
-              isDark
-                ? "bg-[#252528] border-[#2a2a2d]"
-                : "bg-white border-gray-200"
-            } border rounded-lg shadow-lg p-3 z-10`}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span
-                className={`text-sm ${
-                  isDark ? "text-[#a0a0a0]" : "text-gray-600"
-                }`}
-              >
-                Add comment to:
-              </span>
-              <span
-                className={`text-sm font-medium px-2 py-1 rounded ${
-                  isDark ? "bg-yellow-900/30" : "bg-yellow-100"
-                }`}
-              >
-                "{selection.text}"
-              </span>
-            </div>
-            <button
-              onClick={() => handleAddComment("Comment on selected text")}
-              className={`w-full text-white py-2 px-4 rounded text-sm ${
-                isDark
-                  ? "bg-blue-600 hover:bg-blue-700"
-                  : "bg-blue-500 hover:bg-blue-600"
-              }`}
-            >
-              Add Comment
-            </button>
-          </div>
+          <CommentPopup
+            selection={selection}
+            permissions={permissions}
+            isDark={isDark}
+            onAddComment={handleAddComment}
+            onClose={() => setSelection(null)}
+          />
         )}
       </div>
 
