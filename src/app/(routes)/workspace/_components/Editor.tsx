@@ -497,6 +497,27 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const moreWrapperRef = useRef<HTMLDivElement>(null);
   const { canEdit } = useFilePermissions();
 
+  const isHeadingActive = () => {
+    return (
+      editor?.isActive("heading", { level: 1 }) ||
+      editor?.isActive("heading", { level: 2 }) ||
+      editor?.isActive("heading", { level: 3 }) ||
+      editor?.isActive("heading", { level: 4 })
+    );
+  };
+
+  const getContainerClass = () => {
+    const baseClass = `sticky z-10 mx-auto my-4 flex justify-center items-center py-1.5 px-6 rounded-md ${
+      isDark
+        ? "bg-[#232329] shadow-[0_4px_20px_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.02)]"
+        : "bg-white shadow-[0_0.5px_1px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)] border border-black/5 backdrop-blur-sm"
+    }`;
+
+    const maxWidthClass = isHeadingActive() ? "max-w-[720px]" : "max-w-[700px]";
+
+    return `${baseClass} ${maxWidthClass}`;
+  };
+
   useEffect(() => {
     if (!showHeadingMenu) return;
 
@@ -520,12 +541,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   if (!canEdit) {
     return null;
   }
-
-  const containerClass = `sticky z-10 mx-auto my-4 flex justify-center items-center py-1.5 px-6 rounded-md max-w-[700px] ${
-    isDark
-      ? "bg-[#232329] shadow-[0_4px_20px_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.02)]"
-      : "bg-white shadow-[0_0.5px_1px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)] border border-black/5 backdrop-blur-sm"
-  }`;
 
   const buttonClass = `
     group relative flex items-center justify-center
@@ -670,7 +685,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   return (
-    <div className={containerClass}>
+    <div className={getContainerClass()}>
       <div className="flex items-center gap-1">
         <button
           onClick={() => editor.chain().focus().undo().run()}
@@ -705,7 +720,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         >
           <span className="flex items-center gap-2">
             {getCurrentHeadingIcon()}
-            <span className="text-sm font-medium truncate max-w-[60px]">
+            <span
+              className={`text-sm font-medium truncate ${
+                isHeadingActive() ? "max-w-[70px]" : "max-w-[60px]"
+              }`}
+            >
               {getCurrentHeadingLabel()}
             </span>
             <ChevronDown className="w-3 h-3 ml-1 shrink-0" />
