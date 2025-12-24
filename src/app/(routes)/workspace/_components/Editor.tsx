@@ -480,12 +480,16 @@ interface EditorToolbarProps {
   editor: any;
   isDark?: boolean;
   isSplitMode?: boolean;
+  handleEditorSave?: () => Promise<void>;
+  fileId?: string;
 }
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
   isDark = false,
   isSplitMode = false,
+  handleEditorSave,
+  fileId,
 }) => {
   const [showHeadingMenu, setShowHeadingMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -2260,39 +2264,48 @@ export default function Editor({
 
         <div
           ref={editorContainerRef}
-          className={`flex-1 relative transition-all duration-200 overflow-hidden ${
+          className={`flex-1 relative overflow-y-auto ${
             showVersionHistory || showCommentSidebar
               ? `border-r ${isDark ? "border-[#2b3133]" : "border-gray-200"}`
               : ""
           } ${isFullscreen ? "" : isDark ? "bg-[#171717]" : "bg-white"}`}
         >
-          {canEdit && (
-            <EditorToolbar
-              editor={editor}
-              isDark={isDark}
-              isSplitMode={isSplitMode}
-            />
-          )}
-
           <div
-            className={`h-full overflow-y-auto relative${
+            className={`${
               isSplitMode
-                ? "ml-4 sm:ml-6 mr-4 sm:mr-6 mt-4 sm:mt-6"
-                : "ml-4 sm:ml-12 mt-4 sm:mt-6 mr-4 sm:mr-6"
-            } tiptap-editor ${isDark ? "dark-editor dark" : ""} ${
-              !canEdit ? "select-none" : ""
+                ? "ml-4 sm:ml-6 mr-4 sm:mr-6"
+                : "ml-4 sm:ml-12 mr-4 sm:mr-12"
             }`}
-            onMouseMove={canEdit ? handleEditorMouseMove : undefined}
-            onMouseLeave={canEdit ? handleEditorMouseLeave : undefined}
-            onMouseUp={canEdit ? handleTextSelection : undefined}
-            onKeyDown={canEdit ? handleKeyDown : undefined}
-            onClick={canEdit ? handleEditorClick : undefined}
           >
-            {editor && canEdit && (
-              <TableControls editor={editor} isDark={isDark} />
+            {canEdit && (
+              <div className="sticky top-0 z-10 pt-4 bg-inherit">
+                <EditorToolbar
+                  editor={editor}
+                  isDark={isDark}
+                  isSplitMode={isSplitMode}
+                  handleEditorSave={handleEditorSave}
+                  fileId={fileId}
+                />
+              </div>
             )}
 
-            <EditorContent editor={editor} />
+            <div
+              className={`tiptap-editor ${isDark ? "dark-editor dark" : ""} ${
+                !canEdit ? "select-none" : ""
+              }`}
+              onMouseMove={canEdit ? handleEditorMouseMove : undefined}
+              onMouseLeave={canEdit ? handleEditorMouseLeave : undefined}
+              onMouseUp={canEdit ? handleTextSelection : undefined}
+              onKeyDown={canEdit ? handleKeyDown : undefined}
+              onClick={canEdit ? handleEditorClick : undefined}
+            >
+              {editor && canEdit && (
+                <TableControls editor={editor} isDark={isDark} />
+              )}
+
+              <EditorContent editor={editor} />
+            </div>
+            <div className="h-20"></div>
           </div>
 
           {editorContainerRef.current && (
