@@ -51,6 +51,8 @@ import {
 } from "@/hooks/useMediaQuery";
 import { CodeViewerModal } from "./_components/CodeViewer";
 import { Separator } from "@/components/ui/separator";
+import { AddReadmeToFileModal } from "./_components/addReadmeToFileModal";
+import { ReadmeUploadProgress } from "./_components/readmeUploadProgress";
 
 interface GithubConnectModalProps {
   open: boolean;
@@ -91,6 +93,13 @@ export function GithubConnectModal({
   const [codeViewerOpen, setCodeViewerOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [repoStats, setRepoStats] = useState<any>(null);
+  const [showFileSelectModal, setShowFileSelectModal] = useState(false);
+  const [showUploadProgress, setShowUploadProgress] = useState(false);
+  const [selectedFileForUpload, setSelectedFileForUpload] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [readmeContent, setReadmeContent] = useState<string>("");
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
@@ -374,6 +383,7 @@ export function GithubConnectModal({
             break;
           case "readme":
             setReadme(result.data.content);
+            setReadmeContent(result.data.content);
             break;
           case "tree":
             setRepoTree(result.data);
@@ -394,10 +404,12 @@ export function GithubConnectModal({
   };
 
   const addToDocument = (content: string, type: string) => {
-    console.log("Add to document:", { content, type });
-    setSuccess(
-      `${type} will be added to document (EditorJS integration pending)`
-    );
+    if (type === "readme") {
+      setReadmeContent(content);
+      setShowFileSelectModal(true);
+    } else {
+      console.log("Add to document:", { content, type });
+    }
   };
 
   const navigateToFolder = async (folderPath: string) => {
@@ -457,6 +469,12 @@ export function GithubConnectModal({
 
     setSelectedFile(file);
     setCodeViewerOpen(true);
+  };
+
+  const handleFileConfirm = async (fileId: string, fileName: string) => {
+    setSelectedFileForUpload({ id: fileId, name: fileName });
+    setShowFileSelectModal(false);
+    setShowUploadProgress(true);
   };
 
   const StatCard = ({
@@ -1536,6 +1554,27 @@ export function GithubConnectModal({
           branch={selectedBranch}
           teamId={activeTeam?.id || ""}
         />
+      )}
+
+      {readmeContent && (
+        <>
+          <AddReadmeToFileModal
+            open={showFileSelectModal}
+            onOpenChange={setShowFileSelectModal}
+            readmeContent={readmeContent}
+            onConfirm={handleFileConfirm}
+          />
+
+          {selectedFileForUpload && (
+            <ReadmeUploadProgress
+              open={showUploadProgress}
+              onOpenChange={setShowUploadProgress}
+              fileId={selectedFileForUpload.id}
+              fileName={selectedFileForUpload.name}
+              readmeContent={readmeContent}
+            />
+          )}
+        </>
       )}
     </>
   );
