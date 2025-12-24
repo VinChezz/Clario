@@ -405,7 +405,7 @@ export default function WorkspacePage() {
           className="flex flex-1 relative overflow-hidden bg-gray-50 dark:bg-[#0a0a0a]"
         >
           <div
-            className="flex-1 min-w-0 overflow-hidden bg-white dark:bg-[#1a1a1c] rounded-r-lg shadow-sm border-r border-gray-100 dark:border-[#2a2a2d]"
+            className="flex-1 min-w-0 overflow-visible bg-white dark:bg-[#1a1a1c] rounded-r-lg shadow-sm border-r border-gray-100 dark:border-[#2a2a2d]"
             style={{ flexBasis: `${dividerPercent}%` }}
           >
             <Editor
