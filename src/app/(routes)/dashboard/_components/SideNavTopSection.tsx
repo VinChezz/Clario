@@ -262,7 +262,11 @@ function SideNavTopSection({
     }
 
     if (item.path) {
-      router.push(item.path);
+      const pathWithTeamId = item.path.replace(
+        /:teamId/g,
+        activeTeam?.id || ""
+      );
+      router.push(pathWithTeamId);
     }
     onItemClick?.();
   };
@@ -309,7 +313,7 @@ function SideNavTopSection({
     {
       id: 2,
       name: "Settings",
-      path: "/settings",
+      path: `/settings/team/:teamId`,
       icon: Settings,
       description: "Manage preferences",
       color: "text-gray-600 dark:text-gray-400",
@@ -971,6 +975,11 @@ function SideNavTopSection({
                   userPlan === Plan.FREE &&
                   currentTeamsCount >= 1;
 
+                const itemPath = item.path?.replace(
+                  /:teamId/g,
+                  activeTeam?.id || ""
+                );
+
                 return (
                   <button
                     key={item.id}
@@ -978,7 +987,7 @@ function SideNavTopSection({
                       if (isCreateTeamDisabled) {
                         router.push("/pricing");
                       } else {
-                        handleQuickAction(item.path!);
+                        handleQuickAction(itemPath!);
                       }
                     }}
                     disabled={item.id === 1 && isCreateTeamDisabled}
