@@ -272,7 +272,7 @@ export default function InviteModal({
   if (view === "link") {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg bg-linear-to-br from-white to-gray-50/50 border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-lg bg-linear-to-br from-[#1a1a1c] to-[#252528] border border-[#2a2a2d] shadow-2xl">
           <div className="rounded-2xl">
             <DialogHeader className="text-center pb-4">
               <div className="flex items-center justify-between mb-2">
@@ -280,16 +280,16 @@ export default function InviteModal({
                   variant="ghost"
                   size="sm"
                   onClick={handleBackToMain}
-                  className="p-2 h-auto text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 rounded-lg transition-colors"
+                  className="p-2 h-auto text-[#a0a0a0] hover:text-[#f0f0f0] hover:bg-[#252528] rounded-lg transition-colors"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex-1 text-center">
-                  <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
                     {currentPlatform === "telegram" ? "Telegram" : "Discord"}{" "}
                     Invite
                   </DialogTitle>
-                  <DialogDescription className="text-gray-600">
+                  <DialogDescription className="text-[#a0a0a0]">
                     Share this link with your team
                   </DialogDescription>
                 </div>
@@ -298,23 +298,23 @@ export default function InviteModal({
             </DialogHeader>
 
             <div className="space-y-6 p-1">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200/50 shadow-sm">
+              <div className="bg-[#252528]/80 backdrop-blur-sm rounded-xl p-6 border border-[#2a2a2d]/50">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-semibold text-gray-700 mb-3 block">
+                    <label className="text-sm font-semibold text-[#f0f0f0] mb-3 block">
                       Invite Link
                     </label>
                     <div className="flex gap-2">
                       <Input
                         value={inviteLink}
                         readOnly
-                        className="flex-1 font-mono text-sm bg-gray-50/80 border-gray-200"
+                        className="flex-1 font-mono text-sm bg-[#1a1a1c] border-[#2a2a2d] text-[#f0f0f0]"
                       />
                       <Button
                         onClick={copyToClipboard}
                         size="sm"
                         variant="outline"
-                        className="shrink-0 border-gray-300 hover:bg-gray-50 transition-colors"
+                        className="shrink-0 border-[#2a2a2d] hover:bg-[#252528] transition-colors text-[#f0f0f0]"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -349,7 +349,7 @@ export default function InviteModal({
                         )
                       }
                       variant="outline"
-                      className="w-full h-12 border-indigo-300 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 transition-all duration-200 transform hover:scale-[1.02] rounded-xl"
+                      className="w-full h-12 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-all duration-200 transform hover:scale-[1.02] rounded-xl"
                     >
                       <MessageCircle className="h-4 w-4 mr-2" />
                       Open Discord
@@ -359,16 +359,16 @@ export default function InviteModal({
               </div>
 
               {currentPlatform === "discord" && (
-                <div className="bg-linear-to-r from-indigo-50 to-purple-50/50 border border-indigo-200/50 rounded-xl p-4">
+                <div className="bg-linear-to-r from-indigo-900/20 to-purple-900/20 border border-indigo-500/30 rounded-xl p-4">
                   <div className="flex items-start gap-3">
-                    <div className="bg-white p-2 rounded-lg shadow-sm border border-indigo-100">
-                      <MessageCircle className="h-4 w-4 text-indigo-600" />
+                    <div className="bg-[#1a1a1c] p-2 rounded-lg border border-indigo-500/20">
+                      <MessageCircle className="h-4 w-4 text-indigo-400" />
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-semibold text-indigo-900">
+                      <p className="text-sm font-semibold text-indigo-300">
                         How to share on Discord
                       </p>
-                      <ol className="text-xs text-indigo-700/80 mt-1 list-decimal list-inside space-y-1">
+                      <ol className="text-xs text-indigo-400/80 mt-1 list-decimal list-inside space-y-1">
                         <li>Click "Share on Discord" to copy the invite</li>
                         <li>
                           Click {""}
@@ -379,7 +379,7 @@ export default function InviteModal({
                                 "_blank"
                               )
                             }
-                            className="font-bold text-indigo-700 hover:text-indigo-800 transition-all duration-200 transform cursor-pointer"
+                            className="font-bold text-indigo-300 hover:text-indigo-200 transition-all duration-200 transform cursor-pointer"
                           >
                             "Open Discord" {""}
                           </span>
@@ -393,16 +393,16 @@ export default function InviteModal({
                 </div>
               )}
 
-              <div className="bg-linear-to-r from-blue-50 to-indigo-50/50 border border-blue-200/50 rounded-xl p-4">
+              <div className="bg-linear-to-r from-blue-900/20 to-indigo-900/20 border border-blue-500/30 rounded-xl p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-white p-2 rounded-lg shadow-sm border border-blue-100">
-                    <Check className="h-4 w-4 text-blue-600" />
+                  <div className="bg-[#1a1a1c] p-2 rounded-lg border border-blue-500/20">
+                    <Check className="h-4 w-4 text-blue-400" />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-semibold text-blue-900">
+                    <p className="text-sm font-semibold text-blue-300">
                       Invite Link Active
                     </p>
-                    <p className="text-xs text-blue-700/80 mt-1">
+                    <p className="text-xs text-blue-400/80 mt-1">
                       This link expires in 7 days • Anyone can join your team
                     </p>
                   </div>
@@ -418,7 +418,7 @@ export default function InviteModal({
   if (view === "search") {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg bg-linear-to-br from-white to-gray-50/50 border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-lg bg-linear-to-br from-[#1a1a1c] to-[#252528] border border-[#2a2a2d] shadow-2xl">
           <div className="rounded-2xl">
             <DialogHeader className="text-center pb-4">
               <div className="flex items-center justify-between mb-4">
@@ -426,15 +426,15 @@ export default function InviteModal({
                   variant="ghost"
                   size="sm"
                   onClick={handleBackToMain}
-                  className="p-2 h-auto text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 rounded-lg transition-colors"
+                  className="p-2 h-auto text-[#a0a0a0] hover:text-[#f0f0f0] hover:bg-[#252528] rounded-lg transition-colors"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex-1 text-center">
-                  <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
                     Invite by Email
                   </DialogTitle>
-                  <DialogDescription className="text-gray-600">
+                  <DialogDescription className="text-[#a0a0a0]">
                     Search and select team members
                   </DialogDescription>
                 </div>
@@ -444,27 +444,27 @@ export default function InviteModal({
 
             <div className="space-y-4 p-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#707070] h-4 w-4" />
                 <Input
                   ref={searchInputRef}
                   placeholder="Search by name or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 h-12 bg-white/80 border-gray-200 focus:border-blue-300 transition-colors rounded-xl"
+                  className="pl-10 pr-4 h-12 bg-[#1a1a1c] border-[#2a2a2d] focus:border-blue-400 transition-colors rounded-xl text-[#f0f0f0] placeholder:text-[#707070]"
                 />
               </div>
 
               {selectedUsers.length > 0 && (
-                <div className="bg-linear-to-r from-blue-50 to-indigo-50/50 border border-blue-200/50 rounded-xl p-4">
+                <div className="bg-linear-to-r from-blue-900/20 to-indigo-900/20 border border-blue-500/30 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-semibold text-blue-900">
+                    <span className="text-sm font-semibold text-blue-300">
                       Selected ({selectedUsers.length})
                     </span>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedUsers([])}
-                      className="h-6 text-blue-600 hover:text-blue-800 text-xs hover:bg-blue-100/50 rounded-md transition-colors"
+                      className="h-6 text-blue-400 hover:text-blue-300 text-xs hover:bg-blue-500/10 rounded-md transition-colors"
                     >
                       Clear all
                     </Button>
@@ -474,12 +474,12 @@ export default function InviteModal({
                       <Badge
                         key={user.id}
                         variant="secondary"
-                        className="bg-white/90 text-gray-700 border-blue-200/70 px-3 py-1.5 rounded-full shadow-sm"
+                        className="bg-[#252528] text-[#f0f0f0] border-blue-500/20 px-3 py-1.5 rounded-full"
                       >
                         <div className="flex items-center gap-2">
                           <Avatar className="h-4 w-4">
                             <AvatarImage src={user.image} />
-                            <AvatarFallback className="text-[10px] bg-linear-to-br from-blue-100 to-blue-200 text-blue-600">
+                            <AvatarFallback className="text-[10px] bg-linear-to-br from-blue-900/30 to-blue-900/50 text-blue-400">
                               {user.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
@@ -488,7 +488,7 @@ export default function InviteModal({
                           </span>
                           <button
                             onClick={() => removeUser(user.id)}
-                            className="hover:bg-gray-200 rounded-full p-0.5 transition-colors"
+                            className="hover:bg-[#2a2a2d] rounded-full p-0.5 transition-colors"
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -502,11 +502,11 @@ export default function InviteModal({
               <div className="max-h-64 overflow-y-auto space-y-2">
                 {searchLoading ? (
                   <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
                   </div>
                 ) : users.length === 0 && searchQuery ? (
-                  <div className="text-center py-8 text-gray-500 bg-white/50 rounded-xl border border-gray-200/50">
-                    <User className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-[#a0a0a0] bg-[#1a1a1c]/50 rounded-xl border border-[#2a2a2d]">
+                    <User className="h-12 w-12 mx-auto mb-2 text-[#2a2a2d]" />
                     <p>No users found</p>
                     <p className="text-sm mt-1">Try a different search term</p>
                   </div>
@@ -524,34 +524,34 @@ export default function InviteModal({
                         onClick={() => !isSelf && handleUserSelect(user)}
                         className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border ${
                           isSelected
-                            ? "bg-linear-to-r from-blue-50 to-blue-100/50 border-blue-200 shadow-sm"
+                            ? "bg-linear-to-r from-blue-900/20 to-blue-900/10 border-blue-500/30"
                             : isSelf
-                            ? "bg-gray-50/80 border-gray-200 cursor-not-allowed"
+                            ? "bg-[#252528] border-[#2a2a2d] cursor-not-allowed"
                             : isAlreadyMember
-                            ? "bg-green-50/80 border-green-200 cursor-not-allowed"
-                            : "bg-white/80 border-gray-200/50 hover:bg-gray-50/80 hover:border-gray-300 hover:shadow-sm"
+                            ? "bg-green-900/20 border-green-500/30 cursor-not-allowed"
+                            : "bg-[#1a1a1c] border-[#2a2a2d] hover:bg-[#252528] hover:border-[#3a3a3d]"
                         }`}
                         disabled={isSelected || isSelf || isAlreadyMember}
                       >
-                        <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                        <Avatar className="h-10 w-10 border-2 border-[#1a1a1c]">
                           <AvatarImage src={user.image} />
                           <AvatarFallback
                             className={`${
                               isSelf
-                                ? "bg-linear-to-br from-gray-100 to-gray-200 text-gray-600"
-                                : "bg-linear-to-br from-blue-100 to-indigo-100 text-blue-600"
+                                ? "bg-linear-to-br from-[#252528] to-[#2a2a2d] text-[#a0a0a0]"
+                                : "bg-linear-to-br from-blue-900/30 to-indigo-900/30 text-blue-400"
                             }`}
                           >
                             {user.name.charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="text-left flex-1">
-                          <div className="font-medium text-gray-900 flex items-center gap-2">
+                          <div className="font-medium text-[#f0f0f0] flex items-center gap-2">
                             {user.name}
                             {isSelf && (
                               <Badge
                                 variant="outline"
-                                className="text-xs bg-gray-100 text-gray-600 border-gray-300"
+                                className="text-xs bg-[#252528] text-[#a0a0a0] border-[#2a2a2d]"
                               >
                                 <UserCog className="h-3 w-3 mr-1" />
                                 You
@@ -560,24 +560,24 @@ export default function InviteModal({
                             {isAlreadyMember && !isSelf && (
                               <Badge
                                 variant="outline"
-                                className="text-xs bg-green-100 text-green-700 border-green-300"
+                                className="text-xs bg-green-900/20 text-green-400 border-green-500/30"
                               >
                                 <Check className="h-3 w-3 mr-1" />
                                 In Team
                               </Badge>
                             )}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-[#a0a0a0]">
                             {user.email}
                           </div>
                         </div>
                         {isSelected && (
-                          <div className="bg-green-100 p-1.5 rounded-full shadow-sm">
-                            <Check className="h-4 w-4 text-green-600" />
+                          <div className="bg-green-900/30 p-1.5 rounded-full">
+                            <Check className="h-4 w-4 text-green-400" />
                           </div>
                         )}
                         {(isSelf || isAlreadyMember) && !isSelected && (
-                          <div className="text-xs text-gray-400 italic px-2">
+                          <div className="text-xs text-[#707070] italic px-2">
                             {isSelf ? "This is you" : "Already in team"}
                           </div>
                         )}
@@ -612,16 +612,16 @@ export default function InviteModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-linear-to-br from-white to-gray-50/50 border-0 shadow-2xl">
+      <DialogContent className="sm:max-w-md bg-linear-to-br from-[#1a1a1c] to-[#252528] border border-[#2a2a2d] shadow-2xl">
         <div className="rounded-2xl">
           <DialogHeader className="text-center space-y-2 pb-6">
             <div className="mx-auto w-12 h-12 bg-linear-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
               <Mail className="h-6 w-6 text-white" />
             </div>
-            <DialogTitle className="text-2xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <DialogTitle className="text-2xl font-bold bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
               Invite to {teamName}
             </DialogTitle>
-            <DialogDescription className="text-gray-600 text-base">
+            <DialogDescription className="text-[#a0a0a0] text-base">
               Bring your team together
             </DialogDescription>
           </DialogHeader>
@@ -633,15 +633,15 @@ export default function InviteModal({
                 setTimeout(() => searchInputRef.current?.focus(), 100);
               }}
               variant="outline"
-              className="w-full h-16 justify-start px-6 hover:bg-white/80 hover:border-blue-200 transition-all duration-200 group border-2 border-gray-200/50 rounded-xl hover:shadow-sm"
+              className="w-full h-16 justify-start px-6 hover:bg-[#252528] hover:border-blue-400/30 transition-all duration-200 group border-2 border-[#2a2a2d] rounded-xl hover:shadow-lg"
               disabled={!teamId}
             >
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4 group-hover:bg-blue-200 transition-colors">
-                <User className="h-5 w-5 text-blue-600" />
+              <div className="w-10 h-10 bg-blue-900/30 rounded-lg flex items-center justify-center mr-4 group-hover:bg-blue-900/50 transition-colors">
+                <User className="h-5 w-5 text-blue-400" />
               </div>
               <div className="text-left">
-                <div className="font-semibold text-gray-900">Email Invite</div>
-                <div className="text-sm text-gray-500">
+                <div className="font-semibold text-[#f0f0f0]">Email Invite</div>
+                <div className="text-sm text-[#a0a0a0]">
                   Search and select users
                 </div>
               </div>
@@ -650,10 +650,10 @@ export default function InviteModal({
             <Button
               onClick={() => generateInviteLink("telegram")}
               variant="outline"
-              className="w-full h-16 justify-start px-6 hover:bg-white/80 hover:border-blue-200 transition-all duration-200 group border-2 border-gray-200/50 rounded-xl hover:shadow-sm"
+              className="w-full h-16 justify-start px-6 hover:bg-[#252528] hover:border-blue-400/30 transition-all duration-200 group border-2 border-[#2a2a2d] rounded-xl hover:shadow-lg"
               disabled={!teamId || isLoading}
             >
-              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg mr-4 group-hover:bg-blue-200 transition-colors">
+              <div className="flex items-center justify-center w-10 h-10 bg-blue-900/30 rounded-lg mr-4 group-hover:bg-blue-900/50 transition-colors">
                 <svg
                   className="w-10 h-10"
                   viewBox="0 0 48 48"
@@ -691,8 +691,8 @@ export default function InviteModal({
                 </svg>
               </div>
               <div className="text-left">
-                <div className="font-semibold text-gray-900">Telegram</div>
-                <div className="text-sm text-gray-500">
+                <div className="font-semibold text-[#f0f0f0]">Telegram</div>
+                <div className="text-sm text-[#a0a0a0]">
                   Generate invite link
                 </div>
               </div>
@@ -701,10 +701,10 @@ export default function InviteModal({
             <Button
               onClick={() => generateInviteLink("discord")}
               variant="outline"
-              className="w-full h-16 justify-start px-6 hover:bg-white/80 hover:border-indigo-200 transition-all duration-200 group border-2 border-gray-200/50 rounded-xl hover:shadow-sm"
+              className="w-full h-16 justify-start px-6 hover:bg-[#252528] hover:border-indigo-400/30 transition-all duration-200 group border-2 border-[#2a2a2d] rounded-xl hover:shadow-lg"
               disabled={!teamId || isLoading}
             >
-              <div className="flex items-center justify-center w-10 h-10 bg-indigo-100 rounded-lg mr-4 group-hover:bg-indigo-200 transition-colors">
+              <div className="flex items-center justify-center w-10 h-10 bg-indigo-900/30 rounded-lg mr-4 group-hover:bg-indigo-900/50 transition-colors">
                 <svg
                   className="w-10 h-10"
                   viewBox="0 0 48 48"
@@ -712,14 +712,14 @@ export default function InviteModal({
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
-                    d="M40.634 8.31121C37.5747 6.90744 34.294 5.87321 30.8638 5.28087C30.8013 5.26943 30.7389 5.298 30.7067 5.35514C30.2848 6.10557 29.8175 7.08457 29.4902 7.85406C25.8008 7.30172 22.1304 7.30172 18.5166 7.85406C18.1893 7.06747 17.705 6.10557 17.2811 5.35514C17.249 5.29991 17.1866 5.27134 17.1241 5.28087C13.6958 5.87132 10.4151 6.90555 7.35387 8.31121C7.32737 8.32263 7.30465 8.3417 7.28958 8.36644C1.06678 17.6632 -0.6379 26.7314 0.19836 35.6872C0.202144 35.731 0.22674 35.7729 0.260796 35.7995C4.36642 38.8146 8.34341 40.645 12.2466 41.8583C12.309 41.8773 12.3752 41.8545 12.415 41.803C13.3383 40.5422 14.1613 39.2127 14.867 37.8146C14.9086 37.7328 14.8688 37.6356 14.7837 37.6032C13.4783 37.108 12.2352 36.5042 11.0395 35.8186C10.9449 35.7634 10.9373 35.6281 11.0243 35.5633C11.2759 35.3748 11.5276 35.1786 11.7679 34.9805C11.8114 34.9443 11.872 34.9367 11.9231 34.9595C19.7786 38.5461 28.2831 38.5461 36.0459 34.9595C36.097 34.9348 36.1576 34.9424 36.203 34.9786C36.4433 35.1767 36.6949 35.3748 36.9484 35.5633C37.0354 35.6281 37.0298 35.7634 36.9352 35.8186C35.7394 36.5176 34.4964 37.108 33.189 37.6014C33.1039 37.6337 33.0661 37.7328 33.1077 37.8146C33.8285 39.2108 34.6515 40.5402 35.5578 41.8012C35.5957 41.8545 35.6637 41.8773 35.7262 41.8583C39.6483 40.645 43.6252 38.8146 47.7309 35.7995C47.7668 35.7729 47.7895 35.7329 47.7933 35.6891C48.7942 25.3352 46.117 16.3413 40.6964 8.36833C40.6832 8.3417 40.6605 8.32263 40.634 8.31121ZM16.04 30.234C13.675 30.234 11.7263 28.0627 11.7263 25.3962C11.7263 22.7296 13.6372 20.5583 16.04 20.5583C18.4617 20.5583 20.3916 22.7487 20.3538 25.3962C20.3538 28.0627 18.4428 30.234 16.04 30.234ZM31.9895 30.234C29.6245 30.234 27.6758 28.0627 27.6758 25.3962C27.6758 22.7296 29.5867 20.5583 31.9895 20.5583C34.4113 20.5583 36.3411 22.7487 36.3033 25.3962C36.3033 28.0627 34.4113 30.234 31.9895 30.234Z"
+                    d="M40.634 8.31121C37.5747 6.90744 34.294 5.87321 30.8638 5.28087C30.8013 5.26943 30.7389 5.298 30.7067 5.35514C30.2848 6.10557 29.8175 7.08457 29.4902 7.85406C25.8008 7.30172 22.1304 7.30172 18.5166 7.85406C18.1893 7.06747 17.705 6.10557 17.2811 5.35514C17.249 5.29991 17.1866 5.27134 17.1241 5.28087C13.6958 5.87132 10.4151 6.90555 7.35387 8.31121C7.32737 8.32263 7.30465 8.3417 7.28958 8.36644C1.06678 17.6632 -0.6379 26.7314 0.19836 35.6872C0.202144 35.731 0.22674 35.7729 0.260796 35.7995C4.36642 38.8146 8.34341 40.645 12.2466 41.8583C12.309 41.8773 12.3752 41.8545 12.415 41.803C13.3383 40.5422 14.1613 39.2127 14.867 37.8146C14.9086 37.7328 14.8688 37.6356 14.7837 37.6032C13.4783 37.108 12.2352 36.5042 11.0395 35.8186C10.9449 35.7634 10.9373 35.6281 11.0243 35.5633C11.2759 35.3748 11.5276 35.1786 11.7679 34.9805C11.8114 34.9443 11.872 34.9367 11.9231 34.9595C19.7786 38.5461 28.2831 38.5461 36.0459 34.9595C36.097 34.9348 36.1576 34.9424 36.203 34.9786C36.4433 35.1767 36.6949 35.3748 36.9484 35.5633C36.9352 35.8186C35.7394 36.5176 34.4964 37.108 33.189 37.6014C33.1039 37.6337 33.0661 37.7328 33.1077 37.8146C33.8285 39.2108 34.6515 40.5402 35.5578 41.8012C35.5957 41.8545 35.6637 41.8773 35.7262 41.8583C39.6483 40.645 43.6252 38.8146 47.7309 35.7995C47.7668 35.7729 47.7895 35.7329 47.7933 35.6891C48.7942 25.3352 46.117 16.3413 40.6964 8.36833C40.6832 8.3417 40.6605 8.32263 40.634 8.31121ZM16.04 30.234C13.675 30.234 11.7263 28.0627 11.7263 25.3962C11.7263 22.7296 13.6372 20.5583 16.04 20.5583C18.4617 20.5583 20.3916 22.7487 20.3538 25.3962C20.3538 28.0627 18.4428 30.234 16.04 30.234ZM31.9895 30.234C29.6245 30.234 27.6758 28.0627 27.6758 25.3962C27.6758 22.7296 29.5867 20.5583 31.9895 20.5583C34.4113 20.5583 36.3411 22.7487 36.3033 25.3962C36.3033 28.0627 34.4113 30.234 31.9895 30.234Z"
                     fill="#5865F2"
                   />
                 </svg>
               </div>
               <div className="text-left">
-                <div className="font-semibold text-gray-900">Discord</div>
-                <div className="text-sm text-gray-500">
+                <div className="font-semibold text-[#f0f0f0]">Discord</div>
+                <div className="text-sm text-[#a0a0a0]">
                   Generate invite link
                 </div>
               </div>
