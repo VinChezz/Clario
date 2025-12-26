@@ -14,6 +14,7 @@ import {
   Clock,
   FolderOpen,
   Lock,
+  ChevronLeft,
 } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useMemo, useState } from "react";
@@ -76,6 +77,9 @@ interface SideNavTopSectionProps {
   onFileClick?: (fileId: string) => void;
   refreshTrigger?: number;
   onRefreshFiles?: () => void;
+  onOpenFilesWithFilter?: (filter: "all" | "recent" | "favorites") => void;
+  recentFiles?: FILE[];
+  favoriteFiles?: FILE[];
 }
 
 function SideNavTopSection({
@@ -87,6 +91,9 @@ function SideNavTopSection({
   onFileClick,
   refreshTrigger = 0,
   onRefreshFiles,
+  onOpenFilesWithFilter,
+  recentFiles,
+  favoriteFiles,
 }: SideNavTopSectionProps) {
   const router = useRouter();
   const [teamList, setTeamList] = useState<TEAM[]>();
@@ -101,6 +108,8 @@ function SideNavTopSection({
   const [userPlan, setUserPlan] = useState<Plan>(Plan.FREE);
   const [currentTeamsCount, setCurrentTeamsCount] = useState(0);
   const [canCreateTeam, setCanCreateTeam] = useState(true);
+  const [recentFilesList, setRecentFilesList] = useState<FILE[]>([]);
+  const [favoriteFilesList, setFavoriteFilesList] = useState<FILE[]>([]);
 
   const isMobileDevice = useIsMobile();
   const isTabletDevice = useIsTablet();
@@ -172,9 +181,56 @@ function SideNavTopSection({
     }
   };
 
+  const loadRecentFiles = async () => {
+    try {
+      if (!activeTeam?.id) return;
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const response = await fetch(
+        `/api/files?teamId=${
+          activeTeam.id
+        }&fromDate=${sevenDaysAgo.toISOString()}`
+      );
+
+      if (response.ok) {
+        const files = await response.json();
+        const activeFiles = Array.isArray(files)
+          ? files.filter((file) => !file.deletedAt)
+          : [];
+        setRecentFilesList(activeFiles);
+      }
+    } catch (error) {
+      console.error("Error loading recent files:", error);
+    }
+  };
+
+  const loadFavoriteFiles = async () => {
+    try {
+      if (!activeTeam?.id) return;
+
+      const response = await fetch(
+        `/api/files?teamId=${activeTeam.id}&favorite=true`
+      );
+
+      if (response.ok) {
+        const files = await response.json();
+        const activeFiles = Array.isArray(files)
+          ? files.filter((file) => !file.deletedAt)
+          : [];
+        setFavoriteFilesList(activeFiles);
+      }
+    } catch (error) {
+      console.error("Error loading favorite files:", error);
+    }
+  };
+
   useEffect(() => {
     if (activeTeam?.id) {
       loadFiles();
+      loadRecentFiles();
+      loadFavoriteFiles();
     }
   }, [activeTeam?.id]);
 
@@ -261,13 +317,24 @@ function SideNavTopSection({
       return;
     }
 
-    if (item.path) {
+    if (item.actionType === "filter" && item.filter) {
+      setFileFilter(item.filter);
+      setSearchQuery("");
+      setFilesModalOpen(true);
+
+      if (onOpenFilesWithFilter) {
+        onOpenFilesWithFilter(item.filter);
+      }
+
+      handleRefreshFiles();
+    } else if (item.actionType === "route" && item.path) {
       const pathWithTeamId = item.path.replace(
         /:teamId/g,
         activeTeam?.id || ""
       );
       router.push(pathWithTeamId);
     }
+
     onItemClick?.();
   };
 
@@ -275,15 +342,31 @@ function SideNavTopSection({
     team.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredFiles = memoizedLocalFileList.filter((file) => {
-    const matchesSearch = file.fileName
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    if (fileFilter === "all") return matchesSearch;
-    if (fileFilter === "recent") return matchesSearch;
-    if (fileFilter === "favorites") return matchesSearch;
-    return matchesSearch;
-  });
+  const filteredFiles = useMemo(() => {
+    let filesToFilter = memoizedLocalFileList;
+
+    if (fileFilter === "recent" && recentFiles) {
+      filesToFilter = recentFiles;
+    } else if (fileFilter === "favorites" && favoriteFiles) {
+      filesToFilter = favoriteFiles;
+    } else if (fileFilter === "recent") {
+      filesToFilter = recentFilesList;
+    } else if (fileFilter === "favorites") {
+      filesToFilter = favoriteFilesList;
+    }
+
+    return filesToFilter.filter((file) =>
+      file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [
+    memoizedLocalFileList,
+    fileFilter,
+    searchQuery,
+    recentFilesList,
+    favoriteFilesList,
+    recentFiles,
+    favoriteFiles,
+  ]);
 
   const handleRefreshFiles = () => {
     loadFiles();
@@ -309,6 +392,7 @@ function SideNavTopSection({
       isDisabled: userPlan === Plan.FREE && currentTeamsCount >= 1,
       disabledTooltip:
         "Free plan limited to 1 team. Upgrade to create more teams.",
+      actionType: "route",
     },
     {
       id: 2,
@@ -323,11 +407,12 @@ function SideNavTopSection({
       iconClass:
         "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900",
       iconColor: "text-gray-600 dark:text-gray-400",
+      actionType: "route",
     },
     {
       id: 3,
       name: "Recent",
-      path: "/recent",
+      path: "#",
       icon: History,
       description: "Recent files",
       color: "text-indigo-600 dark:text-indigo-400",
@@ -337,11 +422,13 @@ function SideNavTopSection({
       iconClass:
         "bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm dark:from-indigo-600 dark:to-indigo-700",
       iconColor: "text-white",
+      actionType: "filter",
+      filter: "recent" as const,
     },
     {
       id: 4,
       name: "Favorites",
-      path: "/favorites",
+      path: "#",
       icon: Star,
       description: "Favorite files",
       color: "text-yellow-600 dark:text-yellow-400",
@@ -351,6 +438,8 @@ function SideNavTopSection({
       iconClass:
         "bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm dark:from-amber-600 dark:to-amber-700",
       iconColor: "text-white",
+      actionType: "filter",
+      filter: "favorites" as const,
     },
   ];
 
@@ -719,7 +808,11 @@ function SideNavTopSection({
               buttonSize.text
             )}
           >
-            All Files
+            {fileFilter === "recent"
+              ? "Recent Files"
+              : fileFilter === "favorites"
+              ? "Favorite Files"
+              : "All Files"}
           </span>
           <p
             className={cn(
@@ -1079,20 +1172,34 @@ function SideNavTopSection({
         >
           <DialogHeader className="px-7 pt-6 pb-4 border-b border-gray-200 dark:border-[#2a2a2d] bg-linear-to-br from-gray-50 to-white dark:from-[#1a1a1c] dark:to-[#0f0f10]">
             <div className="flex items-center justify-between">
-              <DialogTitle
-                className={cn(
-                  "font-bold",
-                  "text-gray-900 dark:text-[#f0f0f0]",
-                  modalSizes.title
+              <div className="flex items-center gap-3">
+                <DialogTitle
+                  className={cn(
+                    "font-bold",
+                    "text-gray-900 dark:text-[#f0f0f0]",
+                    modalSizes.title
+                  )}
+                >
+                  {fileFilter === "recent"
+                    ? "Recent Files"
+                    : fileFilter === "favorites"
+                    ? "Favorite Files"
+                    : "All Files"}
+                </DialogTitle>
+                {fileFilter === "recent" && (
+                  <Clock className="h-5 w-5 text-indigo-500" />
                 )}
-              >
-                Files
-              </DialogTitle>
+                {fileFilter === "favorites" && (
+                  <Star className="h-5 w-5 text-amber-500" />
+                )}
+              </div>
               <Badge
                 variant="secondary"
                 className="text-xs font-semibold px-3 py-1 bg-white dark:bg-[#252528] shadow-sm border-gray-200 dark:border-[#2a2a2d] text-gray-900 dark:text-[#f0f0f0]"
               >
                 {filteredFiles.length}
+                {fileFilter === "recent" && " recent"}
+                {fileFilter === "favorites" && " favorite"}
               </Badge>
             </div>
           </DialogHeader>
@@ -1152,6 +1259,15 @@ function SideNavTopSection({
                   {filter.label}
                 </button>
               ))}
+              {fileFilter !== "all" && (
+                <button
+                  onClick={() => setFileFilter("all")}
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 dark:text-[#a0a0a0] dark:hover:text-[#f0f0f0] transition-colors"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  View all files
+                </button>
+              )}
             </div>
           </div>
 
