@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "File" ADD COLUMN     "sizeBytes" BIGINT NOT NULL DEFAULT 0;

@@ -27,6 +27,8 @@ model User {
   totalCreatedFiles Int    @default(0)
   maxFiles          Int    @default(10)
   maxTeams          Int    @default(1)
+  storageUsedBytes  BigInt @default(0)
+  storageLimitBytes BigInt?
 
   files       File[]
   received    Invite[]     @relation("Invitee")
@@ -53,6 +55,8 @@ model Team {
   createdById String
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  storageUsedBytes  BigInt   @default(0)
+  storageLimitBytes BigInt?
 
   files       File[]
   invites     Invite[]
@@ -77,6 +81,7 @@ model File {
   permissions String   @default("VIEW")
   shareToken  String?  @unique
   version     Int      @default(1)
+  sizeBytes   BigInt   @default(0)
 
   currentVersion Int    @default(1)
   autoVersioning Boolean @default(true)
