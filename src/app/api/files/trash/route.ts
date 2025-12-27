@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { serializeBigInt } from "@/lib/serializeBigInt";
 
 export async function GET(req: NextRequest) {
   try {
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
     console.log(
       `✅ Found ${deletedFiles.length} deleted files for team ${teamId}`
     );
-    return NextResponse.json(deletedFiles, { status: 200 });
+    return NextResponse.json(serializeBigInt(deletedFiles), { status: 200 });
   } catch (error) {
     console.error("❌ Error fetching deleted files:", error);
     return NextResponse.json(
