@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { serializeBigInt } from "@/lib/serializeBigInt";
 
 export async function GET() {
   try {
@@ -36,7 +37,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json(dbUser);
+    return NextResponse.json(serializeBigInt(dbUser));
   } catch (error) {
     console.error("❌ Auth callback error:", error);
 
