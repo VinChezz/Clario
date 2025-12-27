@@ -47,10 +47,16 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("✅ User data loaded successfully");
-    return NextResponse.json(dbUser);
+
+    const serializedUser = {
+      ...dbUser,
+      storageUsedBytes: dbUser.storageUsedBytes?.toString() || "0",
+      storageLimitBytes: dbUser.storageLimitBytes?.toString() || null,
+    };
+
+    return NextResponse.json(serializedUser);
   } catch (error: any) {
     console.error("❌ Get user error:", error);
-
     return NextResponse.json(null);
   }
 }
