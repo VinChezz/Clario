@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { serializeBigInt } from "@/lib/serializeBigInt";
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        team: invite.team,
+        team: serializeBigInt(invite.team),
         message: "You are already a member of this team",
       });
     }
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      team: invite.team,
+      team: serializeBigInt(invite.team),
       message: `You have successfully joined ${invite.team.name}!`,
     });
   } catch (error: any) {
