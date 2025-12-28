@@ -71,7 +71,7 @@ export function QuickTeamSettings({ teamId, teamName }: TeamSettingsProps) {
             <div
               className={`p-2 rounded-lg transition-all duration-300 ${
                 isPrimary
-                  ? "bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/30 shadow-lg"
+                  ? "bg-linear-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/30 shadow-lg"
                   : "bg-gray-50 dark:bg-gray-800/50"
               }`}
             >
