@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { serializeBigInt } from "@/lib/serializeBigInt";
 
 interface UpdateBody {
   document?: string;
@@ -87,7 +88,7 @@ export async function PATCH(
     });
 
     console.log("✅ File updated successfully");
-    return NextResponse.json(updatedFile, { status: 200 });
+    return NextResponse.json(serializeBigInt(updatedFile), { status: 200 });
   } catch (err) {
     console.error("❌ Error updating file:", err);
     return NextResponse.json(
@@ -180,7 +181,7 @@ export async function GET(
     }
 
     console.log("✅ File accessed successfully:", fileId);
-    return NextResponse.json(file, { status: 200 });
+    return NextResponse.json(serializeBigInt(file), { status: 200 });
   } catch (error) {
     console.error("❌ Error fetching file:", error);
     return NextResponse.json(

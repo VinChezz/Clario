@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { Plan } from "@prisma/client";
 import { canCreateTeam, getPlanLimit } from "@/lib/planUtils";
+import { serializeBigInt } from "@/lib/serializeBigInt";
 
 export async function GET() {
   try {
@@ -62,7 +63,7 @@ export async function GET() {
     });
 
     console.log("✅ Teams found:", teams.length);
-    return NextResponse.json(teams);
+    return NextResponse.json(serializeBigInt(teams));
   } catch (error: any) {
     console.error("❌ API Teams Error:", error);
     return NextResponse.json([], { status: 200 });
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
       });
 
       console.log("✅ Team created successfully:", team.id);
-      return NextResponse.json(team);
+      return NextResponse.json(serializeBigInt(team));
     } catch (dbError: any) {
       console.error("❌ Database error:", dbError);
 

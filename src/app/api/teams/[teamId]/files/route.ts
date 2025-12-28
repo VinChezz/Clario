@@ -47,7 +47,7 @@ export async function GET(
     });
 
     console.log(`📁 Found ${files.length} files for team ${team.name}`);
-    return NextResponse.json(files, { status: 200 });
+    return NextResponse.json(serializeBigInt(files), { status: 200 });
   } catch (error) {
     console.error("❌ Error fetching files:", error);
     return NextResponse.json(
@@ -55,4 +55,11 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+function serializeBigInt<T>(obj: T): T {
+  return JSON.parse(
+    JSON.stringify(obj, (_, value) =>
+      typeof value === "bigint" ? value.toString() : value
+    )
+  );
 }
