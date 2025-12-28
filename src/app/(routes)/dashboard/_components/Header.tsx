@@ -245,8 +245,10 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
     const config = statusConfig[availabilityStatus] || statusConfig.AVAILABLE;
     const displayText = getStatusLabel(availabilityStatus, customStatusText);
 
+    if (isMobile) return null;
+
     return (
-      <div className="relative">
+      <div className="relative hidden md:block">
         <Badge
           variant="outline"
           className={`${config.color} px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:opacity-90 transition-all duration-200 backdrop-blur-sm border rounded-full group`}
