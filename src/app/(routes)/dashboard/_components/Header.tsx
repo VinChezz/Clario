@@ -537,7 +537,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
   return (
     <header
-      className="sticky top-0 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 z-60"
+      className="sticky top-0 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 z-20"
       id="dashboard-header"
     >
       <div

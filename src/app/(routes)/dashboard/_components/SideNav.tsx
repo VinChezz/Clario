@@ -125,14 +125,13 @@ export default function SideNav({
     <>
       <div
         className={cn(
-          "fixed top-0 left-0 bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] z-50 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 flex flex-col w-80",
+          "fixed top-0 left-0 bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] z-60 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 flex flex-col w-80",
           getSidebarWidth(),
           getSidebarHeight(),
           getSidebarVisibility(),
           isDesktop && "fixed lg:relative"
         )}
         style={{
-          // Для iOS safe areas
           height: isMobile ? "100dvh" : "100vh",
           maxHeight: isMobile ? "-webkit-fill-available" : "none",
         }}
@@ -145,7 +144,7 @@ export default function SideNav({
             isMobile && "pt-[env(safe-area-inset-top,20px)]"
           )}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pt-3">
             <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
               <img
                 src={"/logo-1.png"}
