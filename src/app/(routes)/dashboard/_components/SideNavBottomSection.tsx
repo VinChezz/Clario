@@ -13,6 +13,12 @@ import {
   FileText,
   Badge,
   X,
+  AlertCircle,
+  TrendingUp,
+  Zap,
+  RefreshCw,
+  HardDrive,
+  Info,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import {
@@ -63,9 +69,8 @@ import {
 } from "@/lib/formatUtils";
 
 const StorageIndicator = ({
-  usedSlots,
-  maxSlots,
-  actualFileCount,
+  currentUsageGB = 0,
+  maxStorageGB = 10,
   plan = "FREE",
   isMobile = false,
   isTablet = false,
@@ -76,9 +81,8 @@ const StorageIndicator = ({
   showUpgradeButton = false,
   onUpgradeClick,
 }: {
-  usedSlots: number;
-  maxSlots: number;
-  actualFileCount: number;
+  currentUsageGB?: number;
+  maxStorageGB?: number;
   plan?: string;
   isMobile?: boolean;
   isTablet?: boolean;
@@ -89,9 +93,12 @@ const StorageIndicator = ({
   showUpgradeButton?: boolean;
   onUpgradeClick?: () => void;
 }) => {
-  const usagePercentage = (usedSlots / maxSlots) * 100;
-  const remainingSlots = maxSlots - usedSlots;
-  const filesInTrash = usedSlots - actualFileCount;
+  const [isHovered, setIsHovered] = useState(false);
+
+  const usagePercentage =
+    maxStorageGB > 0 ? (currentUsageGB / maxStorageGB) * 100 : 0;
+  const remainingPercentage = 100 - usagePercentage;
+  const remainingGB = maxStorageGB - currentUsageGB;
 
   const getStorageStatus = () => {
     if (usagePercentage >= 100) {
@@ -101,6 +108,8 @@ const StorageIndicator = ({
           "from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20",
         textColor: "text-red-600 dark:text-red-400",
         message: "Storage full",
+        icon: AlertCircle,
+        iconColor: "text-red-600 dark:text-red-400",
       };
     } else if (usagePercentage >= 80 || showWarning) {
       return {
@@ -109,7 +118,9 @@ const StorageIndicator = ({
         bgColor:
           "from-yellow-50 to-orange-100 dark:from-yellow-900/20 dark:to-orange-800/20",
         textColor: "text-orange-600 dark:text-orange-400",
-        message: `${remainingSlots} files left`,
+        message: `${Math.round(remainingPercentage)}% available`,
+        icon: TrendingUp,
+        iconColor: "text-orange-600 dark:text-orange-400",
       };
     } else {
       return {
@@ -118,12 +129,15 @@ const StorageIndicator = ({
         bgColor:
           "from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-800/20",
         textColor: "text-blue-600 dark:text-blue-400",
-        message: `${remainingSlots} files left`,
+        message: `${Math.round(remainingPercentage)}% available`,
+        icon: Zap,
+        iconColor: "text-blue-600 dark:text-blue-400",
       };
     }
   };
 
   const status = getStorageStatus();
+  const StatusIcon = status.icon;
 
   const getStorageSize = () => {
     if (isHorizontalMobile || isLandscape) return "p-2 space-y-1.5";
@@ -135,6 +149,13 @@ const StorageIndicator = ({
 
   const storageSize = getStorageSize();
 
+  const formatGB = (gb: number): string => {
+    if (gb >= 1000) {
+      return `${(gb / 1000).toFixed(1)} TB`;
+    }
+    return `${gb.toFixed(1)} GB`;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -145,6 +166,8 @@ const StorageIndicator = ({
         storageSize
       )}
       id="storage-section"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div className="flex items-center justify-between">
         <span
@@ -171,7 +194,7 @@ const StorageIndicator = ({
               : "text-sm"
           )}
         >
-          {usedSlots}/{maxSlots}
+          {Math.round(usagePercentage)}%
         </span>
       </div>
 
@@ -183,9 +206,51 @@ const StorageIndicator = ({
             transition={{ duration: 1, ease: "easeOut" }}
             className={`h-full rounded-full bg-linear-to-r ${status.color}`}
           />
+
+          {isHovered && usagePercentage > 0 && (
+            <motion.div
+              className="absolute top-0 h-full w-8 bg-linear-to-r from-transparent via-white/40 to-transparent"
+              initial={{ x: "-32px" }}
+              animate={{
+                x: "calc(100% + 32px)",
+                transition: {
+                  duration: 1.5,
+                  repeat: Infinity,
+                  ease: "linear",
+                },
+              }}
+            />
+          )}
         </div>
 
         <div className="flex justify-between items-center">
+          <div className="flex items-center gap-1">
+            <span
+              className={cn(
+                "font-medium",
+                status.textColor,
+                isHorizontalMobile || isLandscape
+                  ? "text-[9px]"
+                  : isTablet
+                  ? "text-[10px]"
+                  : "text-xs"
+              )}
+            >
+              {formatGB(currentUsageGB)}
+            </span>
+            <span
+              className={cn(
+                "text-gray-500 dark:text-[#a0a0a0]",
+                isHorizontalMobile || isLandscape
+                  ? "text-[7px]"
+                  : isTablet
+                  ? "text-[8px]"
+                  : "text-[10px]"
+              )}
+            >
+              / {formatGB(maxStorageGB)}
+            </span>
+          </div>
           <span
             className={cn(
               "font-medium",
@@ -199,31 +264,55 @@ const StorageIndicator = ({
           >
             {status.message}
           </span>
-          <span
-            className={cn(
-              "text-gray-500 dark:text-[#a0a0a0]",
-              isHorizontalMobile || isLandscape
-                ? "text-[9px]"
-                : isTablet
-                ? "text-[10px]"
-                : "text-xs"
-            )}
-          >
-            {Math.round(usagePercentage)}%
-          </span>
         </div>
       </div>
 
-      {plan === "FREE" && filesInTrash > 0 && (
-        <div className="pt-1">
-          <div className="text-[10px] text-gray-500 dark:text-[#707070] flex justify-between">
-            <span>{actualFileCount} active</span>
-            <span>{filesInTrash} in trash</span>
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{
+          opacity: isHovered ? 1 : 0,
+          height: isHovered ? "auto" : 0,
+        }}
+        className="overflow-hidden"
+      >
+        <div className="pt-2 border-t border-gray-200 dark:border-[#2a2a2d]">
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 p-1.5 rounded-lg">
+              <StatusIcon className={cn("h-3 w-3", status.iconColor)} />
+              <p className={cn("text-[10px] font-medium", status.textColor)}>
+                {usagePercentage >= 100
+                  ? "Storage full - upgrade needed"
+                  : usagePercentage >= 80
+                  ? `${Math.round(remainingPercentage)}% space remaining`
+                  : `${Math.round(remainingPercentage)}% free space`}
+              </p>
+            </div>
+
+            <div className="text-center text-[10px] text-gray-600 dark:text-[#a0a0a0]">
+              Using {formatGB(currentUsageGB)} of {formatGB(maxStorageGB)}
+            </div>
+
+            {showUpgradeButton && onUpgradeClick && (
+              <button
+                onClick={onUpgradeClick}
+                className={cn(
+                  "w-full text-[10px] font-semibold text-center py-1.5 rounded-lg transition-colors",
+                  status.textColor,
+                  status.textColor.includes("red")
+                    ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30"
+                    : status.textColor.includes("orange")
+                    ? "bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+                    : "bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
+                )}
+              >
+                Upgrade plan for more storage
+              </button>
+            )}
           </div>
         </div>
-      )}
+      </motion.div>
 
-      {showUpgradeButton && onUpgradeClick && (
+      {!isHovered && showUpgradeButton && onUpgradeClick && (
         <div className="pt-2">
           <button
             onClick={onUpgradeClick}
@@ -237,7 +326,7 @@ const StorageIndicator = ({
                 : "bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
             )}
           >
-            Upgrade to get more space
+            Upgrade for more storage
           </button>
         </div>
       )}
@@ -322,12 +411,6 @@ export default function SideNavBottomSection({
   const { user, isLoading: isUserLoading } = useKindeBrowserClient();
   const [fileInput, setFileInput] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [storageData, setStorageData] = useState({
-    usedSlots: 0,
-    maxSlots: 10,
-    actualFileCount: 0,
-    plan: "FREE",
-  });
   const [githubModalOpen, setGithubModalOpen] = useState(false);
   const [isGithubConnected, setIsGithubConnected] = useState(false);
   const [isCheckingRepo, setIsCheckingRepo] = useState(false);
@@ -340,11 +423,6 @@ export default function SideNavBottomSection({
   const [isLoadingStorage, setIsLoadingStorage] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-
-  const remainingSlots = storageData.maxSlots - storageData.usedSlots;
-  const canCreateBasedOnStorage = remainingSlots > 0;
-  const isStorageAlmostFull =
-    storageData.usedSlots >= storageData.maxSlots * 0.9;
 
   const router = useRouter();
 
@@ -363,6 +441,24 @@ export default function SideNavBottomSection({
 
   const daysUntilDeletion = calculateDaysUntilDeletion(deletedFiles);
 
+  const [storageData, setStorageData] = useState<{
+    currentUsageGB: number;
+    maxStorageGB: number;
+    plan: string;
+    usedBytes: bigint;
+    limitBytes: bigint;
+    percentage: number;
+    canCreateFiles: boolean;
+  }>({
+    currentUsageGB: 0,
+    maxStorageGB: 10,
+    plan: "FREE",
+    usedBytes: BigInt(0),
+    limitBytes: BigInt(10 * 1024 * 1024 * 1024),
+    percentage: 0,
+    canCreateFiles: true,
+  });
+
   const refreshStorageData = async () => {
     if (!user?.email || !activeTeam?.id) return;
 
@@ -371,18 +467,34 @@ export default function SideNavBottomSection({
       const response = await fetch(
         `/api/users/storage?teamId=${activeTeam.id}`
       );
+
       if (!response.ok) {
         throw new Error("Failed to fetch storage data");
       }
-      const data = await response.json();
 
-      console.log("Storage data refreshed:", data);
+      const data = await response.json();
+      console.log("Storage data loaded:", data);
+
+      const usedBytes = BigInt(data.storage?.usedBytes || 0);
+      const limitBytes = BigInt(
+        data.storage?.limitBytes || 10 * 1024 * 1024 * 1024
+      );
+
+      const currentUsageGB = Number(usedBytes) / (1024 * 1024 * 1024);
+      const maxStorageGB = Number(limitBytes) / (1024 * 1024 * 1024);
+      const percentage = (currentUsageGB / maxStorageGB) * 100;
+
+      const remainingBytes = limitBytes - usedBytes;
+      const canCreateFiles = remainingBytes > 100 * 1024 * 1024;
 
       setStorageData({
-        usedSlots: data.storage?.usedSlots || 0,
-        maxSlots: data.storage?.maxSlots || 10,
-        actualFileCount: data.storage?.actualFileCount || 0,
+        currentUsageGB,
+        maxStorageGB,
         plan: data.user?.plan || "FREE",
+        usedBytes,
+        limitBytes,
+        percentage,
+        canCreateFiles,
       });
 
       if (updateFromFileList) {
@@ -390,6 +502,8 @@ export default function SideNavBottomSection({
         const files = await filesResponse.json();
         updateFromFileList(files);
       }
+
+      checkGithubConnection();
     } catch (error) {
       console.error("Failed to load storage data:", error);
     } finally {
@@ -399,7 +513,6 @@ export default function SideNavBottomSection({
 
   useEffect(() => {
     if (user?.email && activeTeam?.id) {
-      console.log("Team changed, refreshing storage:", activeTeam.id);
       refreshStorageData();
     }
   }, [user?.email, activeTeam?.id]);
@@ -407,21 +520,14 @@ export default function SideNavBottomSection({
   useEffect(() => {
     if (fileCount !== undefined) {
       console.log("File count updated in context:", fileCount);
-
-      setStorageData((prev) => ({
-        ...prev,
-        actualFileCount: fileCount,
-      }));
     }
   }, [fileCount]);
 
   const actualFileCount = fileCount !== undefined ? fileCount : totalFiles || 0;
   const actualHasFiles =
     hasFiles !== undefined ? hasFiles : actualFileCount > 0;
-  const actualIsStorageFull =
-    isStorageFull !== undefined
-      ? isStorageFull
-      : storageData.usedSlots >= storageData.maxSlots;
+
+  const actualIsStorageFull = storageData.percentage >= 100;
 
   useEffect(() => {
     if (user?.email) {
@@ -431,45 +537,6 @@ export default function SideNavBottomSection({
         .catch((error) => console.error("Failed to load user:", error));
     }
   }, [user]);
-
-  const currentUserMember = teamMembers.find(
-    (member) => member.userId === dbUser?.id
-  );
-  const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
-
-  const canCreateFiles =
-    (isCurrentUserCreator || currentUserMember?.role === "EDIT") &&
-    canCreateBasedOnStorage;
-
-  const getStorageInfo = () => {
-    if (storageData.usedSlots >= storageData.maxSlots) {
-      return {
-        status: "full",
-        message: "Storage full",
-        color: "text-red-600 dark:text-red-400",
-        bgColor: "bg-red-50 dark:bg-red-900/20",
-        buttonText: "Storage Full",
-      };
-    } else if (isStorageAlmostFull) {
-      return {
-        status: "warning",
-        message: `${remainingSlots} slot${
-          remainingSlots === 1 ? "" : "s"
-        } left`,
-        color: "text-amber-600 dark:text-amber-400",
-        bgColor: "bg-amber-50 dark:bg-amber-900/20",
-        buttonText: "Almost Full",
-      };
-    } else {
-      return {
-        status: "ok",
-        message: `${remainingSlots} files left`,
-        color: "text-blue-600 dark:text-blue-400",
-        bgColor: "bg-blue-50 dark:bg-blue-900/20",
-        buttonText: "New File",
-      };
-    }
-  };
 
   useEffect(() => {
     if (activeTeam?.members) {
@@ -482,12 +549,6 @@ export default function SideNavBottomSection({
       setTeamMembers([]);
     }
   }, [activeTeam]);
-
-  useEffect(() => {
-    if (activeTeam?.id) {
-      checkGithubConnection();
-    }
-  }, [activeTeam?.id]);
 
   const checkGithubConnection = async () => {
     if (!activeTeam?.id) return;
@@ -512,7 +573,12 @@ export default function SideNavBottomSection({
   };
 
   const handleFileCreate = async (fileName: string) => {
-    if (actualIsStorageFull) return;
+    if (!storageData.canCreateFiles) {
+      alert(
+        "Not enough storage space! Please free up some space or upgrade your plan."
+      );
+      return;
+    }
 
     try {
       onFileCreate(fileName);
@@ -520,48 +586,57 @@ export default function SideNavBottomSection({
 
       setTimeout(() => {
         refreshStorageData();
-      }, 500);
+      }, 1000);
     } catch (error) {
       console.error("Error creating file:", error);
     }
   };
 
-  const deleteAllFiles = async () => {
-    try {
-      setIsLoadingTrash(true);
+  const currentUserMember = teamMembers.find(
+    (member) => member.userId === dbUser?.id
+  );
+  const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
 
-      for (const file of deletedFiles) {
-        await handleDeletePermanently(file.id);
-      }
+  const canCreateFiles =
+    (isCurrentUserCreator || currentUserMember?.role === "EDIT") &&
+    storageData.canCreateFiles;
 
-      setSelectedFiles([]);
-      setSelectAll(false);
-    } catch (error) {
-      console.error("Failed to delete all files:", error);
-    } finally {
-      setIsLoadingTrash(false);
+  const getStorageInfo = () => {
+    const remainingGB = storageData.maxStorageGB - storageData.currentUsageGB;
+
+    if (storageData.percentage >= 100) {
+      return {
+        status: "full",
+        message: "Storage full",
+        color: "text-red-600 dark:text-red-400",
+        bgColor: "bg-red-50 dark:bg-red-900/20",
+        buttonText: "Storage Full",
+      };
+    } else if (storageData.percentage >= 90) {
+      return {
+        status: "warning",
+        message: `${remainingGB.toFixed(1)} GB left`,
+        color: "text-amber-600 dark:text-amber-400",
+        bgColor: "bg-amber-50 dark:bg-amber-900/20",
+        buttonText: "Almost Full",
+      };
+    } else if (storageData.percentage >= 80) {
+      return {
+        status: "warning",
+        message: `${remainingGB.toFixed(1)} GB left`,
+        color: "text-amber-600 dark:text-amber-400",
+        bgColor: "bg-amber-50 dark:bg-amber-900/20",
+        buttonText: "Low Storage",
+      };
+    } else {
+      return {
+        status: "ok",
+        message: `${remainingGB.toFixed(1)} GB free`,
+        color: "text-blue-600 dark:text-blue-400",
+        bgColor: "bg-blue-50 dark:bg-blue-900/20",
+        buttonText: "New File",
+      };
     }
-  };
-
-  const deleteSelectedFiles = async () => {
-    try {
-      setIsLoadingTrash(true);
-
-      for (const fileId of selectedFiles) {
-        await handleDeletePermanently(fileId);
-      }
-
-      setSelectedFiles([]);
-      setSelectAll(false);
-    } catch (error) {
-      console.error("Failed to delete selected files:", error);
-    } finally {
-      setIsLoadingTrash(false);
-    }
-  };
-
-  const emptyTrash = async () => {
-    return deleteAllFiles();
   };
 
   const fetchDeletedFiles = async () => {
@@ -615,6 +690,44 @@ export default function SideNavBottomSection({
     } catch (error) {
       console.error("Failed to restore file:", error);
     }
+  };
+
+  const deleteAllFiles = async () => {
+    try {
+      setIsLoadingTrash(true);
+
+      for (const file of deletedFiles) {
+        await handleDeletePermanently(file.id);
+      }
+
+      setSelectedFiles([]);
+      setSelectAll(false);
+    } catch (error) {
+      console.error("Failed to delete all files:", error);
+    } finally {
+      setIsLoadingTrash(false);
+    }
+  };
+
+  const deleteSelectedFiles = async () => {
+    try {
+      setIsLoadingTrash(true);
+
+      for (const fileId of selectedFiles) {
+        await handleDeletePermanently(fileId);
+      }
+
+      setSelectedFiles([]);
+      setSelectAll(false);
+    } catch (error) {
+      console.error("Failed to delete selected files:", error);
+    } finally {
+      setIsLoadingTrash(false);
+    }
+  };
+
+  const emptyTrash = async () => {
+    return deleteAllFiles();
   };
 
   const handleUpgradeClick = () => {
@@ -1105,7 +1218,7 @@ export default function SideNavBottomSection({
               {!canCreateFiles ? (
                 <Button
                   className={cn(
-                    "w-full bg-linear-to-rhadow-lg cursor-not-allowed relative overflow-hidden",
+                    "w-full bg-linear-to-r shadow-lg cursor-not-allowed relative overflow-hidden",
                     "from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700",
                     "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
                     buttonSize.height,
@@ -1186,8 +1299,7 @@ export default function SideNavBottomSection({
                       >
                         {storageInfo.status === "warning" ? (
                           <span className="text-amber-600 dark:text-amber-400">
-                            ⚠️ Only {remainingSlots} file
-                            {remainingSlots === 1 ? "" : "s"} left
+                            ⚠️ Only {storageInfo.message} available
                           </span>
                         ) : (
                           "Give your file a descriptive name"
@@ -1228,8 +1340,8 @@ export default function SideNavBottomSection({
                           <span>{storageInfo.message}</span>
                         </div>
                         <div className="mt-1 text-xs opacity-80">
-                          {storageData.usedSlots}/{storageData.maxSlots} files
-                          used
+                          Using {storageData.currentUsageGB.toFixed(1)}/
+                          {storageData.maxStorageGB.toFixed(1)} GB
                           {storageData.plan === "FREE" && ` (Free plan)`}
                         </div>
                       </div>
@@ -1652,18 +1764,17 @@ export default function SideNavBottomSection({
           {!isMobileDevice && !isHorizontalMobileDevice && (
             <div className="space-y-2">
               <StorageIndicator
-                usedSlots={storageData.usedSlots}
-                maxSlots={storageData.maxSlots}
-                actualFileCount={storageData.actualFileCount}
+                currentUsageGB={storageData.currentUsageGB}
+                maxStorageGB={storageData.maxStorageGB}
                 plan={storageData.plan}
                 isMobile={isMobileDevice}
                 isTablet={isTabletDevice}
                 isLargeTablet={isLargeTabletDevice}
                 isHorizontalMobile={isHorizontalMobileDevice}
                 isLandscape={isLandscapeDevice}
-                showWarning={isStorageAlmostFull}
+                showWarning={storageData.percentage >= 80}
                 showUpgradeButton={
-                  storageData.plan === "FREE" && isStorageAlmostFull
+                  storageData.plan === "FREE" && storageData.percentage >= 80
                 }
                 onUpgradeClick={handleUpgradeClick}
               />
