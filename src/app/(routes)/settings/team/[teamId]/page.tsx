@@ -1,6 +1,6 @@
 import { QuickTeamSettings } from "./_components/QuiickTeamSettings";
 import { TeamMembers } from "./_components/TeamMembers";
-import { TeamStorage } from "./_components/TeamStorage";
+import { TeamStorageClient } from "./_components/TeamStorageClient";
 import { getTeamWithMembers } from "@/lib/team";
 import {
   Card,
@@ -11,14 +11,20 @@ import {
 } from "@/components/ui/card";
 import { Users, Database } from "lucide-react";
 import { AnimatedHeader } from "./_components/AnimatedHeader";
+import { Plan } from "@prisma/client";
+import { formatBytes, getPlanLimit } from "@/lib/planUtils";
+import { TeamStorage } from "./_components/TeamStorage";
 
 export default async function TeamPage({
   params,
 }: {
-  params: Promise<{ teamId: string }>;
+  params: { teamId: string };
 }) {
-  const { teamId } = await params;
+  const { teamId } = params;
   const team = await getTeamWithMembers(teamId);
+
+  const planLimits = getPlanLimit(team.createdBy.plan as Plan);
+  const planLimitGB = planLimits.maxStorage / 1024 ** 3;
 
   return (
     <div className="space-y-8">
@@ -32,7 +38,7 @@ export default async function TeamPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{team.members.length}</div>
-            <p className="text-xs text-gray-500">Active members</p>
+            <p className="text-xs text-gray-500 font-bold">Active members</p>
           </CardContent>
         </Card>
 
@@ -43,7 +49,9 @@ export default async function TeamPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{team.files?.length || 0}</div>
-            <p className="text-xs text-gray-500">Documents & boards</p>
+            <p className="text-xs text-gray-500 font-bold">
+              Documents & boards
+            </p>
           </CardContent>
         </Card>
 
@@ -53,12 +61,10 @@ export default async function TeamPage({
             <Database className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {team.storageUsage?.toFixed(1) || "0"} GB
-            </div>
-            <p className="text-xs text-gray-500">
-              of {team.createdBy.maxFiles} GB used
-            </p>
+            <TeamStorageClient
+              plan={team.createdBy.plan}
+              planLimitGB={planLimitGB}
+            />
           </CardContent>
         </Card>
       </div>
@@ -83,14 +89,16 @@ export default async function TeamPage({
             <CardHeader>
               <CardTitle>Storage Overview</CardTitle>
               <CardDescription>
-                {team.createdBy.plan} plan • {team.createdBy.maxFiles} GB total
+                {team.createdBy.plan} plan •{" "}
+                {formatBytes(planLimits.maxStorage)} {""}
+                total
               </CardDescription>
             </CardHeader>
             <CardContent>
               <TeamStorage
-                currentUsage={team.storageUsage || 0}
-                maxStorage={team.createdBy.maxFiles}
                 plan={team.createdBy.plan}
+                autoFetch={true}
+                showRealSize={true}
               />
             </CardContent>
           </Card>
