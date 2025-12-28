@@ -66,6 +66,97 @@ interface VersionHistoryProps {
   canRestoreWhiteboard?: boolean;
 }
 
+interface WhiteboardElement {
+  type: string;
+  dataUrl?: string;
+  [key: string]: any;
+}
+
+interface WhiteboardData {
+  elements?: WhiteboardElement[];
+}
+
+function calculateFileSize(document?: string, whiteboard?: string): bigint {
+  const BASE_WEIGHT = 75 * 1024 * 1024;
+
+  const TEXT_WEIGHT_PER_1000_CHARS = 25 * 1024 * 1024;
+  const WHITEBOARD_ELEMENT_WEIGHT = 10 * 1024 * 1024;
+  const IMAGE_WEIGHT_MULTIPLIER = 2.5;
+  const WHITEBOARD_BASE_WEIGHT = 25 * 1024 * 1024;
+
+  let totalWeight = BASE_WEIGHT;
+
+  if (document) {
+    const charCount = document.length;
+    const thousandsOfChars = Math.ceil(charCount / 1000);
+    totalWeight += thousandsOfChars * TEXT_WEIGHT_PER_1000_CHARS;
+  }
+
+  if (whiteboard) {
+    try {
+      const whiteboardData: WhiteboardData = JSON.parse(whiteboard);
+
+      totalWeight += WHITEBOARD_BASE_WEIGHT;
+
+      if (whiteboardData.elements && Array.isArray(whiteboardData.elements)) {
+        const elementCount = whiteboardData.elements.length;
+        totalWeight += elementCount * WHITEBOARD_ELEMENT_WEIGHT;
+
+        whiteboardData.elements.forEach((element: WhiteboardElement) => {
+          if (element.type === "image" && element.dataUrl) {
+            const base64Data = element.dataUrl.split(",")[1];
+            if (base64Data) {
+              const imageSize = Math.ceil(base64Data.length * 0.75);
+              totalWeight += imageSize * IMAGE_WEIGHT_MULTIPLIER;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      const charCount = whiteboard.length;
+      const thousandsOfChars = Math.ceil(charCount / 1000);
+      totalWeight += thousandsOfChars * TEXT_WEIGHT_PER_1000_CHARS;
+    }
+  }
+
+  return BigInt(totalWeight);
+}
+
+function formatBytes(bytes: number | bigint, decimals = 2): string {
+  if (Number(bytes) === 0) return "0 Bytes";
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+
+  const bytesNumber = typeof bytes === "bigint" ? Number(bytes) : bytes;
+  const i = Math.floor(Math.log(bytesNumber) / Math.log(k));
+
+  return (
+    parseFloat((bytesNumber / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
+  );
+}
+
+function calculateVersionSize(version: Version): bigint {
+  let document: string | undefined;
+  let whiteboard: string | undefined;
+
+  if (version.type === "document") {
+    document = version.content;
+  } else if (version.type === "whiteboard") {
+    whiteboard = version.content;
+  } else {
+    try {
+      JSON.parse(version.content);
+      whiteboard = version.content;
+    } catch {
+      document = version.content;
+    }
+  }
+
+  return calculateFileSize(document, whiteboard);
+}
+
 export function VersionHistory({
   versions = [],
   onRestoreVersion,
@@ -153,6 +244,11 @@ export function VersionHistory({
     const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
+    const totalSize = currentVersions.reduce((sum, version) => {
+      const versionSize = calculateVersionSize(version);
+      return sum + Number(versionSize);
+    }, 0);
+
     return {
       totalVersions: currentVersions.length,
       last30Days: currentVersions.filter(
@@ -162,18 +258,10 @@ export function VersionHistory({
         (v) => new Date(v.createdAt) > last7Days
       ).length,
       uniqueAuthors: new Set(currentVersions.map((v) => v.author.id)).size,
-      totalSize: currentVersions.reduce(
-        (sum, v) => sum + (v.content?.length || 0),
-        0
-      ),
+      totalSize,
       avgSize:
         currentVersions.length > 0
-          ? Math.round(
-              currentVersions.reduce(
-                (sum, v) => sum + (v.content?.length || 0),
-                0
-              ) / currentVersions.length
-            )
+          ? Math.round(totalSize / currentVersions.length)
           : 0,
     };
   }, [currentVersions]);
@@ -293,11 +381,7 @@ export function VersionHistory({
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+    return formatBytes(bytes);
   };
 
   const formatTimeAgo = (date: Date) => {
@@ -382,6 +466,8 @@ export function VersionHistory({
       return {};
     };
 
+    const currentVersionSize = calculateVersionSize(version);
+
     const characterStats = getCharacterStats(version.content);
     const wordCount = getWordCount(version.content);
     const linesCount = getLinesCount(version.content);
@@ -390,6 +476,8 @@ export function VersionHistory({
 
     const getChangeStats = () => {
       if (!previousVersion) return null;
+
+      const previousVersionSize = calculateVersionSize(previousVersion);
 
       const currentChars = characterStats.total;
       const previousChars = getCharacterStats(previousVersion.content).total;
@@ -400,11 +488,19 @@ export function VersionHistory({
       const currentElements = elementCount;
       const previousElements = getElementCount(previousVersion.content);
 
+      const sizeDifference =
+        Number(currentVersionSize) - Number(previousVersionSize);
+      const sizeDifferenceFormatted = formatBytes(Math.abs(sizeDifference));
+      const sizeIncreased = sizeDifference > 0;
+
       return {
         chars: currentChars - previousChars,
         words: currentWords - previousWords,
         lines: currentLines - previousLines,
         elements: currentElements - previousElements,
+        sizeDifference,
+        sizeDifferenceFormatted,
+        sizeIncreased,
         percentage:
           previousChars > 0
             ? (((currentChars - previousChars) / previousChars) * 100).toFixed(
@@ -428,14 +524,14 @@ export function VersionHistory({
         >
           <div className="bg-white/90 dark:bg-[#1a1a1c]/90 rounded-lg p-3 border border-gray-200/50 dark:border-[#2a2a2d]/50">
             <div className="text-xs font-medium text-gray-600 dark:text-[#a0a0a0] mb-1">
-              Content Size
+              File Size
             </div>
             <div
               className={`font-bold text-gray-900 dark:text-[#f0f0f0] ${
                 isMobile ? "text-base" : "text-lg"
               }`}
             >
-              {formatFileSize(version.content?.length || 0)}
+              {formatBytes(currentVersionSize)}
             </div>
             <div className="text-sm text-gray-600 dark:text-[#a0a0a0] mt-1">
               <div className="text-xs text-gray-600 dark:text-[#707070] space-y-0.5 mt-1">
@@ -570,25 +666,23 @@ export function VersionHistory({
                   lines
                 </div>
               </div>
-              {version.type === "whiteboard" && (
-                <div>
-                  <div
-                    className={`text-sm font-bold ${
-                      changeStats.elements > 0
-                        ? "text-green-600 dark:text-green-400"
-                        : changeStats.elements < 0
-                        ? "text-red-600 dark:text-red-400"
-                        : "text-gray-600 dark:text-[#a0a0a0]"
-                    }`}
-                  >
-                    {changeStats.elements > 0 ? "+" : ""}
-                    {changeStats.elements}
-                  </div>
-                  <div className="text-[10px] text-gray-500 dark:text-[#707070]">
-                    elements
-                  </div>
+              <div>
+                <div
+                  className={`text-sm font-bold ${
+                    changeStats.sizeIncreased
+                      ? "text-green-600 dark:text-green-400"
+                      : changeStats.sizeDifference < 0
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-gray-600 dark:text-[#a0a0a0]"
+                  }`}
+                >
+                  {changeStats.sizeIncreased ? "+" : ""}
+                  {changeStats.sizeDifferenceFormatted}
                 </div>
-              )}
+                <div className="text-[10px] text-gray-500 dark:text-[#707070]">
+                  size
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1003,198 +1097,208 @@ export function VersionHistory({
                       {date}
                     </h4>
                     <div className="space-y-3">
-                      {dayVersions.map((version, index) => (
-                        <div
-                          key={version.id}
-                          className={`border bg-white dark:bg-[#1a1a1c] hover:shadow-md transition-all duration-200 rounded-xl ${
-                            compareTarget?.id === version.id
-                              ? "border-indigo-500 dark:border-indigo-400 border-2"
-                              : "border-gray-200 dark:border-[#2a2a2d] hover:border-indigo-300 dark:hover:border-indigo-600"
-                          } p-4`}
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <h4 className="font-semibold text-gray-900 dark:text-[#f0f0f0] truncate text-sm">
-                                  {version.name || `Version ${version.version}`}
-                                </h4>
-                                {index === 0 &&
-                                  filteredVersions[0]?.id === version.id && (
-                                    <Badge className="text-white bg-green-500 dark:bg-green-600 text-xs">
-                                      Latest
-                                    </Badge>
-                                  )}
-                                <Badge
-                                  variant="outline"
-                                  className={`${
-                                    version.type === "whiteboard"
-                                      ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-                                      : "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                                  } text-xs`}
-                                >
-                                  {version.type === "whiteboard"
-                                    ? "Whiteboard"
-                                    : "Document"}
-                                </Badge>
+                      {dayVersions.map((version, index) => {
+                        const versionSize = calculateVersionSize(version);
+
+                        return (
+                          <div
+                            key={version.id}
+                            className={`border bg-white dark:bg-[#1a1a1c] hover:shadow-md transition-all duration-200 rounded-xl ${
+                              compareTarget?.id === version.id
+                                ? "border-indigo-500 dark:border-indigo-400 border-2"
+                                : "border-gray-200 dark:border-[#2a2a2d] hover:border-indigo-300 dark:hover:border-indigo-600"
+                            } p-4`}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                  <h4 className="font-semibold text-gray-900 dark:text-[#f0f0f0] truncate text-sm">
+                                    {version.name ||
+                                      `Version ${version.version}`}
+                                  </h4>
+                                  {index === 0 &&
+                                    filteredVersions[0]?.id === version.id && (
+                                      <Badge className="text-white bg-green-500 dark:bg-green-600 text-xs">
+                                        Latest
+                                      </Badge>
+                                    )}
+                                  <Badge
+                                    variant="outline"
+                                    className={`${
+                                      version.type === "whiteboard"
+                                        ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                                        : "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                                    } text-xs`}
+                                  >
+                                    {version.type === "whiteboard"
+                                      ? "Whiteboard"
+                                      : "Document"}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                  <Badge
+                                    variant="outline"
+                                    className="font-mono bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-xs"
+                                  >
+                                    v{version.version}
+                                  </Badge>
+                                  <span className="text-gray-500 dark:text-[#a0a0a0] text-xs">
+                                    {formatBytes(versionSize)}
+                                  </span>
+                                </div>
+                                {version.description && (
+                                  <p className="text-gray-600 dark:text-[#a0a0a0] line-clamp-2 mb-2 text-xs">
+                                    {version.description}
+                                  </p>
+                                )}
                               </div>
-                              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <Badge
-                                  variant="outline"
-                                  className="font-mono bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-xs"
-                                >
-                                  v{version.version}
-                                </Badge>
-                                <span className="text-gray-500 dark:text-[#a0a0a0] text-xs">
-                                  {formatFileSize(version.content?.length || 0)}
+                            </div>
+
+                            <div className="flex items-center gap-3 text-gray-500 dark:text-[#a0a0a0] mb-3 flex-wrap text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src={version.author.image} />
+                                  <AvatarFallback className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px]">
+                                    {version.author.name
+                                      ?.charAt(0)
+                                      ?.toUpperCase() || "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium">
+                                  {version.author.name}
                                 </span>
                               </div>
-                              {version.description && (
-                                <p className="text-gray-600 dark:text-[#a0a0a0] line-clamp-2 mb-2 text-xs">
-                                  {version.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 text-gray-500 dark:text-[#a0a0a0] mb-3 flex-wrap text-xs">
-                            <div className="flex items-center gap-1.5">
-                              <Avatar className="h-5 w-5">
-                                <AvatarImage src={version.author.image} />
-                                <AvatarFallback className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px]">
-                                  {version.author.name
-                                    ?.charAt(0)
-                                    ?.toUpperCase() || "U"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="font-medium">
-                                {version.author.name}
+                              <span>•</span>
+                              <span>
+                                {new Date(version.createdAt).toLocaleString()}
                               </span>
                             </div>
-                            <span>•</span>
-                            <span>
-                              {new Date(version.createdAt).toLocaleString()}
-                            </span>
-                          </div>
 
-                          <VersionDiffPreview version={version} />
+                            <VersionDiffPreview version={version} />
 
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-[#2a2a2d] mt-3">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setExpandedVersion(
-                                  expandedVersion === version.id
-                                    ? null
-                                    : version.id
-                                );
-                              }}
-                              className="text-gray-600 dark:text-[#a0a0a0] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 h-8 text-xs px-3"
-                            >
-                              {expandedVersion === version.id ? (
-                                <ChevronUp className="h-3.5 w-3.5 mr-1" />
-                              ) : (
-                                <ChevronDown className="h-3.5 w-3.5 mr-1" />
-                              )}
-                              {expandedVersion === version.id ? "Hide" : "Show"}{" "}
-                              Details
-                            </Button>
-
-                            <div className="flex items-center gap-1">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="p-0 opacity-60 hover:opacity-100 h-8 w-8"
-                                  >
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align="end"
-                                  className="w-48 text-sm z-50 bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]"
-                                >
-                                  <DropdownMenuItem
-                                    onClick={() => downloadVersion(version)}
-                                    className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
-                                  >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download as JSON
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => copyVersionAsJSON(version)}
-                                    className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
-                                  >
-                                    <Copy className="h-4 w-4 mr-2" />
-                                    Copy as JSON
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      copyToClipboard(version.content)
-                                    }
-                                    className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
-                                  >
-                                    <Copy className="h-4 w-4 mr-2" />
-                                    Copy Content Only
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      if (
-                                        compareTarget &&
-                                        compareTarget.id !== version.id
-                                      ) {
-                                        compareVersions(compareTarget, version);
-                                        setCompareTarget(null);
-                                      } else {
-                                        setCompareTarget(version);
-                                      }
-                                    }}
-                                    className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
-                                  >
-                                    <GitCompare className="h-4 w-4 mr-2" />
-                                    {compareTarget &&
-                                    compareTarget.id !== version.id
-                                      ? "Compare with selected"
-                                      : compareTarget?.id === version.id
-                                      ? "Cancel comparison"
-                                      : "Select for comparison"}
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-
+                            <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-[#2a2a2d] mt-3">
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                onClick={() => {
-                                  console.log(
-                                    "🎯 VERSION HISTORY: Restore button clicked",
-                                    {
-                                      versionId: version.id,
-                                      versionType: version.type,
-                                      componentType: componentType,
-                                      canRestore: canRestoreVersion(version),
-                                    }
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setExpandedVersion(
+                                    expandedVersion === version.id
+                                      ? null
+                                      : version.id
                                   );
-                                  onRestoreVersion(version);
                                 }}
-                                className="h-8 text-xs px-3 border-gray-300 dark:border-[#2a2a2d]"
-                                disabled={!canRestoreVersion(version)}
-                                title={
-                                  !canRestoreVersion(version)
-                                    ? getRestoreDisabledReason(version)
-                                    : `Restore ${version.type} version`
-                                }
+                                className="text-gray-600 dark:text-[#a0a0a0] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 h-8 text-xs px-3"
                               >
-                                <Eye className="h-3.5 w-3.5 mr-1" />
-                                Restore
+                                {expandedVersion === version.id ? (
+                                  <ChevronUp className="h-3.5 w-3.5 mr-1" />
+                                ) : (
+                                  <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                {expandedVersion === version.id
+                                  ? "Hide"
+                                  : "Show"}{" "}
+                                Details
                               </Button>
+
+                              <div className="flex items-center gap-1">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="p-0 opacity-60 hover:opacity-100 h-8 w-8"
+                                    >
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    align="end"
+                                    className="w-48 text-sm z-50 bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]"
+                                  >
+                                    <DropdownMenuItem
+                                      onClick={() => downloadVersion(version)}
+                                      className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Download as JSON
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => copyVersionAsJSON(version)}
+                                      className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                                    >
+                                      <Copy className="h-4 w-4 mr-2" />
+                                      Copy as JSON
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        copyToClipboard(version.content)
+                                      }
+                                      className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                                    >
+                                      <Copy className="h-4 w-4 mr-2" />
+                                      Copy Content Only
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        if (
+                                          compareTarget &&
+                                          compareTarget.id !== version.id
+                                        ) {
+                                          compareVersions(
+                                            compareTarget,
+                                            version
+                                          );
+                                          setCompareTarget(null);
+                                        } else {
+                                          setCompareTarget(version);
+                                        }
+                                      }}
+                                      className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                                    >
+                                      <GitCompare className="h-4 w-4 mr-2" />
+                                      {compareTarget &&
+                                      compareTarget.id !== version.id
+                                        ? "Compare with selected"
+                                        : compareTarget?.id === version.id
+                                        ? "Cancel comparison"
+                                        : "Select for comparison"}
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    console.log(
+                                      "🎯 VERSION HISTORY: Restore button clicked",
+                                      {
+                                        versionId: version.id,
+                                        versionType: version.type,
+                                        componentType: componentType,
+                                        canRestore: canRestoreVersion(version),
+                                      }
+                                    );
+                                    onRestoreVersion(version);
+                                  }}
+                                  className="h-8 text-xs px-3 border-gray-300 dark:border-[#2a2a2d]"
+                                  disabled={!canRestoreVersion(version)}
+                                  title={
+                                    !canRestoreVersion(version)
+                                      ? getRestoreDisabledReason(version)
+                                      : `Restore ${version.type} version`
+                                  }
+                                >
+                                  <Eye className="h-3.5 w-3.5 mr-1" />
+                                  Restore
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
