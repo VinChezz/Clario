@@ -14,15 +14,24 @@ import {
   Shield,
   User as UserIcon,
   EyeOff,
+  Eye,
+  Lock,
 } from "lucide-react";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 
 interface TeamMembersProps {
   members: (TeamMember & { user: User })[];
   teamId: string;
+  currentUserRole?: Role;
+  isCurrentUserCreator?: boolean;
 }
 
-export function TeamMembers({ members, teamId }: TeamMembersProps) {
+export function TeamMembers({
+  members,
+  teamId,
+  currentUserRole = "VIEW",
+  isCurrentUserCreator = false,
+}: TeamMembersProps) {
   const router = useRouter();
   const { user: currentUser } = useKindeBrowserClient();
   const [hoveredMemberId, setHoveredMemberId] = useState<string | null>(null);
@@ -48,14 +57,36 @@ export function TeamMembers({ members, teamId }: TeamMembersProps) {
     }
   };
 
-  const isCurrentUser = (userEmail: string) => {
+  const isCurrentUserMember = (userEmail: string) => {
     return currentUser?.email === userEmail;
   };
 
-  const handleMemberClick = (member: TeamMember & { user: User }) => {
-    if (isCurrentUser(member.user.email)) {
-      return;
+  // Проверяем, может ли пользователь просматривать детали участника
+  const canViewMemberDetails = (member: TeamMember & { user: User }) => {
+    // 1. Всегда можно смотреть свои детали
+    if (isCurrentUserMember(member.user.email)) {
+      return true;
     }
+
+    // 2. Только ADMIN могут смотреть детали других участников
+    if (currentUserRole === "ADMIN" || isCurrentUserCreator) {
+      return true;
+    }
+
+    // 3. VIEW и EDIT пользователи НЕ могут смотреть детали других
+    return false;
+  };
+
+  const handleMemberClick = (member: TeamMember & { user: User }) => {
+    // Проверяем права на просмотр
+    if (!canViewMemberDetails(member)) {
+      return; // Не делаем ничего, если нет прав
+    }
+
+    if (isCurrentUserMember(member.user.email)) {
+      return; // Не переходим на страницу деталей себя
+    }
+
     router.push(`/settings/team/${teamId}/members/${member.userId}`);
   };
 
@@ -63,30 +94,34 @@ export function TeamMembers({ members, teamId }: TeamMembersProps) {
     <div className="space-y-2">
       {members.map((member) => {
         const isHovered = hoveredMemberId === member.userId;
-        const isSelf = isCurrentUser(member.user.email);
+        const isSelf = isCurrentUserMember(member.user.email);
+        const canView = canViewMemberDetails(member);
+        const isInteractive = canView && !isSelf;
 
         return (
           <div
             key={member.id}
             className="group relative"
-            onMouseEnter={() => !isSelf && setHoveredMemberId(member.userId)}
+            onMouseEnter={() => setHoveredMemberId(member.userId)}
             onMouseLeave={() => setHoveredMemberId(null)}
           >
             <div
               className={`
               p-4 rounded-lg transition-all duration-200
               ${
-                isHovered
+                isHovered && isInteractive
                   ? "bg-gray-50 dark:bg-gray-800/50 shadow-sm border border-gray-200 dark:border-gray-700"
                   : "hover:bg-gray-50/50 dark:hover:bg-gray-800/30"
               }
-              ${isSelf ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}
+              ${!isInteractive ? "cursor-default" : "cursor-pointer"}
             `}
             >
               <div className="flex items-center justify-between">
                 <div
-                  className="flex items-center gap-4 flex-1"
-                  onClick={() => !isSelf && handleMemberClick(member)}
+                  className={`flex items-center gap-4 flex-1 ${
+                    isInteractive ? "cursor-pointer" : "cursor-default"
+                  }`}
+                  onClick={() => isInteractive && handleMemberClick(member)}
                 >
                   <div className="relative">
                     <Avatar className="h-12 w-12 ring-2 ring-white dark:ring-gray-900">
@@ -103,6 +138,11 @@ export function TeamMembers({ members, teamId }: TeamMembersProps) {
                     {isSelf && (
                       <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
                         <EyeOff className="h-5 w-5 text-white" />
+                      </div>
+                    )}
+                    {!canView && !isSelf && (
+                      <div className="absolute inset-0 bg-gray-200/50 dark:bg-gray-800/50 rounded-full flex items-center justify-center">
+                        <Lock className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                       </div>
                     )}
                   </div>
@@ -135,7 +175,7 @@ export function TeamMembers({ members, teamId }: TeamMembersProps) {
                         <span className="truncate">{member.user.email}</span>
                       </div>
 
-                      {member.user.customStatus && (
+                      {member.user.customStatus && canView && (
                         <span className="text-gray-500 text-sm truncate">
                           • {member.user.customStatus}
                         </span>
@@ -145,7 +185,7 @@ export function TeamMembers({ members, teamId }: TeamMembersProps) {
                 </div>
 
                 <AnimatePresence>
-                  {isHovered && !isSelf && (
+                  {isHovered && isInteractive && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -157,7 +197,7 @@ export function TeamMembers({ members, teamId }: TeamMembersProps) {
                         className="h-8 w-8 p-0"
                         onClick={() => handleMemberClick(member)}
                       >
-                        <MoreVertical className="h-4 w-4" />
+                        <Eye className="h-4 w-4" />
                       </Button>
                     </motion.div>
                   )}
@@ -165,103 +205,122 @@ export function TeamMembers({ members, teamId }: TeamMembersProps) {
               </div>
 
               <AnimatePresence>
-                {isHovered && !isSelf && (
+                {isHovered && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                          <Calendar className="h-3 w-3" />
-                          <span>Joined</span>
-                        </div>
-                        <p className="text-sm font-medium">
-                          {new Date(member.joinedAt).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            }
+                    <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+                      {canView ? (
+                        <>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Calendar className="h-3 w-3" />
+                                <span>Joined</span>
+                              </div>
+                              <p className="text-sm font-medium">
+                                {new Date(member.joinedAt).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  }
+                                )}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Shield className="h-3 w-3" />
+                                <span>Permissions</span>
+                              </div>
+                              <p className="text-sm font-medium">
+                                {member.role === "ADMIN"
+                                  ? "Full access"
+                                  : member.role === "EDIT"
+                                  ? "Can edit"
+                                  : "View only"}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <p className="text-xs text-gray-500">
+                                Last Active
+                              </p>
+                              <p className="text-sm font-medium">
+                                {member.user.lastLoginAt
+                                  ? new Date(
+                                      member.user.lastLoginAt
+                                    ).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                    })
+                                  : "Never"}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <p className="text-xs text-gray-500">
+                                Files Created
+                              </p>
+                              <p className="text-sm font-medium">
+                                {member.user.totalCreatedFiles}
+                              </p>
+                            </div>
+                          </div>
+
+                          {!isSelf && (
+                            <div className="pt-4 mt-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => handleMemberClick(member)}
+                              >
+                                View Full Details
+                              </Button>
+                            </div>
                           )}
-                        </p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                          <Shield className="h-3 w-3" />
-                          <span>Permissions</span>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/30 rounded-lg">
+                          <Lock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Restricted Access
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              Only team admins can view member details
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm font-medium">
-                          {member.role === "ADMIN"
-                            ? "Full access"
-                            : member.role === "EDIT"
-                            ? "Can edit"
-                            : "View only"}
-                        </p>
-                      </div>
+                      )}
 
-                      <div className="space-y-1">
-                        <p className="text-xs text-gray-500">Last Active</p>
-                        <p className="text-sm font-medium">
-                          {member.user.lastLoginAt
-                            ? new Date(
-                                member.user.lastLoginAt
-                              ).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                              })
-                            : "Never"}
-                        </p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <p className="text-xs text-gray-500">Files Created</p>
-                        <p className="text-sm font-medium">
-                          {member.user.totalCreatedFiles}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 mt-2 border-t border-gray-200 dark:border-gray-700">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => handleMemberClick(member)}
-                      >
-                        View Full Details
-                      </Button>
+                      {isSelf && (
+                        <div className="pt-2">
+                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                            <EyeOff className="h-4 w-4" />
+                            <span>
+                              <a
+                                href="/settings/profile"
+                                className="text-blue-600 dark:text-blue-400 hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                personal settings
+                              </a>
+                              to manage your account.
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {isSelf && isHovered && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700"
-                >
-                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <EyeOff className="h-4 w-4" />
-                    <span>
-                      <a
-                        href="/settings/profile"
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        personal settings
-                      </a>
-                      to manage your account.
-                    </span>
-                  </div>
-                </motion.div>
-              )}
             </div>
           </div>
         );
