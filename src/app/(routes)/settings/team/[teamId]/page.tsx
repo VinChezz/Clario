@@ -14,17 +14,28 @@ import { AnimatedHeader } from "./_components/AnimatedHeader";
 import { Plan } from "@prisma/client";
 import { formatBytes, getPlanLimit } from "@/lib/planUtils";
 import { TeamStorage } from "./_components/TeamStorage";
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 export default async function TeamPage({
   params,
 }: {
-  params: { teamId: string };
+  params: Promise<{ teamId: string }>;
 }) {
-  const { teamId } = params;
+  const { teamId } = await params;
+
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+
   const team = await getTeamWithMembers(teamId);
 
   const planLimits = getPlanLimit(team.createdBy.plan as Plan);
   const planLimitGB = planLimits.maxStorage / 1024 ** 3;
+
+  const currentUserMember = team.members.find(
+    (m) => m.user.email === user?.email
+  );
+  const currentUserRole = currentUserMember?.role || "VIEW";
+  const isCurrentUserCreator = team.createdById === currentUserMember?.userId;
 
   return (
     <div className="space-y-8">
@@ -79,7 +90,12 @@ export default async function TeamPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <TeamMembers members={team.members} teamId={team.id} />
+              <TeamMembers
+                members={team.members}
+                teamId={team.id}
+                currentUserRole={currentUserRole}
+                isCurrentUserCreator={isCurrentUserCreator}
+              />
             </CardContent>
           </Card>
         </div>
