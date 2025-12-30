@@ -68,19 +68,7 @@ import {
   getFileTypeColor,
 } from "@/lib/formatUtils";
 
-const StorageIndicator = ({
-  currentUsageGB = 0,
-  maxStorageGB = 10,
-  plan = "FREE",
-  isMobile = false,
-  isTablet = false,
-  isLargeTablet = false,
-  isHorizontalMobile = false,
-  isLandscape = false,
-  showWarning = false,
-  showUpgradeButton = false,
-  onUpgradeClick,
-}: {
+interface StorageIndicatorProps {
   currentUsageGB?: number;
   maxStorageGB?: number;
   plan?: string;
@@ -92,8 +80,80 @@ const StorageIndicator = ({
   showWarning?: boolean;
   showUpgradeButton?: boolean;
   onUpgradeClick?: () => void;
-}) => {
+  teamId?: string;
+  useTeamStorage?: boolean;
+  storageData?: {
+    usedBytes?: string;
+    limitBytes?: string;
+    plan?: string;
+  };
+}
+
+export function StorageIndicator({
+  currentUsageGB: propCurrentUsageGB,
+  maxStorageGB: propMaxStorageGB,
+  plan: propPlan,
+  isMobile = false,
+  isTablet = false,
+  isLargeTablet = false,
+  isHorizontalMobile = false,
+  isLandscape = false,
+  showWarning = false,
+  showUpgradeButton = false,
+  onUpgradeClick,
+  teamId,
+  useTeamStorage = false,
+  storageData,
+}: StorageIndicatorProps) {
   const [isHovered, setIsHovered] = useState(false);
+
+  const useStorageHook = teamId || useTeamStorage;
+  let storageHook = null;
+
+  if (useStorageHook) {
+    const { useStorage } = require("@/hooks/useStorage");
+    storageHook = useStorage(teamId);
+  }
+
+  let currentUsageGB = propCurrentUsageGB;
+  let maxStorageGB = propMaxStorageGB;
+  let plan = propPlan;
+
+  if (storageHook?.data && (teamId || useTeamStorage)) {
+    if (storageHook.teamStorage) {
+      const usedBytes = Number(storageHook.teamStorage.usedBytes || "0");
+      const limitBytes = Number(storageHook.teamStorage.limitBytes || "0");
+
+      currentUsageGB = usedBytes / 1024 ** 3;
+      maxStorageGB = limitBytes / 1024 ** 3;
+      plan = storageHook.teamStorage.creatorPlan;
+    } else {
+      const usedBytes = Number(storageHook.data.storage.usedBytes || "0");
+      const limitBytes = Number(storageHook.data.storage.limitBytes || "0");
+
+      currentUsageGB = usedBytes / 1024 ** 3;
+      maxStorageGB = limitBytes / 1024 ** 3;
+      plan = storageHook.data.user.plan;
+    }
+  }
+
+  if (storageData) {
+    if (storageData.usedBytes) {
+      const usedBytes = Number(storageData.usedBytes);
+      currentUsageGB = usedBytes / 1024 ** 3;
+    }
+    if (storageData.limitBytes) {
+      const limitBytes = Number(storageData.limitBytes);
+      maxStorageGB = limitBytes / 1024 ** 3;
+    }
+    if (storageData.plan) {
+      plan = storageData.plan;
+    }
+  }
+
+  currentUsageGB = currentUsageGB || 0;
+  maxStorageGB = maxStorageGB || 10;
+  plan = plan || "FREE";
 
   const usagePercentage =
     maxStorageGB > 0 ? (currentUsageGB / maxStorageGB) * 100 : 0;
@@ -332,7 +392,7 @@ const StorageIndicator = ({
       )}
     </motion.div>
   );
-};
+}
 
 const OrientationWarningModal = ({
   isOpen,
@@ -1777,6 +1837,8 @@ export default function SideNavBottomSection({
                   storageData.plan === "FREE" && storageData.percentage >= 80
                 }
                 onUpgradeClick={handleUpgradeClick}
+                teamId={activeTeam?.id}
+                useTeamStorage={true}
               />
             </div>
           )}
