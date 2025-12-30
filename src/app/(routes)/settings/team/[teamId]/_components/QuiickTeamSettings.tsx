@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Star, Check, X, Info } from "lucide-react";
+import { Star, Check, X, Info, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   useIsMobile,
   useIsSmallMobile,
@@ -18,6 +19,7 @@ export function QuickTeamSettings({ teamId, teamName }: TeamSettingsProps) {
   const [isPrimary, setIsPrimary] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [isInfoExpanded, setIsInfoExpanded] = useState(false);
 
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
@@ -75,7 +77,7 @@ export function QuickTeamSettings({ teamId, teamName }: TeamSettingsProps) {
   const getCardPadding = () => {
     if (isSmallMobile) return "p-3";
     if (isMobile) return "p-3 md:p-4";
-    return "p-4";
+    return "px-4 py-2";
   };
 
   const getInfoButtonSize = () => {
@@ -286,44 +288,108 @@ export function QuickTeamSettings({ teamId, teamName }: TeamSettingsProps) {
             </Button>
           </div>
 
-          {showInfo && (
-            <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
-              <div
-                className={`space-y-1 text-blue-500 dark:text-blue-400 ${
-                  isSmallMobile ? "text-xs" : "text-xs"
-                }`}
+          <AnimatePresence>
+            {showInfo && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
               >
-                <p>• Only one primary team at a time</p>
-                <p>• Updates your default view</p>
-                <p>• Any member can set as primary</p>
-                <p>• Preferences saved per team</p>
-              </div>
-            </div>
-          )}
+                <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
+                  <div
+                    className={`space-y-1 text-blue-500 dark:text-blue-400 ${
+                      isSmallMobile ? "text-xs" : "text-xs"
+                    }`}
+                  >
+                    <p>• Only one primary team at a time</p>
+                    <p>• Updates your default view</p>
+                    <p>• Any member can set as primary</p>
+                    <p>• Preferences saved per team</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       ) : (
-        <div
-          className={`bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 ${getCardPadding()}`}
+        <motion.div
+          layout
+          className={`bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 overflow-hidden ${getCardPadding()}`}
         >
-          <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">
-            About Primary Teams
-          </h4>
-          <p className="text-sm text-blue-600 dark:text-blue-400 mb-3">
-            Your primary team is the default team that opens automatically when
-            you access the application. This is useful if you frequently work
-            with one specific team.
-          </p>
-          <div
-            className={`text-blue-500 dark:text-blue-400 ${
-              isTablet ? "text-xs" : "text-xs"
-            }`}
+          <motion.div
+            layout
+            className="flex items-start justify-between cursor-pointer"
+            onClick={() => setIsInfoExpanded(!isInfoExpanded)}
           >
-            <p>• You can only have one primary team at a time</p>
-            <p>• Changing your primary team will update your default view</p>
-            <p>• Any team member can set a team as primary</p>
-            <p>• Team settings and preferences are saved per team</p>
-          </div>
-        </div>
+            <div>
+              <motion.h4
+                layout="position"
+                className="font-medium text-blue-800 dark:text-blue-300 mb-1"
+              >
+                About Primary Teams
+              </motion.h4>
+              <motion.p
+                layout="position"
+                className="text-sm text-blue-600 dark:text-blue-400"
+              >
+                {isInfoExpanded
+                  ? "Click to collapse details"
+                  : "Learn more about primary teams"}
+              </motion.p>
+            </div>
+            <motion.div
+              animate={{ rotate: isInfoExpanded ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center justify-center ml-2"
+            >
+              <ChevronDown className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </motion.div>
+          </motion.div>
+
+          <AnimatePresence>
+            {isInfoExpanded && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                animate={{
+                  opacity: 1,
+                  height: "auto",
+                  marginTop: "1rem",
+                }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-sm text-blue-600 dark:text-blue-400 mb-3"
+                >
+                  Your primary team is the default team that opens automatically
+                  when you access the application. This is useful if you
+                  frequently work with one specific team.
+                </motion.p>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.15 }}
+                  className={`text-blue-500 dark:text-blue-400 ${
+                    isTablet ? "text-xs" : "text-xs"
+                  }`}
+                >
+                  <p>• You can only have one primary team at a time</p>
+                  <p>
+                    • Changing your primary team will update your default view
+                  </p>
+                  <p>• Any team member can set a team as primary</p>
+                  <p>• Team settings and preferences are saved per team</p>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       )}
     </div>
   );
