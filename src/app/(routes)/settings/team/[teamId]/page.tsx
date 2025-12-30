@@ -75,6 +75,7 @@ export default async function TeamPage({
             <TeamStorageClient
               plan={team.createdBy.plan}
               planLimitGB={planLimitGB}
+              teamId={teamId}
             />
           </CardContent>
         </Card>
@@ -113,8 +114,9 @@ export default async function TeamPage({
             <CardContent>
               <TeamStorage
                 plan={team.createdBy.plan}
+                teamId={teamId}
                 autoFetch={true}
-                showRealSize={true}
+                showRealSize={false}
               />
             </CardContent>
           </Card>
