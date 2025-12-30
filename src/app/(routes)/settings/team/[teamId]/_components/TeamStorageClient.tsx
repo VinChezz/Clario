@@ -5,17 +5,24 @@ import { useStorage } from "@/hooks/useStorage";
 interface TeamStorageClientProps {
   plan: string;
   planLimitGB: number;
+  teamId?: string;
 }
 
 export function TeamStorageClient({
   plan,
   planLimitGB,
+  teamId,
 }: TeamStorageClientProps) {
-  const storageHook = useStorage();
+  const storageHook = useStorage(teamId);
 
-  const realUsedBytes = storageHook?.data?.files?.calculatedSizeBytes
+  const realUsedBytes = teamId
+    ? storageHook?.teamStorage?.usedBytes
+      ? Number(storageHook.teamStorage.usedBytes)
+      : 0
+    : storageHook?.data?.files?.calculatedSizeBytes
     ? Number(storageHook.data.files.calculatedSizeBytes)
     : 0;
+
   const realUsedGB = realUsedBytes / 1024 ** 3;
 
   const formatGB = (gb: number): string => {

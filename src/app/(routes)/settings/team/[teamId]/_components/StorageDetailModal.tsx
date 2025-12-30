@@ -1,4 +1,3 @@
-// components/storage/StorageDetailsModal.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -45,6 +44,7 @@ interface StorageDetailsModalProps {
   plan: Plan | string;
   realUsedGB?: number;
   weightMultiplier?: number;
+  weightedUsedGB?: number;
 }
 
 export function StorageDetailsModal({
@@ -55,8 +55,8 @@ export function StorageDetailsModal({
   plan,
   realUsedGB = 0,
   weightMultiplier = 1,
+  weightedUsedGB = 0,
 }: StorageDetailsModalProps) {
-  // Закрытие по Escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -100,7 +100,10 @@ export function StorageDetailsModal({
   };
 
   const planLimitGB = getPlanLimitGB();
-  const percentage = planLimitGB > 0 ? (currentUsageGB / planLimitGB) * 100 : 0;
+
+  // Используем weightedUsedGB если передан, иначе currentUsageGB
+  const displayUsageGB = weightedUsedGB > 0 ? weightedUsedGB : currentUsageGB;
+  const percentage = planLimitGB > 0 ? (displayUsageGB / planLimitGB) * 100 : 0;
 
   const getProgressGradient = (pct: number) => {
     if (pct > 90) return "linear-gradient(135deg, #ef4444, #dc2626)";
@@ -184,7 +187,7 @@ export function StorageDetailsModal({
     },
     {
       label: "Weighted Storage",
-      value: formatGB(currentUsageGB),
+      value: formatGB(displayUsageGB),
       icon: Package,
       iconColor: "text-pink-500",
       bgColor: "bg-gradient-to-br from-pink-500/20 to-pink-600/20",
@@ -372,7 +375,7 @@ export function StorageDetailsModal({
                           <div className="space-y-4">
                             <div className="p-4 rounded-xl bg-linear-to-r from-white/30 to-transparent dark:from-gray-800/30 backdrop-blur-sm">
                               <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                                {formatGB(currentUsageGB)} /{" "}
+                                {formatGB(displayUsageGB)} /{" "}
                                 {formatGB(planLimitGB)}
                               </div>
                               <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -389,7 +392,7 @@ export function StorageDetailsModal({
                                   </span>
                                 </div>
                                 <div className="text-lg font-bold text-gray-900 dark:text-white mt-1">
-                                  {formatGB(planLimitGB - currentUsageGB)}
+                                  {formatGB(planLimitGB - displayUsageGB)}
                                 </div>
                               </div>
 
@@ -478,7 +481,13 @@ export function StorageDetailsModal({
                                       realUsedGB > 0 &&
                                       weightMultiplier > 1 && (
                                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                          Weighted: {formatGB(currentUsageGB)}
+                                          Weighted: {formatGB(displayUsageGB)}
+                                        </div>
+                                      )}
+                                    {stat.label === "Weighted Storage" &&
+                                      realUsedGB > 0 && (
+                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                          Real: {formatGB(realUsedGB)}
                                         </div>
                                       )}
                                   </div>

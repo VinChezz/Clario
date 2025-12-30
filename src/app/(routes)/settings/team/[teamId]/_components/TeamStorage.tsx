@@ -10,6 +10,7 @@ import {
   RefreshCw,
   HardDrive,
   AlertTriangle,
+  Users,
 } from "lucide-react";
 import { useStorage } from "@/hooks/useStorage";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +28,7 @@ interface TeamStorageProps {
   plan?: Plan | string;
   autoFetch?: boolean;
   showRealSize?: boolean;
+  teamId?: string;
 }
 
 export function TeamStorage({
@@ -34,72 +36,56 @@ export function TeamStorage({
   plan: propPlan,
   autoFetch = true,
   showRealSize = false,
+  teamId,
 }: TeamStorageProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
-  const storageHook = autoFetch ? useStorage() : null;
+  const storageHook = autoFetch ? useStorage(teamId) : null;
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
   const isTablet = useIsTablet();
 
-  const currentUsageGB =
-    propCurrentUsageGB !== undefined
-      ? propCurrentUsageGB
-      : storageHook
-      ? storageHook.getUsedGB()
-      : 0;
+  const realUsedBytes = storageHook?.data?.files?.calculatedSizeBytes
+    ? Number(storageHook.data.files.calculatedSizeBytes)
+    : storageHook?.data?.storage?.dbUsedBytes
+    ? Number(storageHook.data.storage.dbUsedBytes)
+    : 0;
 
-  const plan = propPlan || storageHook?.data?.user.plan || Plan.FREE;
+  const realUsedGB = realUsedBytes / 1024 ** 3;
+
+  const currentUsageGB =
+    propCurrentUsageGB !== undefined ? propCurrentUsageGB : realUsedGB;
+
+  const plan =
+    propPlan ||
+    (teamId && storageHook?.teamStorage?.creatorPlan) ||
+    storageHook?.data?.user?.plan ||
+    Plan.FREE;
 
   const planLimits = getPlanLimit(plan as Plan);
-  const planLimitGB = planLimits.maxStorage / (1024 * 1024 * 1024);
+
+  const planLimitGB = teamId
+    ? storageHook?.teamStorage
+      ? Number(BigInt(storageHook.teamStorage.limitBytes)) / 1024 ** 3
+      : planLimits.maxStorage / (1024 * 1024 * 1024)
+    : planLimits.maxStorage / (1024 * 1024 * 1024);
 
   const percentage = planLimitGB > 0 ? (currentUsageGB / planLimitGB) * 100 : 0;
   const isLoading = storageHook?.loading || false;
 
-  const realUsedBytes = storageHook?.data?.files?.calculatedSizeBytes
-    ? Number(storageHook.data.files.calculatedSizeBytes)
+  const weightedUsedBytes = storageHook?.data?.storage?.usedBytes
+    ? Number(storageHook.data.storage.usedBytes)
     : 0;
-  const realUsedGB = realUsedBytes / (1024 * 1024 * 1024);
-
-  const realPlanLimitBytes = planLimits.maxStorage;
-  const realPlanLimitGB = realPlanLimitBytes / (1024 * 1024 * 1024);
-
-  const realPercentage =
-    realUsedBytes > 0 ? (realUsedBytes / realPlanLimitBytes) * 100 : 0;
+  const weightedUsedGB = weightedUsedBytes / 1024 ** 3;
 
   const weightMultiplier =
-    currentUsageGB > 0 && realUsedGB > 0
-      ? currentUsageGB / realUsedGB
-      : currentUsageGB > 0
-      ? 1
-      : 1;
-
-  const getColor = () => {
-    if (percentage > 90) return "bg-red-500";
-    if (percentage > 70) return "bg-yellow-500";
-    if (percentage > 50) return "bg-blue-500";
-    return "bg-green-500";
-  };
-
-  const getGradientColor = () => {
-    if (percentage > 90) return "from-red-500 to-red-600";
-    if (percentage > 70) return "from-yellow-500 to-yellow-600";
-    if (percentage > 50) return "from-blue-500 to-blue-600";
-    return "from-green-500 to-green-600";
-  };
+    weightedUsedGB > 0 && realUsedGB > 0 ? weightedUsedGB / realUsedGB : 1;
 
   const formatGB = (gb: number): string => {
-    if (gb >= 1000) {
-      return `${(gb / 1000).toFixed(1)} TB`;
-    }
-    if (gb < 0.1 && gb > 0) {
-      return `${(gb * 1024).toFixed(1)} MB`;
-    }
-    if (gb === 0) {
-      return "0 GB";
-    }
+    if (gb >= 1000) return `${(gb / 1000).toFixed(1)} TB`;
+    if (gb < 0.1 && gb > 0) return `${(gb * 1024).toFixed(1)} MB`;
+    if (gb === 0) return "0 GB";
     return `${gb.toFixed(1)} GB`;
   };
 
@@ -133,6 +119,20 @@ export function TeamStorage({
   };
 
   const shouldShowGlowAnimation = !isMobile && percentage > 0;
+
+  const getColor = () => {
+    if (percentage > 90) return "bg-red-500";
+    if (percentage > 70) return "bg-yellow-500";
+    if (percentage > 50) return "bg-blue-500";
+    return "bg-green-500";
+  };
+
+  const getGradientColor = () => {
+    if (percentage > 90) return "from-red-500 to-red-600";
+    if (percentage > 70) return "from-yellow-500 to-yellow-600";
+    if (percentage > 50) return "from-blue-500 to-blue-600";
+    return "from-green-500 to-green-600";
+  };
 
   if (isLoading && autoFetch) {
     return (
@@ -221,7 +221,7 @@ export function TeamStorage({
             <h3
               className={`font-semibold text-gray-900 dark:text-white ${getTitleSize()}`}
             >
-              Storage Usage
+              {teamId ? "Team Storage" : "Storage Usage"}
             </h3>
           </div>
           {storageHook?.refresh && !isSmallMobile && (
@@ -242,43 +242,50 @@ export function TeamStorage({
         </div>
 
         {/* Предупреждение о взвешенном хранилище */}
-        {realUsedGB > 0 &&
-          weightMultiplier > 1.5 &&
-          !isNaN(weightMultiplier) && (
-            <div
-              className={`${
-                isSmallMobile ? "p-2" : "p-3"
-              } bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800`}
-            >
-              <div className="flex items-start gap-2">
-                <AlertTriangle
+        {!showRealSize && weightedUsedGB > 0 && weightMultiplier > 1.5 && (
+          <div
+            className={`${
+              isSmallMobile ? "p-2" : "p-3"
+            } bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800`}
+          >
+            <div className="flex items-start gap-2">
+              <AlertTriangle
+                className={`${
+                  isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                } text-amber-600 dark:text-amber-400 mt-0.5`}
+              />
+              <div className="flex-1">
+                <p
                   className={`${
-                    isSmallMobile ? "h-4 w-4" : "h-5 w-5"
-                  } text-amber-600 dark:text-amber-400 mt-0.5`}
-                />
-                <div className="flex-1">
-                  <p
-                    className={`${
-                      isSmallMobile ? "text-xs" : "text-sm"
-                    } font-medium text-amber-800 dark:text-amber-300`}
-                  >
-                    Weighted Storage
-                  </p>
-                  <p
-                    className={`${
-                      isSmallMobile ? "text-xs" : "text-xs"
-                    } text-amber-700 dark:text-amber-400 mt-1`}
-                  >
-                    Files use weighted size: {weightMultiplier.toFixed(1)}x real
-                    size.
-                    {realUsedGB > 0 && <> Real: {formatGB(realUsedGB)}</>}
-                  </p>
-                </div>
+                    isSmallMobile ? "text-xs" : "text-sm"
+                  } font-medium text-amber-800 dark:text-amber-300`}
+                >
+                  Weighted Storage
+                </p>
+                <p
+                  className={`${
+                    isSmallMobile ? "text-xs" : "text-xs"
+                  } text-amber-700 dark:text-amber-400 mt-1`}
+                >
+                  Files use weighted size: {weightMultiplier.toFixed(1)}x real
+                  size.
+                  {realUsedGB > 0 && <> Real: {formatGB(realUsedGB)}</>}
+                </p>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-        {/* Индикатор прогресса */}
+        {teamId && storageHook?.teamStorage && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <Users className="h-4 w-4 text-blue-500" />
+            <span className="text-sm text-blue-700 dark:text-blue-300">
+              Team plan: {storageHook.teamStorage.creatorPlan} (
+              {storageHook.teamStorage.creatorName})
+            </span>
+          </div>
+        )}
+
         <div
           className={`relative ${getProgressBarHeight()} bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden`}
         >
@@ -318,16 +325,12 @@ export function TeamStorage({
                   : {}
               }
             >
-              {showRealSize && realUsedGB > 0
-                ? formatGB(realUsedGB)
-                : formatGB(currentUsageGB)}
+              {showRealSize ? formatGB(realUsedGB) : formatGB(currentUsageGB)}
             </motion.p>
             <p
               className={`text-gray-500 dark:text-gray-400 ${getSubtitleSize()}`}
             >
-              {showRealSize && realUsedGB > 0
-                ? "Real size used"
-                : "Weighted usage"}
+              {showRealSize ? "Real size used" : "Storage used"}
             </p>
           </div>
 
@@ -468,6 +471,28 @@ export function TeamStorage({
                   </div>
                 )}
 
+                {/* Информация о разнице между реальным и взвешенным размером */}
+                {weightedUsedGB > 0 &&
+                  realUsedGB > 0 &&
+                  weightMultiplier > 1.1 && (
+                    <div className="text-center text-xs text-gray-600 dark:text-gray-400 p-2 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
+                      <div className="font-medium mb-1">Storage Comparison</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="font-semibold">Weighted</div>
+                          <div>{formatGB(weightedUsedGB)}</div>
+                        </div>
+                        <div>
+                          <div className="font-semibold">Real</div>
+                          <div>{formatGB(realUsedGB)}</div>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-amber-600 dark:text-amber-400">
+                        Multiplier: {weightMultiplier.toFixed(1)}x
+                      </div>
+                    </div>
+                  )}
+
                 <Button
                   variant="outline"
                   size={isSmallMobile ? "sm" : "default"}
@@ -493,13 +518,13 @@ export function TeamStorage({
                 {formatGB(planLimitGB - currentUsageGB)} free
               </span>
             </div>
-            {realUsedGB > 0 && currentUsageGB > realUsedGB * 1.5 && (
+            {weightedUsedGB > 0 && realUsedGB > 0 && weightMultiplier > 1.5 && (
               <div
                 className={`mt-2 text-amber-600 dark:text-amber-400 ${
                   isSmallMobile ? "text-xs" : "text-xs"
-                }`}
+                } text-center`}
               >
-                Weighted: {formatGB(currentUsageGB)}, Real:{" "}
+                Weighted: {formatGB(weightedUsedGB)}, Real:{" "}
                 {formatGB(realUsedGB)}
               </div>
             )}
@@ -515,6 +540,7 @@ export function TeamStorage({
         plan={plan}
         realUsedGB={realUsedGB}
         weightMultiplier={weightMultiplier}
+        weightedUsedGB={weightedUsedGB}
       />
     </>
   );
