@@ -9,11 +9,10 @@ interface WhiteboardData {
 }
 
 export function calculateFileSize(
-  document?: string,
-  whiteboard?: string
+  document?: string | null,
+  whiteboard?: string | null
 ): bigint {
   const BASE_WEIGHT = 75 * 1024 * 1024; // 75 MB
-
   const TEXT_WEIGHT_PER_1000_CHARS = 25 * 1024 * 1024; // 25 MB
   const WHITEBOARD_ELEMENT_WEIGHT = 10 * 1024 * 1024; // 10 MB
   const IMAGE_WEIGHT_MULTIPLIER = 2.5;
@@ -21,7 +20,7 @@ export function calculateFileSize(
 
   let totalWeight = BASE_WEIGHT;
 
-  if (document) {
+  if (document && typeof document === "string") {
     const charCount = document.length;
     const thousandsOfChars = Math.ceil(charCount / 1000);
     totalWeight += thousandsOfChars * TEXT_WEIGHT_PER_1000_CHARS;
@@ -33,7 +32,7 @@ export function calculateFileSize(
     );
   }
 
-  if (whiteboard) {
+  if (whiteboard && typeof whiteboard === "string") {
     try {
       const whiteboardData: WhiteboardData = JSON.parse(whiteboard);
 
@@ -56,7 +55,6 @@ export function calculateFileSize(
           if (element.type === "image" && element.dataUrl) {
             const base64Data = element.dataUrl.split(",")[1];
             if (base64Data) {
-              // Реальный размер изображения умножаем на множитель
               const imageSize = Math.ceil(base64Data.length * 0.75);
               const weightedImageSize = imageSize * IMAGE_WEIGHT_MULTIPLIER;
               imageWeight += weightedImageSize;
