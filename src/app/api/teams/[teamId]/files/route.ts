@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { createFileWithTeamCheck } from "@/lib/fileOperations";
 
 export async function GET(
   request: Request,
@@ -62,4 +63,59 @@ function serializeBigInt<T>(obj: T): T {
       typeof value === "bigint" ? value.toString() : value
     )
   );
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { teamId: string } }
+) {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+
+    if (!user || !user.email || !user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const teamId = params.teamId;
+    const body = await request.json();
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const result = await createFileWithTeamCheck({
+      fileName: body.fileName,
+      teamId,
+      userId: dbUser.id,
+      document: body.document,
+      whiteboard: body.whiteboard,
+      archive: body.archive || false,
+      isPublic: body.isPublic || false,
+      permissions: body.permissions || "VIEW",
+    });
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error, teamStorage: result.teamStorageInfo },
+        { status: result.error?.includes("insufficient") ? 400 : 403 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      file: result.file,
+      teamStorage: result.teamStorageInfo,
+    });
+  } catch (error) {
+    console.error("Error creating file:", error);
+    return NextResponse.json(
+      { error: "Failed to create file" },
+      { status: 500 }
+    );
+  }
 }
