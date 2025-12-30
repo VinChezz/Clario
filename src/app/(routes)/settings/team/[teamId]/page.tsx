@@ -39,7 +39,12 @@ export default async function TeamPage({
 
   return (
     <div className="space-y-8">
-      <AnimatedHeader teamName={team.name} teamId={teamId} />
+      <AnimatedHeader
+        teamName={team.name}
+        teamId={teamId}
+        currentUserRole={currentUserRole}
+        isCurrentUserCreator={isCurrentUserCreator}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
@@ -125,7 +130,7 @@ export default async function TeamPage({
             <CardHeader>
               <CardTitle>Quick Settings</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2">
               <QuickTeamSettings teamId={team.id} teamName={team.name} />
             </CardContent>
           </Card>
