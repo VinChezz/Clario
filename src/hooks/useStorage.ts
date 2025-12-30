@@ -53,11 +53,25 @@ export interface StorageData {
       totalVersions: number;
     };
   };
+  teamStorage?: {
+    teamId: string;
+    teamName: string;
+    usedBytes: string;
+    limitBytes: string;
+    percentage: number;
+    creatorPlan: string;
+    creatorName: string;
+    filesCount: number;
+    membersCount: number;
+    usedFormatted: string;
+    limitFormatted: string;
+    availableFormatted: string;
+  };
   teams: TeamStorage[];
   requiresUpgrade: boolean;
 }
 
-export function useStorage() {
+export function useStorage(teamId?: string) {
   const [data, setData] = useState<StorageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +79,11 @@ export function useStorage() {
   const fetchStorageData = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/users/storage");
+      const url = teamId
+        ? `/api/teams/${teamId}/storage`
+        : "/api/users/storage";
+
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -122,7 +140,10 @@ export function useStorage() {
     getRemainingGB,
     getUsedGB,
     getLimitGB,
-    percentage: data?.storage.percentage || 0,
+    percentage: teamId
+      ? data?.teamStorage?.percentage || 0
+      : data?.storage.percentage || 0,
     requiresUpgrade: data?.requiresUpgrade || false,
+    teamStorage: data?.teamStorage,
   };
 }
