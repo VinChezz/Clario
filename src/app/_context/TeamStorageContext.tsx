@@ -1,4 +1,3 @@
-// context/TeamStorageContext.tsx
 "use client";
 
 import React, {
@@ -27,7 +26,7 @@ export function TeamStorageProvider({
   teamId,
   children,
 }: {
-  teamId: string;
+  teamId?: string;
   children: ReactNode;
 }) {
   const storage = useStorage(teamId);
