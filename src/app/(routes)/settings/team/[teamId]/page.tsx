@@ -37,6 +37,8 @@ export default async function TeamPage({
   const currentUserRole = currentUserMember?.role || "VIEW";
   const isCurrentUserCreator = team.createdById === currentUserMember?.userId;
 
+  const hasAdminRights = currentUserRole === "ADMIN" || isCurrentUserCreator;
+
   return (
     <div className="space-y-8">
       <AnimatedHeader
@@ -122,18 +124,22 @@ export default async function TeamPage({
                 teamId={teamId}
                 autoFetch={true}
                 showRealSize={false}
+                currentUserRole={currentUserRole}
+                isCurrentUserCreator={isCurrentUserCreator}
               />
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <QuickTeamSettings teamId={team.id} teamName={team.name} />
-            </CardContent>
-          </Card>
+          {hasAdminRights && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <QuickTeamSettings teamId={team.id} teamName={team.name} />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
