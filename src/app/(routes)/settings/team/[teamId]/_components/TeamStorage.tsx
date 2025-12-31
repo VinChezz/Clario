@@ -22,6 +22,7 @@ import {
   useIsSmallMobile,
   useIsTablet,
 } from "@/hooks/useMediaQuery";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 
 interface TeamStorageProps {
   currentUsageGB?: number;
@@ -29,6 +30,8 @@ interface TeamStorageProps {
   autoFetch?: boolean;
   showRealSize?: boolean;
   teamId?: string;
+  currentUserRole?: string;
+  isCurrentUserCreator?: boolean;
 }
 
 export function TeamStorage({
@@ -37,14 +40,22 @@ export function TeamStorage({
   autoFetch = true,
   showRealSize = false,
   teamId,
+  currentUserRole = "VIEW",
+  isCurrentUserCreator = false,
 }: TeamStorageProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const { user } = useKindeBrowserClient();
 
   const storageHook = autoFetch ? useStorage(teamId) : null;
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
   const isTablet = useIsTablet();
+
+  const hasAdminRights = currentUserRole === "ADMIN" || isCurrentUserCreator;
+  const hasEditRights = currentUserRole === "EDIT" || hasAdminRights;
+
+  const showDetailsButton = hasAdminRights;
 
   const realUsedBytes = storageHook?.data?.files?.calculatedSizeBytes
     ? Number(storageHook.data.files.calculatedSizeBytes)
@@ -241,40 +252,42 @@ export function TeamStorage({
           )}
         </div>
 
-        {/* Предупреждение о взвешенном хранилище */}
-        {!showRealSize && weightedUsedGB > 0 && weightMultiplier > 1.5 && (
-          <div
-            className={`${
-              isSmallMobile ? "p-2" : "p-3"
-            } bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800`}
-          >
-            <div className="flex items-start gap-2">
-              <AlertTriangle
-                className={`${
-                  isSmallMobile ? "h-4 w-4" : "h-5 w-5"
-                } text-amber-600 dark:text-amber-400 mt-0.5`}
-              />
-              <div className="flex-1">
-                <p
+        {!showRealSize &&
+          weightedUsedGB > 0 &&
+          weightMultiplier > 1.5 &&
+          hasAdminRights && (
+            <div
+              className={`${
+                isSmallMobile ? "p-2" : "p-3"
+              } bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800`}
+            >
+              <div className="flex items-start gap-2">
+                <AlertTriangle
                   className={`${
-                    isSmallMobile ? "text-xs" : "text-sm"
-                  } font-medium text-amber-800 dark:text-amber-300`}
-                >
-                  Weighted Storage
-                </p>
-                <p
-                  className={`${
-                    isSmallMobile ? "text-xs" : "text-xs"
-                  } text-amber-700 dark:text-amber-400 mt-1`}
-                >
-                  Files use weighted size: {weightMultiplier.toFixed(1)}x real
-                  size.
-                  {realUsedGB > 0 && <> Real: {formatGB(realUsedGB)}</>}
-                </p>
+                    isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                  } text-amber-600 dark:text-amber-400 mt-0.5`}
+                />
+                <div className="flex-1">
+                  <p
+                    className={`${
+                      isSmallMobile ? "text-xs" : "text-sm"
+                    } font-medium text-amber-800 dark:text-amber-300`}
+                  >
+                    Weighted Storage
+                  </p>
+                  <p
+                    className={`${
+                      isSmallMobile ? "text-xs" : "text-xs"
+                    } text-amber-700 dark:text-amber-400 mt-1`}
+                  >
+                    Files use weighted size: {weightMultiplier.toFixed(1)}x real
+                    size.
+                    {realUsedGB > 0 && <> Real: {formatGB(realUsedGB)}</>}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {teamId && storageHook?.teamStorage && (
           <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -355,7 +368,6 @@ export function TeamStorage({
           </div>
         </div>
 
-        {/* На мобильных всегда показываем кнопку View Details */}
         {(isMobile || isHovered) && (
           <motion.div
             initial={
@@ -471,8 +483,8 @@ export function TeamStorage({
                   </div>
                 )}
 
-                {/* Информация о разнице между реальным и взвешенным размером */}
-                {weightedUsedGB > 0 &&
+                {hasAdminRights &&
+                  weightedUsedGB > 0 &&
                   realUsedGB > 0 &&
                   weightMultiplier > 1.1 && (
                     <div className="text-center text-xs text-gray-600 dark:text-gray-400 p-2 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
@@ -493,14 +505,16 @@ export function TeamStorage({
                     </div>
                   )}
 
-                <Button
-                  variant="outline"
-                  size={isSmallMobile ? "sm" : "default"}
-                  className="w-full"
-                  onClick={() => setShowDetails(true)}
-                >
-                  View Storage Details
-                </Button>
+                {showDetailsButton && (
+                  <Button
+                    variant="outline"
+                    size={isSmallMobile ? "sm" : "default"}
+                    className="w-full"
+                    onClick={() => setShowDetails(true)}
+                  >
+                    View Storage Details
+                  </Button>
+                )}
               </div>
             </div>
           </motion.div>
@@ -518,30 +532,36 @@ export function TeamStorage({
                 {formatGB(planLimitGB - currentUsageGB)} free
               </span>
             </div>
-            {weightedUsedGB > 0 && realUsedGB > 0 && weightMultiplier > 1.5 && (
-              <div
-                className={`mt-2 text-amber-600 dark:text-amber-400 ${
-                  isSmallMobile ? "text-xs" : "text-xs"
-                } text-center`}
-              >
-                Weighted: {formatGB(weightedUsedGB)}, Real:{" "}
-                {formatGB(realUsedGB)}
-              </div>
-            )}
+
+            {hasAdminRights &&
+              weightedUsedGB > 0 &&
+              realUsedGB > 0 &&
+              weightMultiplier > 1.5 && (
+                <div
+                  className={`mt-2 text-amber-600 dark:text-amber-400 ${
+                    isSmallMobile ? "text-xs" : "text-xs"
+                  } text-center`}
+                >
+                  Weighted: {formatGB(weightedUsedGB)}, Real:{" "}
+                  {formatGB(realUsedGB)}
+                </div>
+              )}
           </div>
         )}
       </div>
 
-      <StorageDetailsModal
-        isOpen={showDetails}
-        onClose={() => setShowDetails(false)}
-        storageData={storageHook?.data || null}
-        currentUsageGB={currentUsageGB}
-        plan={plan}
-        realUsedGB={realUsedGB}
-        weightMultiplier={weightMultiplier}
-        weightedUsedGB={weightedUsedGB}
-      />
+      {showDetailsButton && (
+        <StorageDetailsModal
+          isOpen={showDetails}
+          onClose={() => setShowDetails(false)}
+          storageData={storageHook?.data || null}
+          currentUsageGB={currentUsageGB}
+          plan={plan}
+          realUsedGB={realUsedGB}
+          weightMultiplier={weightMultiplier}
+          weightedUsedGB={weightedUsedGB}
+        />
+      )}
     </>
   );
 }
