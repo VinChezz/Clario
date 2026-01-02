@@ -15,6 +15,7 @@ import { Plan } from "@prisma/client";
 import { formatBytes, getPlanLimit } from "@/lib/planUtils";
 import { TeamStorage } from "./_components/TeamStorage";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import NotFound from "@/app/not-found";
 
 export default async function TeamPage({
   params,
@@ -26,13 +27,22 @@ export default async function TeamPage({
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
+  if (!user || !user.email) {
+    console.log("No authenticated user or email");
+    return <NotFound />;
+  }
+
   const team = await getTeamWithMembers(teamId);
+
+  if (!team) {
+    return <NotFound />;
+  }
 
   const planLimits = getPlanLimit(team.createdBy.plan as Plan);
   const planLimitGB = planLimits.maxStorage / 1024 ** 3;
 
   const currentUserMember = team.members.find(
-    (m) => m.user.email === user?.email
+    (m) => m.user.email === user.email
   );
   const currentUserRole = currentUserMember?.role || "VIEW";
   const isCurrentUserCreator = team.createdById === currentUserMember?.userId;
