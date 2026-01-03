@@ -4,14 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import React from "react";
 
-export default async function TeamLayout({
+export default async function TeamSettingsLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { teamId: string };
+  params: Promise<{ teamId: string }>;
 }) {
-  const { teamId } = params;
+  const { teamId } = await params;
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
