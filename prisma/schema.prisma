@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  // directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -44,6 +43,9 @@ model User {
 
   CommentMention CommentMention[]
   userSecurity UserSecurity?
+
+  createdShareLinks ShareLink[] @relation("ShareLinkCreator")
+  usedShareLinks    ShareLink[] @relation("ShareLinkUsedBy")
 }
 
 
@@ -64,6 +66,9 @@ model Team {
   members     TeamMember[]
   teamSettings TeamSettings?
   githubRepo  GithubRepository?
+
+  // Добавляем новую связь
+  shareLinks  ShareLink[]
 }
 
 model File {
@@ -297,6 +302,28 @@ model UserSecurity {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model ShareLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  teamId    String
+  creatorId String
+  permissions String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+  usedBy    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator User  @relation("ShareLinkCreator", fields: [creatorId], references: [id])
+  user   User?  @relation("ShareLinkUsedBy", fields: [usedBy], references: [id])
+
+  @@index([token])
+  @@index([teamId])
+  @@index([expiresAt])
+}
+
 enum Role {
   ADMIN
   VIEW
@@ -361,4 +388,3 @@ enum AvailabilityStatus {
   OOO
   CUSTOM
 }
-
