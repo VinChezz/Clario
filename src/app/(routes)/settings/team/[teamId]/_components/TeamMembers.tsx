@@ -310,7 +310,7 @@ export function TeamMembers({
                                 className="text-blue-600 dark:text-blue-400 hover:underline"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                personal settings
+                                personal settings {""}
                               </a>
                               to manage your account.
                             </span>
