@@ -1,7 +1,7 @@
 import { MembersGeneral } from "./_components/MembersGeneral";
 import { SettingsGeneral } from "./_components/SettingsGeneral";
-import { getTeamMember } from "@/lib/team";
-import { notFound } from "next/navigation";
+import { getTeamMember, getTeamWithMembers } from "@/lib/team";
+import { notFound, redirect } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -14,36 +14,89 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
-  ArrowLeft,
-  Mail,
+  Activity,
   Calendar,
-  Globe,
-  User,
-  Shield,
   FileText,
-  Clock,
+  MessageSquare,
+  ExternalLink,
+  ChevronRight,
+  HardDrive,
+  AlertTriangle,
+  Users,
+  UserX,
+  Lock,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  User,
+  Mail,
 } from "lucide-react";
+
 import Link from "next/link";
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 export default async function MemberDetailsPage({
   params,
 }: {
-  params: { teamId: string; memberId: string };
+  params: Promise<{ teamId: string; memberId: string }>;
 }) {
-  const member = await getTeamMember(params.teamId, params.memberId);
+  const { teamId, memberId } = await params;
 
-  if (!member) {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+
+  if (!user) {
+    redirect("/api/auth/login");
+  }
+
+  const [team, member] = await Promise.all([
+    getTeamWithMembers(teamId),
+    getTeamMember(teamId, memberId),
+  ]);
+
+  if (!member || !team) {
     notFound();
   }
 
-  const isCurrentUser = false;
+  const currentUserMember = team.members.find(
+    (m) => m.user.email === user.email
+  );
+
+  const canViewMember = () => {
+    if (member.user.email === user.email) {
+      return true;
+    }
+
+    if (!currentUserMember) {
+      return false;
+    }
+
+    if (
+      currentUserMember.role === "ADMIN" ||
+      team.createdById === currentUserMember.userId
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  if (!canViewMember()) {
+    notFound();
+  }
+
+  const isCurrentUser = member.user.email === user.email;
+  const isCurrentUserAdmin =
+    currentUserMember?.role === "ADMIN" ||
+    team.createdById === currentUserMember?.userId;
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
-            href={`/settings/team/${params.teamId}`}
+            href={`/settings/team/${teamId}`}
             className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -52,9 +105,8 @@ export default async function MemberDetailsPage({
         </div>
 
         <div className="flex items-center gap-3">
-          {!isCurrentUser && (
+          {!isCurrentUser && isCurrentUserAdmin && (
             <>
-              <Button variant="outline">Edit Permissions</Button>
               <Button variant="destructive">Remove from Team</Button>
             </>
           )}
@@ -97,167 +149,98 @@ export default async function MemberDetailsPage({
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-6">
-              {/* Основная информация */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Calendar className="h-4 w-4" />
-                    <span>Joined</span>
-                  </div>
-                  <p className="font-medium">
-                    {new Date(member.joinedAt).toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Clock className="h-4 w-4" />
-                    <span>Last Active</span>
-                  </div>
-                  <p className="font-medium">
-                    {member.user.lastLoginAt
-                      ? new Date(member.user.lastLoginAt).toLocaleDateString()
-                      : "Never"}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Globe className="h-4 w-4" />
-                    <span>Timezone</span>
-                  </div>
-                  <p className="font-medium">{member.user.timezone || "UTC"}</p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <FileText className="h-4 w-4" />
-                    <span>Files Created</span>
-                  </div>
-                  <p className="font-medium">{member.user.totalCreatedFiles}</p>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Общая информация */}
-              <MembersGeneral member={member} />
-            </CardContent>
+            <MembersGeneral member={member} />
           </Card>
 
-          {/* Настройки */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Member Settings</CardTitle>
-              <CardDescription>
-                Configure permissions and access for this member
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SettingsGeneral member={member} />
-            </CardContent>
-          </Card>
+          {isCurrentUserAdmin && !isCurrentUser && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Member Settings</CardTitle>
+                <CardDescription>
+                  Configure permissions and access for this member
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SettingsGeneral member={member} />
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Status & Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Current Status</p>
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`h-2 w-2 rounded-full ${
-                      member.user.availabilityStatus === "AVAILABLE"
-                        ? "bg-green-500"
-                        : member.user.availabilityStatus === "FOCUS"
-                        ? "bg-yellow-500"
-                        : member.user.availabilityStatus === "MEETING"
-                        ? "bg-purple-500"
-                        : member.user.availabilityStatus === "OOO"
-                        ? "bg-gray-500"
-                        : "bg-blue-500"
-                    }`}
-                  />
-                  <span className="text-sm">
-                    {member.user.availabilityStatus || "Available"}
-                  </span>
-                </div>
-                {member.user.customStatus && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    "{member.user.customStatus}"
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Presence</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {member.user.showPresence ? "Visible to team" : "Invisible"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Опасная зона */}
-          {!isCurrentUser && (
-            <Card className="border-red-200 dark:border-red-900/50">
-              <CardHeader>
-                <CardTitle className="text-red-600 dark:text-red-400">
-                  Danger Zone
-                </CardTitle>
-                <CardDescription>Irreversible actions</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-red-600 hover:text-red-700"
-                >
-                  Transfer Ownership
-                </Button>
-                <Button variant="destructive" className="w-full">
-                  Remove from Team
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-red-600 hover:text-red-700"
-                >
-                  Suspend Access
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Links</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ExternalLink className="h-5 w-5 text-gray-500" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription>
+                Access user-specific information quickly
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               <Link
-                href={`/settings/team/${params.teamId}/files?user=${member.userId}`}
-                className="block p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-sm"
+                href={`/settings/team/${teamId}/files?user=${member.userId}`}
+                className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
               >
-                View user's files
+                <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50">
+                  <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">View Files</p>
+                  <p className="text-xs text-gray-500">
+                    Browse user's created files
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-400" />
               </Link>
+
               <Link
-                href={`/settings/team/${params.teamId}/activity?user=${member.userId}`}
-                className="block p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-sm"
+                href={`/settings/team/${teamId}/activity?user=${member.userId}`}
+                className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
               >
-                View activity log
+                <div className="h-8 w-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-900/50">
+                  <Activity className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Activity Log</p>
+                  <p className="text-xs text-gray-500">
+                    View user's recent actions
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-400" />
               </Link>
+
               <Link
-                href={`/settings/team/${params.teamId}/comments?user=${member.userId}`}
-                className="block p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-sm"
+                href={`/settings/team/${teamId}/comments?user=${member.userId}`}
+                className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
               >
-                View comments
+                <div className="h-8 w-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50">
+                  <MessageSquare className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Comments</p>
+                  <p className="text-xs text-gray-500">
+                    Review user's comments
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-400" />
+              </Link>
+
+              <Link
+                href={`/settings/team/${teamId}/storage?user=${member.userId}`}
+                className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
+              >
+                <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:bg-amber-200 dark:group-hover:bg-amber-900/50">
+                  <HardDrive className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Storage Usage</p>
+                  <p className="text-xs text-gray-500">
+                    Check storage consumption
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-400" />
               </Link>
             </CardContent>
           </Card>
