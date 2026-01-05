@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   Save,
-  Upload,
   Trash2,
   Users,
   Globe,
@@ -30,18 +29,54 @@ import {
   Mail,
   Calendar,
   ArrowLeft,
+  Loader2,
+  Copy,
+  XCircle,
+  CheckCircle,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Team, TeamSettings as TeamSettingsType } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import { TeamLogoUpload } from "./TeamLogoUpload";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface TeamDetailedSettingsProps {
   team: Team & { teamSettings: TeamSettingsType | null };
+  hasAdminAccess: boolean;
 }
 
-export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
+export function TeamDetailedSettings({
+  team,
+  hasAdminAccess,
+}: TeamDetailedSettingsProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
+  const [showSaveBar, setShowSaveBar] = useState(false);
+  const [showShareLinkDialog, setShowShareLinkDialog] = useState(false);
+  const [generatedShareLink, setGeneratedShareLink] = useState("");
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+  const [teamMembers, setTeamMembers] = useState<
+    Array<{
+      id: string;
+      name: string | null;
+      email: string;
+      role: string;
+    }>
+  >([]);
+  const [confirmationText, setConfirmationText] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [creator, setCreator] = useState<{
+    name: string | null;
+    email: string;
+  } | null>(null);
+
   const [teamData, setTeamData] = useState({
     name: team.name,
     description: team.description || "",
@@ -57,7 +92,74 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
     autoArchive: team.teamSettings?.autoArchive ?? false,
     fileRetention: team.teamSettings?.fileRetention || "ONE_YEAR",
     versionHistory: team.teamSettings?.versionHistory ?? true,
+    sessionTimeoutEnabled: (team.teamSettings?.sessionTimeout ?? 0) > 0,
   });
+
+  const [currentValues, setCurrentValues] = useState({
+    inviteOnly: team.teamSettings?.inviteOnly ?? true,
+    allowPublicLinks: team.teamSettings?.allowPublicLinks ?? true,
+    sessionTimeout: team.teamSettings?.sessionTimeout || 60,
+    defaultRole: team.teamSettings?.defaultRole || "VIEW",
+    autoArchive: team.teamSettings?.autoArchive ?? false,
+    versionHistory: team.teamSettings?.versionHistory ?? true,
+    fileRetention: team.teamSettings?.fileRetention || "ONE_YEAR",
+  });
+
+  useEffect(() => {
+    setCurrentValues({
+      inviteOnly: team.teamSettings?.inviteOnly ?? true,
+      allowPublicLinks: team.teamSettings?.allowPublicLinks ?? true,
+      sessionTimeout: team.teamSettings?.sessionTimeout || 60,
+      defaultRole: team.teamSettings?.defaultRole || "VIEW",
+      autoArchive: team.teamSettings?.autoArchive ?? false,
+      versionHistory: team.teamSettings?.versionHistory ?? true,
+      fileRetention: team.teamSettings?.fileRetention || "ONE_YEAR",
+    });
+  }, [team]);
+
+  useEffect(() => {
+    setTeamData({
+      name: team.name,
+      description: team.description || "",
+      logo: team.logo || "",
+    });
+
+    setTeamSettings({
+      defaultRole: team.teamSettings?.defaultRole || "VIEW",
+      inviteOnly: team.teamSettings?.inviteOnly ?? true,
+      requireTwoFactor: team.teamSettings?.requireTwoFactor ?? false,
+      sessionTimeout: team.teamSettings?.sessionTimeout || 60,
+      allowPublicLinks: team.teamSettings?.allowPublicLinks ?? true,
+      autoArchive: team.teamSettings?.autoArchive ?? false,
+      fileRetention: team.teamSettings?.fileRetention || "ONE_YEAR",
+      versionHistory: team.teamSettings?.versionHistory ?? true,
+      sessionTimeoutEnabled: (team.teamSettings?.sessionTimeout ?? 0) > 0,
+    });
+  }, [team]);
+
+  useEffect(() => {
+    const hasChanges =
+      teamData.name !== team.name ||
+      teamData.description !== (team.description || "") ||
+      teamData.logo !== (team.logo || "") ||
+      teamSettings.defaultRole !== (team.teamSettings?.defaultRole || "VIEW") ||
+      teamSettings.inviteOnly !== (team.teamSettings?.inviteOnly ?? true) ||
+      teamSettings.requireTwoFactor !==
+        (team.teamSettings?.requireTwoFactor ?? false) ||
+      teamSettings.sessionTimeout !==
+        (team.teamSettings?.sessionTimeout || 60) ||
+      teamSettings.allowPublicLinks !==
+        (team.teamSettings?.allowPublicLinks ?? true) ||
+      teamSettings.autoArchive !== (team.teamSettings?.autoArchive ?? false) ||
+      teamSettings.fileRetention !==
+        (team.teamSettings?.fileRetention || "ONE_YEAR") ||
+      teamSettings.versionHistory !==
+        (team.teamSettings?.versionHistory ?? true) ||
+      teamSettings.sessionTimeoutEnabled !==
+        (team.teamSettings?.sessionTimeout ?? 0) > 0;
+
+    setShowSaveBar(hasChanges);
+  }, [teamData, teamSettings, team]);
 
   const handleTeamDataChange = (
     field: keyof typeof teamData,
@@ -79,82 +181,282 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
     }));
   };
 
-  const handleImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size should be less than 5MB");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setTeamData((prev) => ({
-        ...prev,
-        logo: e.target?.result as string,
-      }));
-      toast.success("Logo uploaded successfully");
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleRemoveLogo = () => {
+  const handleLogoUpdate = (logoUrl: string) => {
     setTeamData((prev) => ({
       ...prev,
-      logo: "",
+      logo: logoUrl,
     }));
-    toast.info("Logo removed");
   };
 
   const handleBack = () => {
     router.push(`/settings/team/${team.id}`);
   };
 
+  useEffect(() => {
+    const fetchCreator = async () => {
+      try {
+        if (team.createdById) {
+          const response = await fetch(`/api/users/${team.createdById}`);
+          if (response.ok) {
+            const data = await response.json();
+            setCreator(data);
+          } else {
+            setCreator({
+              name: "Unknown User",
+              email: team.createdById.substring(0, 8) + "...",
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching creator:", error);
+        setCreator({
+          name: "Unknown User",
+          email: team.createdById
+            ? team.createdById.substring(0, 8) + "..."
+            : "Unknown",
+        });
+      }
+    };
+
+    fetchCreator();
+  }, [team.createdById]);
+
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      try {
+        const response = await fetch(`/api/teams/${team.id}/members`);
+        if (response.ok) {
+          const data = await response.json();
+          const members = data.members.filter(
+            (member: any) => member.userId !== team.createdById
+          );
+          setTeamMembers(members);
+        }
+      } catch (error) {
+        console.error("Error loading team members:", error);
+      }
+    };
+
+    if (hasAdminAccess) {
+      loadTeamMembers();
+    }
+  }, [team.id, team.createdById, hasAdminAccess]);
+
   const handleSaveAll = async () => {
     setIsSaving(true);
+    setShowSaveBar(false);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const teamUpdateResponse = await fetch(`/api/teams/${team.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: teamData.name,
+          description: teamData.description,
+          logo: teamData.logo,
+        }),
+      });
 
-      const saveData = {
-        teamData,
-        teamSettings,
+      if (!teamUpdateResponse.ok) {
+        const error = await teamUpdateResponse.json();
+        throw new Error(error.error || "Failed to update team information");
+      }
+
+      const settingsData = {
+        teamId: team.id,
+        defaultRole: teamSettings.defaultRole,
+        inviteOnly: teamSettings.inviteOnly,
+        requireTwoFactor: teamSettings.requireTwoFactor,
+        sessionTimeout: teamSettings.sessionTimeoutEnabled
+          ? teamSettings.sessionTimeout
+          : 0,
+        allowPublicLinks: teamSettings.allowPublicLinks,
+        autoArchive: teamSettings.autoArchive,
+        fileRetention: teamSettings.fileRetention,
+        versionHistory: teamSettings.versionHistory,
       };
 
-      console.log("Saving team data:", saveData);
+      console.log("🔧 Отправляемые настройки команды:", settingsData);
 
-      toast.success("All settings saved successfully!");
+      const settingsResponse = await fetch("/api/teams/settings", {
+        method: team.teamSettings ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(settingsData),
+      });
+
+      const responseData = await settingsResponse.json();
+
+      if (!settingsResponse.ok) {
+        throw new Error(responseData.error || "Failed to update team settings");
+      }
+
+      setTimeout(() => {
+        router.refresh();
+      }, 500);
     } catch (error) {
-      console.error("Failed to save settings:", error);
-      toast.error("Failed to save settings");
+      console.error("❌ Failed to save settings:", error);
+
+      setShowSaveBar(true);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const hasChanges =
-    teamData.name !== team.name ||
-    teamData.description !== (team.description || "") ||
-    teamData.logo !== (team.logo || "") ||
-    teamSettings.defaultRole !== (team.teamSettings?.defaultRole || "VIEW") ||
-    teamSettings.inviteOnly !== (team.teamSettings?.inviteOnly ?? true) ||
-    teamSettings.requireTwoFactor !==
-      (team.teamSettings?.requireTwoFactor ?? false) ||
-    teamSettings.sessionTimeout !== (team.teamSettings?.sessionTimeout || 60) ||
-    teamSettings.allowPublicLinks !==
-      (team.teamSettings?.allowPublicLinks ?? true) ||
-    teamSettings.autoArchive !== (team.teamSettings?.autoArchive ?? false) ||
-    teamSettings.fileRetention !==
-      (team.teamSettings?.fileRetention || "ONE_YEAR") ||
-    teamSettings.versionHistory !== (team.teamSettings?.versionHistory ?? true);
+  useEffect(() => {
+    if (showDeleteDialog) {
+      const confirmInput = document.getElementById(
+        "confirm-team-name"
+      ) as HTMLInputElement;
+      const confirmButton = document.getElementById(
+        "confirm-delete-btn"
+      ) as HTMLButtonElement;
+
+      const checkConfirmation = () => {
+        if (confirmInput && confirmButton) {
+          confirmButton.disabled = confirmInput.value !== team.name;
+        }
+      };
+
+      confirmInput?.addEventListener("input", checkConfirmation);
+      checkConfirmation();
+
+      return () => {
+        confirmInput?.removeEventListener("input", checkConfirmation);
+      };
+    }
+  }, [showDeleteDialog, team.name]);
+
+  const handleTransferOwnership = () => {
+    setShowTransferDialog(true);
+  };
+
+  const handleConfirmTransfer = async () => {
+    if (!selectedMemberId) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/teams/${team.id}/transfer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          newOwnerId: selectedMemberId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to transfer ownership");
+      }
+
+      setShowTransferDialog(false);
+
+      setTimeout(() => {
+        router.refresh();
+      }, 1000);
+    } catch (error) {
+      console.error("Transfer ownership error:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteTeam = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/teams/${team.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete team");
+      }
+
+      setConfirmationText("");
+
+      setTimeout(() => {
+        router.push("/settings");
+        router.refresh();
+      }, 1000);
+    } catch (error) {
+      console.error("Delete team error:", error);
+    } finally {
+      setIsSaving(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleGenerateShareLink = async () => {
+    setIsSaving(true);
+
+    try {
+      const response = await fetch("/api/teams/share-link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          teamId: team.id,
+          expiresIn: "7d",
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to generate share link");
+      }
+
+      const data = await response.json();
+      setGeneratedShareLink(data.shareLink);
+      setShowShareLinkDialog(true);
+    } catch (error) {
+      console.error("Share link generation error:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSessionTimeoutToggle = (checked: boolean) => {
+    handleTeamSettingsChange("sessionTimeoutEnabled", checked);
+    if (!checked) {
+      handleTeamSettingsChange("sessionTimeout", 60);
+    } else {
+      handleTeamSettingsChange(
+        "sessionTimeout",
+        teamSettings.sessionTimeout || 60
+      );
+    }
+  };
+
+  if (!hasAdminAccess) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Access Denied
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            You don't have permission to access team settings.
+          </p>
+          <Button onClick={() => router.push(`/settings/team/${team.id}`)}>
+            Back to Team
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -192,61 +494,12 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
             <CardDescription>Basic details about your team</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <Label>Team Logo</Label>
-              <div className="flex items-start gap-6">
-                <div className="relative">
-                  {teamData.logo ? (
-                    <div className="relative">
-                      <img
-                        src={teamData.logo}
-                        alt="Team logo"
-                        className="h-24 w-24 rounded-xl object-cover border border-gray-200 dark:border-gray-700"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleRemoveLogo}
-                        className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="h-24 w-24 rounded-xl bg-linear-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 border-2 border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center">
-                      <ImageIcon className="h-8 w-8 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <Label htmlFor="logo-upload" className="cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          type="button"
-                          className="gap-2"
-                        >
-                          <Upload className="h-4 w-4" />
-                          Upload New Logo
-                        </Button>
-                        <input
-                          id="logo-upload"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleImageUpload}
-                        />
-                      </div>
-                    </Label>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Recommended: 512x512px, PNG or JPG, max 5MB
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TeamLogoUpload
+              teamId={team.id}
+              currentLogo={teamData.logo}
+              teamName={teamData.name}
+              onLogoUpdate={handleLogoUpdate}
+            />
 
             <Separator />
 
@@ -258,6 +511,7 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
                   value={teamData.name}
                   onChange={(e) => handleTeamDataChange("name", e.target.value)}
                   placeholder="Enter team name"
+                  disabled={isSaving}
                 />
               </div>
 
@@ -282,6 +536,7 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
                 }
                 placeholder="Describe your team's purpose and goals"
                 rows={3}
+                disabled={isSaving}
               />
               <p className="text-sm text-gray-500">
                 This will be visible to all team members
@@ -296,8 +551,11 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
                 <div>
                   <p className="text-sm font-medium">Created by</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {team.createdById || "Unknown"}
+                    {creator?.name || creator?.email || "Unknown"}
                   </p>
+                  {creator?.email && creator.email.includes("@") && (
+                    <p className="text-xs text-gray-500">{creator.email}</p>
+                  )}
                 </div>
               </div>
 
@@ -337,8 +595,8 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
@@ -387,7 +645,12 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
                       <Shield className="h-4 w-4 text-red-600 dark:text-red-400" />
                     </div>
                     <div>
-                      <Label className="text-base">Require 2FA</Label>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-base">Require 2FA</Label>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                          Soon
+                        </span>
+                      </div>
                       <p className="text-sm text-gray-500">
                         Extra security layer
                       </p>
@@ -395,50 +658,88 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
                   </div>
                   <Switch
                     checked={teamSettings.requireTwoFactor}
-                    onCheckedChange={(checked) =>
-                      handleTeamSettingsChange("requireTwoFactor", checked)
-                    }
-                    className="data-[state=checked]:bg-red-500"
+                    disabled
+                    className="data-[state=checked]:bg-red-500 opacity-60"
                   />
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Default Role for New Members</Label>
-                  <select
-                    value={teamSettings.defaultRole}
-                    onChange={(e) =>
-                      handleTeamSettingsChange("defaultRole", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900"
-                  >
-                    <option value="VIEW">Viewer</option>
-                    <option value="EDIT">Editor</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                  <p className="text-sm text-gray-500">
-                    Role assigned to new members by default
-                  </p>
+              <div className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base">Enable session timeout</Label>
+                    <p className="text-sm text-gray-500">
+                      Automatically log out inactive users
+                    </p>
+                  </div>
+                  <Switch
+                    checked={teamSettings.sessionTimeoutEnabled}
+                    onCheckedChange={handleSessionTimeoutToggle}
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Session Timeout (minutes)</Label>
-                  <Input
-                    type="number"
-                    min="5"
-                    max="1440"
-                    value={teamSettings.sessionTimeout}
-                    onChange={(e) =>
-                      handleTeamSettingsChange(
-                        "sessionTimeout",
-                        parseInt(e.target.value)
-                      )
-                    }
-                  />
-                  <p className="text-sm text-gray-500">
-                    Auto-logout after inactivity
-                  </p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Session Timeout (minutes)</Label>
+                      <p className="text-sm text-gray-500">
+                        Auto-logout after inactivity
+                      </p>
+                    </div>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        min="5"
+                        max="1440"
+                        value={teamSettings.sessionTimeout}
+                        disabled={!teamSettings.sessionTimeoutEnabled}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value);
+                          handleTeamSettingsChange(
+                            "sessionTimeout",
+                            isNaN(value) || value < 5 ? 60 : value
+                          );
+                        }}
+                        className={`w-full transition-opacity ${
+                          !teamSettings.sessionTimeoutEnabled
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
+                      />
+                    </div>
+                  </div>
+                  {!teamSettings.sessionTimeoutEnabled && (
+                    <p className="text-xs text-gray-500 italic">
+                      Session timeout is disabled. Users will not be
+                      automatically logged out.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Default Member Role</Label>
+                      <p className="text-sm text-gray-500">
+                        Default role for new members
+                      </p>
+                    </div>
+                    <div className="w-32">
+                      <select
+                        value={teamSettings.defaultRole}
+                        onChange={(e) =>
+                          handleTeamSettingsChange(
+                            "defaultRole",
+                            e.target.value
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900"
+                      >
+                        <option value="VIEW">Viewer</option>
+                        <option value="EDIT">Editor</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -508,6 +809,9 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>File Retention Period</Label>
+                  <p className="text-sm text-gray-500">
+                    How long to keep archived files
+                  </p>
                   <select
                     value={teamSettings.fileRetention}
                     onChange={(e) =>
@@ -530,17 +834,17 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
               <div className="flex items-center gap-3 mb-3">
                 <Link className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 <h4 className="font-medium text-blue-700 dark:text-blue-300">
-                  Share Settings
+                  Share Team
                 </h4>
               </div>
               <p className="text-sm text-blue-600 dark:text-blue-400 mb-3">
-                Generate a unique link to share this team's settings with other
-                admins.
+                Generate a unique link to share with other future members.
               </p>
               <Button
                 variant="outline"
                 size="sm"
                 className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                onClick={handleGenerateShareLink}
               >
                 <Link className="h-4 w-4 mr-2" />
                 Generate Share Link
@@ -549,6 +853,54 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
           </CardContent>
         </Card>
       </motion.div>
+
+      <Dialog open={showShareLinkDialog} onOpenChange={setShowShareLinkDialog}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link className="h-5 w-5" />
+              Share Link Generated
+            </DialogTitle>
+            <DialogDescription>
+              Share this link with others to give them access to join the team.
+              This link will expire in 7 days.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="relative p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute top-2.5 right-2 h-7 w-7 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(generatedShareLink);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 3000);
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+
+              <code className="block text-sm break-all text-gray-800 dark:text-gray-200 pr-8">
+                {generatedShareLink}
+              </code>
+            </div>
+
+            {copied && (
+              <p className="text-xs text-green-600 dark:text-green-400">
+                Copied to clipboard
+              </p>
+            )}
+
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              <strong>Note:</strong> Anyone with this link will be able to join
+              this team. Keep it safe and only share it with people you trust.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -572,15 +924,17 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
                     Transfer Ownership
                   </h4>
                   <p className="text-sm text-red-600 dark:text-red-400">
-                    Transfer this team to another member
+                    Transfer team ownership to another member. You will become a
+                    regular member.
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   className="border-red-200 text-red-600 hover:bg-red-100 hover:text-red-700"
-                  onClick={() => toast.info("Transfer ownership feature")}
+                  onClick={handleTransferOwnership}
+                  disabled={isSaving}
                 >
-                  Transfer
+                  Transfer Ownership
                 </Button>
               </div>
             </div>
@@ -592,14 +946,14 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
                     Delete Team
                   </h4>
                   <p className="text-sm text-red-600 dark:text-red-400">
-                    Permanently delete this team and all its files
+                    Permanently delete this team and all its files. This action
+                    cannot be undone.
                   </p>
                 </div>
                 <Button
                   variant="destructive"
-                  onClick={() =>
-                    toast.error("This action requires confirmation")
-                  }
+                  onClick={handleDeleteTeam}
+                  disabled={isSaving}
                 >
                   Delete Team
                 </Button>
@@ -609,7 +963,157 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
         </Card>
       </motion.div>
 
-      {hasChanges && (
+      <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 dark:text-red-400">
+              Transfer Team Ownership
+            </DialogTitle>
+            <DialogDescription className="text-red-500 dark:text-red-400">
+              Select a team member to transfer ownership to. You will become a
+              regular member.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {teamMembers.length > 0 ? (
+              <div className="space-y-3">
+                <Label htmlFor="member-select">Select New Owner</Label>
+                <select
+                  id="member-select"
+                  value={selectedMemberId}
+                  onChange={(e) => setSelectedMemberId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900"
+                >
+                  <option value="">Select a team member</option>
+                  {teamMembers.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name || member.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                  No other team members available to transfer ownership to.
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowTransferDialog(false);
+                  setSelectedMemberId("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmTransfer}
+                disabled={
+                  !selectedMemberId || teamMembers.length === 0 || isSaving
+                }
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Transferring...
+                  </>
+                ) : (
+                  "Transfer Ownership"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 dark:text-red-400">
+              Delete Team
+            </DialogTitle>
+            <DialogDescription className="text-red-500 dark:text-red-400">
+              This action cannot be undone. All team data will be permanently
+              deleted.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400">
+                <strong>Warning:</strong> This will permanently delete:
+              </p>
+              <ul className="text-sm text-red-600 dark:text-red-400 mt-2 ml-4 list-disc">
+                <li>All team files and documents</li>
+                <li>Team settings and configurations</li>
+                <li>Team memberships and permissions</li>
+                <li>Team comments and version history</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Input
+                  type="text"
+                  placeholder={`Type "${team.name}" to confirm`}
+                  className={`flex-1 pr-10 ${
+                    confirmationText && confirmationText !== team.name
+                      ? "border-red-300 dark:border-red-700 focus-visible:ring-red-500"
+                      : ""
+                  }`}
+                  id="confirm-team-name"
+                  onChange={(e) => setConfirmationText(e.target.value)}
+                  value={confirmationText}
+                />
+                {confirmationText && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    {confirmationText === team.name ? (
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-red-500" />
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setConfirmationText("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmDelete}
+                disabled={isSaving || confirmationText !== team.name}
+                id="confirm-delete-btn"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete Team"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {showSaveBar && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -644,8 +1148,9 @@ export function TeamDetailedSettings({ team }: TeamDetailedSettingsProps) {
                     fileRetention:
                       team.teamSettings?.fileRetention || "ONE_YEAR",
                     versionHistory: team.teamSettings?.versionHistory ?? true,
+                    sessionTimeoutEnabled:
+                      (team.teamSettings?.sessionTimeout ?? 0) > 0,
                   });
-                  toast.info("Changes discarded");
                 }}
               >
                 Discard
