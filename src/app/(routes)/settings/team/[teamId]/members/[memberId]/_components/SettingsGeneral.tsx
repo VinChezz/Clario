@@ -24,16 +24,14 @@ import {
   Eye,
   Edit2,
   Settings,
-  UserPlus,
-  FilePlus,
   CheckCircle,
   XCircle,
   AlertTriangle,
   Users,
-  Lock,
-  Unlock,
+  FilePlus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface SettingsGeneralProps {
   member: TeamMember & {
@@ -44,19 +42,28 @@ interface SettingsGeneralProps {
     };
   };
   currentUserRole?: Role;
-  onRoleChange?: (memberId: string, newRole: Role) => Promise<void>;
+  teamId: string;
+  currentUserId: string;
+  isCurrentUserTeamCreator?: boolean;
 }
 
 export function SettingsGeneral({
   member,
   currentUserRole = "ADMIN",
-  onRoleChange,
+  teamId,
+  currentUserId,
+  isCurrentUserTeamCreator = false,
 }: SettingsGeneralProps) {
+  const router = useRouter();
   const [role, setRole] = useState<Role>(member.role);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const canChangeRole = currentUserRole === "ADMIN";
+  // Проверяем права доступа
+  const canChangeRole =
+    (currentUserRole === "ADMIN" || isCurrentUserTeamCreator) &&
+    member.user.id !== currentUserId;
+  const canAssignAdmin = isCurrentUserTeamCreator;
 
   const getRoleInfo = (role: Role) => {
     switch (role) {
@@ -94,6 +101,12 @@ export function SettingsGeneral({
   const originalRoleInfo = getRoleInfo(member.role);
 
   const handleRoleChange = (value: Role) => {
+    // Если пользователь не может назначать ADMIN, не позволяем выбрать эту роль
+    if (value === "ADMIN" && !canAssignAdmin) {
+      toast.error("Only team creator can assign ADMIN role");
+      return;
+    }
+
     setRole(value);
     setHasChanges(value !== member.role);
   };
@@ -104,15 +117,37 @@ export function SettingsGeneral({
     setIsSaving(true);
 
     try {
-      if (onRoleChange) {
-        await onRoleChange(member.id, role);
-        setHasChanges(false);
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setHasChanges(false);
+      const response = await fetch(`/api/teams/members`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          memberId: member.user.id, // Отправляем userId участника
+          teamId: teamId,
+          role: role,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update role");
       }
-    } catch (error) {
-      toast.error("Failed to update role");
+
+      toast.success(`Role changed to ${currentRoleInfo.title}`, {
+        description: `${member.user.name}'s permissions have been updated.`,
+      });
+
+      setHasChanges(false);
+
+      // Обновляем страницу
+      router.refresh();
+    } catch (error: any) {
+      console.error("Error updating role:", error);
+      toast.error("Failed to update role", {
+        description: error.message || "Please try again later.",
+      });
       setRole(member.role);
     } finally {
       setIsSaving(false);
@@ -205,43 +240,22 @@ export function SettingsGeneral({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {member.role !== "ADMIN" && (
-                  <>
-                    <SelectItem
-                      value="VIEW"
-                      className="flex items-center gap-2"
-                    >
-                      <Eye className="h-4 w-4" />
-                      <div>
-                        <p className="font-medium">Viewer</p>
-                        <p className="text-xs text-gray-500">
-                          Can only view files
-                        </p>
-                      </div>
-                    </SelectItem>
-                    <SelectItem
-                      value="EDIT"
-                      className="flex items-center gap-2"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                      <div>
-                        <p className="font-medium">Editor</p>
-                        <p className="text-xs text-gray-500">
-                          Can create and edit files
-                        </p>
-                      </div>
-                    </SelectItem>
-                  </>
-                )}
-                {member.role === "ADMIN" && (
-                  <SelectItem value="ADMIN" className="flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
-                    <div>
-                      <p className="font-medium">Admin</p>
-                      <p className="text-xs text-gray-500">Team admin</p>
-                    </div>
-                  </SelectItem>
-                )}
+                <SelectItem value="VIEW" className="flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  <div>
+                    <p className="font-medium">Viewer</p>
+                    <p className="text-xs text-gray-500">Can only view files</p>
+                  </div>
+                </SelectItem>
+                <SelectItem value="EDIT" className="flex items-center gap-2">
+                  <Edit2 className="h-4 w-4" />
+                  <div>
+                    <p className="font-medium">Editor</p>
+                    <p className="text-xs text-gray-500">
+                      Can create and edit files
+                    </p>
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
 
@@ -249,8 +263,8 @@ export function SettingsGeneral({
               <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                 <p className="text-sm text-amber-700 dark:text-amber-300">
-                  {member.role === "ADMIN"
-                    ? "Team admin role cannot be changed"
+                  {member.user.id === currentUserId
+                    ? "You cannot change your own role"
                     : "You don't have permission to change roles"}
                 </p>
               </div>
@@ -316,18 +330,6 @@ export function SettingsGeneral({
                     <span className="text-sm">Remove members</span>
                     {getPermissionIcon(currentPermissions.removeMembers)}
                   </div>
-                  {role === "ADMIN" && (
-                    <>
-                      <div className="flex items-center justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                        <span className="text-sm">Manage billing</span>
-                        {getPermissionIcon(true)}
-                      </div>
-                      <div className="flex items-center justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                        <span className="text-sm">Delete team</span>
-                        {getPermissionIcon(true)}
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
             </div>
