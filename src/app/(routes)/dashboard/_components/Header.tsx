@@ -402,11 +402,17 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
     }
 
     try {
+      const memberToUpdate = teamMembers.find((m) => m.id === memberId);
+      if (!memberToUpdate) {
+        toast.error("Member not found");
+        return false;
+      }
+
       const response = await fetch("/api/teams/members", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          memberId,
+          memberId: memberToUpdate.userId,
           role: newRole,
           teamId: activeTeam?.id,
         }),
@@ -418,23 +424,17 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         return false;
       }
 
-      if (activeTeam?.members) {
-        const updatedMembers = activeTeam.members.map((member) =>
-          member.id === memberId ? { ...member, role: newRole } : member
-        );
+      const updatedMembers = teamMembers.map((member) =>
+        member.id === memberId ? { ...member, role: newRole } : member
+      );
 
-        setActiveTeam({
-          ...activeTeam,
-          members: updatedMembers,
-        });
-
-        setTeamMembers(updatedMembers);
-      }
+      setTeamMembers(updatedMembers);
 
       toast.success(`Member role updated to ${getRoleText(newRole)}`);
       onTeamUpdate?.();
       return true;
     } catch (error) {
+      console.error("Error updating role:", error);
       toast.error("Failed to update role");
       return false;
     }
