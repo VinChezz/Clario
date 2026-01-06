@@ -161,7 +161,13 @@ export default async function MemberDetailsPage({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <SettingsGeneral member={member} />
+                <SettingsGeneral
+                  member={member}
+                  currentUserRole={currentUserMember?.role || "VIEW"}
+                  teamId={teamId}
+                  currentUserId={user.id}
+                  isCurrentUserTeamCreator={team.createdById === user.id}
+                />
               </CardContent>
             </Card>
           )}
@@ -180,7 +186,7 @@ export default async function MemberDetailsPage({
             </CardHeader>
             <CardContent className="space-y-2">
               <Link
-                href={`/settings/team/${teamId}/files?user=${member.userId}`}
+                href={`/settings/team/${teamId}/user-files?user=${member.userId}`}
                 className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
               >
                 <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50">
@@ -196,7 +202,7 @@ export default async function MemberDetailsPage({
               </Link>
 
               <Link
-                href={`/settings/team/${teamId}/activity?user=${member.userId}`}
+                href={`/settings/team/${teamId}/user-activity?user=${member.userId}`}
                 className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
               >
                 <div className="h-8 w-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-900/50">
@@ -212,7 +218,7 @@ export default async function MemberDetailsPage({
               </Link>
 
               <Link
-                href={`/settings/team/${teamId}/comments?user=${member.userId}`}
+                href={`/settings/team/${teamId}/user-comments?user=${member.userId}`}
                 className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
               >
                 <div className="h-8 w-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50">
@@ -228,7 +234,7 @@ export default async function MemberDetailsPage({
               </Link>
 
               <Link
-                href={`/settings/team/${teamId}/storage?user=${member.userId}`}
+                href={`/settings/team/${teamId}/user-storage?user=${member.userId}`}
                 className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
               >
                 <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:bg-amber-200 dark:group-hover:bg-amber-900/50">
