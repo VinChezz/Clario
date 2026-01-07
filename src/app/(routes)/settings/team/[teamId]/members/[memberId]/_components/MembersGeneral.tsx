@@ -1,6 +1,6 @@
 "use client";
 
-import { TeamMember, User, Plan } from "@prisma/client";
+import { TeamMember, User } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -9,8 +9,6 @@ import {
   Globe,
   FileText,
   User as UserIcon,
-  Shield,
-  Zap,
 } from "lucide-react";
 
 interface MembersGeneralProps {
@@ -52,33 +50,6 @@ export function MembersGeneral({ member }: MembersGeneralProps) {
     return formatShortDate(lastActive);
   };
 
-  const getPlanInfo = (plan: Plan) => {
-    switch (plan) {
-      case Plan.ENTERPRISE:
-        return {
-          color:
-            "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-          icon: <Shield className="h-4 w-4" />,
-        };
-
-      case Plan.PRO:
-        return {
-          color:
-            "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-          icon: <Zap className="h-4 w-4" />,
-        };
-      case Plan.FREE:
-      default:
-        return {
-          color:
-            "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
-          icon: <UserIcon className="h-4 w-4" />,
-        };
-    }
-  };
-
-  const planInfo = getPlanInfo(user.plan);
-
   return (
     <div className="space-y-6 p-4">
       <Card>
@@ -95,7 +66,7 @@ export function MembersGeneral({ member }: MembersGeneralProps) {
                 <p className="font-medium">{formatDate(member.joinedAt)}</p>
               </div>
 
-              <div>
+              <div className="py-2.5">
                 <div className="flex items-center gap-2 mb-1">
                   <Clock className="h-4 w-4 text-gray-500" />
                   <h4 className="text-sm font-medium text-gray-500">
@@ -103,16 +74,6 @@ export function MembersGeneral({ member }: MembersGeneralProps) {
                   </h4>
                 </div>
                 <p className="font-medium">{getLastActiveText()}</p>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Globe className="h-4 w-4 text-gray-500" />
-                  <h4 className="text-sm font-medium text-gray-500">
-                    Timezone
-                  </h4>
-                </div>
-                <p className="font-medium">{user.timezone || "UTC"}</p>
               </div>
             </div>
 
@@ -128,15 +89,14 @@ export function MembersGeneral({ member }: MembersGeneralProps) {
                   {user.totalCreatedFiles || 0}
                 </p>
               </div>
-
               <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Plan</h4>
-                <Badge
-                  className={`${planInfo.color} flex items-center gap-1.5 w-fit`}
-                >
-                  {planInfo.icon}
-                  <span className="capitalize">{user.plan.toLowerCase()}</span>
-                </Badge>
+                <div className="flex items-center gap-2 mb-1">
+                  <Globe className="h-4 w-4 text-gray-500" />
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Timezone
+                  </h4>
+                </div>
+                <p className="font-medium">{user.timezone || "UTC"}</p>
               </div>
             </div>
           </div>
