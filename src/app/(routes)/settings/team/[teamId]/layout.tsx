@@ -30,7 +30,7 @@ export default async function TeamSettingsLayout({
 
   return (
     <TeamStorageProvider teamId={teamId}>
-      <div className="mx-auto max-w-5xl px-6 py-8 space-y-10">{children}</div>
+      <div className="mx-auto max-w-7xl px-6 py-8 space-y-10">{children}</div>
     </TeamStorageProvider>
   );
 }
