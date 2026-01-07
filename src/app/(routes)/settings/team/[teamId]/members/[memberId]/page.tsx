@@ -31,10 +31,14 @@ import {
   ArrowLeft,
   User,
   Mail,
+  Shield,
+  Zap,
+  UserIcon,
 } from "lucide-react";
 
 import Link from "next/link";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { Plan } from "@prisma/client";
 
 export default async function MemberDetailsPage({
   params,
@@ -91,6 +95,33 @@ export default async function MemberDetailsPage({
     currentUserMember?.role === "ADMIN" ||
     team.createdById === currentUserMember?.userId;
 
+  const getPlanInfo = (plan: Plan) => {
+    switch (plan) {
+      case Plan.ENTERPRISE:
+        return {
+          color:
+            "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+          icon: <Shield className="h-4 w-4" />,
+        };
+
+      case Plan.PRO:
+        return {
+          color:
+            "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+          icon: <Zap className="h-4 w-4" />,
+        };
+      case Plan.FREE:
+      default:
+        return {
+          color:
+            "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
+          icon: <UserIcon className="h-4 w-4" />,
+        };
+    }
+  };
+
+  const planInfo = getPlanInfo(member.user.plan);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -135,17 +166,30 @@ export default async function MemberDetailsPage({
                     </CardDescription>
                   </div>
                 </div>
-                <Badge
-                  variant={
-                    member.role === "ADMIN"
-                      ? "destructive"
-                      : member.role === "EDIT"
-                      ? "default"
-                      : "secondary"
-                  }
-                >
-                  {member.role}
-                </Badge>
+                <div className="flex justify-between gap-2">
+                  <Badge
+                    className={`${planInfo.color} font-medium text-base`}
+                    variant={"secondary"}
+                  >
+                    <span className="font-medium text-base">
+                      {planInfo.icon}
+                    </span>
+                    <p className="capitalize">
+                      {member.user.plan.toLowerCase()}
+                    </p>
+                  </Badge>
+                  <Badge
+                    variant={
+                      member.role === "ADMIN"
+                        ? "destructive"
+                        : member.role === "EDIT"
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
+                    {member.role}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
 
