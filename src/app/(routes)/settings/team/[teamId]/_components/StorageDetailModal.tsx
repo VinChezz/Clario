@@ -101,29 +101,14 @@ export function StorageDetailsModal({
 
   const planLimitGB = getPlanLimitGB();
 
-  // Используем weightedUsedGB если передан, иначе currentUsageGB
   const displayUsageGB = weightedUsedGB > 0 ? weightedUsedGB : currentUsageGB;
   const percentage = planLimitGB > 0 ? (displayUsageGB / planLimitGB) * 100 : 0;
-
-  const getProgressGradient = (pct: number) => {
-    if (pct > 90) return "linear-gradient(135deg, #ef4444, #dc2626)";
-    if (pct > 70) return "linear-gradient(135deg, #f59e0b, #d97706)";
-    if (pct > 50) return "linear-gradient(135deg, #3b82f6, #2563eb)";
-    return "linear-gradient(135deg, #10b981, #059669)";
-  };
 
   const getStatusColor = (pct: number) => {
     if (pct > 90) return "text-red-400";
     if (pct > 70) return "text-yellow-400";
     if (pct > 50) return "text-blue-400";
     return "text-green-400";
-  };
-
-  const getStatusBgColor = (pct: number) => {
-    if (pct > 90) return "bg-red-500/10";
-    if (pct > 70) return "bg-yellow-500/10";
-    if (pct > 50) return "bg-blue-500/10";
-    return "bg-green-500/10";
   };
 
   const getPlanColor = (plan: string) => {
