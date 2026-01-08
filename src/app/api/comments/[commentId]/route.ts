@@ -46,7 +46,7 @@ export async function PATCH(
                 members: {
                   some: {
                     userId: dbUser.id,
-                    role: "EDIT",
+                    role: { in: ["EDIT", "ADMIN"] },
                   },
                 },
               },
@@ -64,7 +64,7 @@ export async function PATCH(
       data: {
         ...(status && { status }),
         ...(content && { content }),
-        updatedAt: new Date(), // 👈 Добавляем обновление времени
+        updatedAt: new Date(),
       },
       include: {
         author: {
