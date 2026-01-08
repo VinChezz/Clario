@@ -1,39 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { createFileWithTeamCheck } from "@/lib/fileOperations";
+import { calculateFileSize } from "@/lib/fileSizeCalculator";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
     const { teamId } = await params;
+    const searchParams = request.nextUrl.searchParams;
+    const userId = searchParams.get("userId");
+
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    console.log("🔍 Fetching files for team:", teamId);
-
-    if (!teamId) {
-      return NextResponse.json(
-        { error: "Team ID is required" },
-        { status: 400 }
-      );
+    if (!user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const team = await prisma.team.findUnique({
-      where: { id: teamId },
+    const userMembership = await prisma.teamMember.findFirst({
+      where: {
+        teamId,
+        user: { email: user.email },
+      },
     });
 
-    if (!team) {
-      console.log("❌ Team not found:", teamId);
-      return NextResponse.json({ error: "Team not found" }, { status: 404 });
+    if (!userMembership) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    console.log("✅ Team found:", team.name);
-
     const files = await prisma.file.findMany({
-      where: { teamId },
+      where: {
+        teamId,
+        ...(userId && { createdById: userId }),
+        deletedAt: null,
+      },
       include: {
         createdBy: {
           select: {
@@ -47,74 +49,54 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
-    console.log(`📁 Found ${files.length} files for team ${team.name}`);
-    return NextResponse.json(serializeBigInt(files), { status: 200 });
-  } catch (error) {
-    console.error("❌ Error fetching files:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
+    const filesWithSize = await Promise.all(
+      files.map(async (file) => {
+        const fileSize = calculateFileSize(
+          file.document || undefined,
+          file.whiteboard || undefined
+        );
+
+        const versions = await prisma.documentVersion.findMany({
+          where: { fileId: file.id },
+        });
+
+        let versionsSize = BigInt(0);
+        versions.forEach((version) => {
+          const versionSize = calculateFileSize(
+            version.type === "document" ? version.content : undefined,
+            version.type === "whiteboard" ? version.content : undefined
+          );
+          versionsSize += versionSize;
+        });
+
+        const totalSize = fileSize + versionsSize;
+
+        return {
+          id: file.id,
+          name: file.fileName,
+          size: Number(totalSize),
+          type: file.document ? "document" : "whiteboard",
+          createdAt: file.createdAt.toISOString(),
+          updatedAt: file.updatedAt.toISOString(),
+          owner: {
+            id: file.createdBy.id,
+            name: file.createdBy.name || "Unknown",
+            email: file.createdBy.email,
+            image: file.createdBy.image,
+          },
+          versionsCount: versions.length,
+        };
+      })
     );
-  }
-}
-function serializeBigInt<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (_, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    )
-  );
-}
-
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { teamId: string } }
-) {
-  try {
-    const { getUser } = getKindeServerSession();
-    const user = await getUser();
-
-    if (!user || !user.email || !user.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const teamId = params.teamId;
-    const body = await request.json();
-
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email },
-    });
-
-    if (!dbUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const result = await createFileWithTeamCheck({
-      fileName: body.fileName,
-      teamId,
-      userId: dbUser.id,
-      document: body.document,
-      whiteboard: body.whiteboard,
-      archive: body.archive || false,
-      isPublic: body.isPublic || false,
-      permissions: body.permissions || "VIEW",
-    });
-
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error, teamStorage: result.teamStorageInfo },
-        { status: result.error?.includes("insufficient") ? 400 : 403 }
-      );
-    }
 
     return NextResponse.json({
-      success: true,
-      file: result.file,
-      teamStorage: result.teamStorageInfo,
+      files: filesWithSize,
+      count: filesWithSize.length,
     });
   } catch (error) {
-    console.error("Error creating file:", error);
+    console.error("Error fetching user files:", error);
     return NextResponse.json(
-      { error: "Failed to create file" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
