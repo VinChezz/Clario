@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { Role } from "@prisma/client";
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -12,6 +13,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { memberId, teamId, role } = await request.json();
+
+    if (!["VIEW", "EDIT", "ADMIN"].includes(role)) {
+      return NextResponse.json(
+        { error: "Invalid role. Must be VIEW, EDIT, or ADMIN" },
+        { status: 400 }
+      );
+    }
 
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email },
@@ -45,13 +53,30 @@ export async function PATCH(request: NextRequest) {
 
     const targetMember = await prisma.teamMember.findFirst({
       where: {
-        id: memberId,
+        userId: memberId,
         teamId: teamId,
+      },
+      include: {
+        user: true,
       },
     });
 
     if (!targetMember) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    if (targetMember.userId === dbUser.id) {
+      return NextResponse.json(
+        { error: "You cannot change your own role" },
+        { status: 400 }
+      );
+    }
+
+    if (role === "ADMIN" && !isTeamCreator) {
+      return NextResponse.json(
+        { error: "Only team creator can assign ADMIN role" },
+        { status: 403 }
+      );
     }
 
     if (role === "ADMIN" && !isTeamCreator) {
@@ -62,8 +87,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updatedMember = await prisma.teamMember.update({
-      where: { id: memberId },
-      data: { role },
+      where: {
+        userId_teamId: {
+          userId: memberId,
+          teamId: teamId,
+        },
+      },
+      data: { role: role as Role },
       include: {
         user: {
           select: {
