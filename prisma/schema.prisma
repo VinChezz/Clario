@@ -67,7 +67,6 @@ model Team {
   teamSettings TeamSettings?
   githubRepo  GithubRepository?
 
-  // Добавляем новую связь
   shareLinks  ShareLink[]
 }
 
