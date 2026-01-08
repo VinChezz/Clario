@@ -20,14 +20,6 @@ import {
   MessageSquare,
   ExternalLink,
   ChevronRight,
-  HardDrive,
-  AlertTriangle,
-  Users,
-  UserX,
-  Lock,
-  AlertCircle,
-  Eye,
-  EyeOff,
   ArrowLeft,
   User,
   Mail,
@@ -39,6 +31,7 @@ import {
 import Link from "next/link";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { Plan } from "@prisma/client";
+import { RemoveMemberButton } from "./_components/RemoveMemberButton";
 
 export default async function MemberDetailsPage({
   params,
@@ -137,9 +130,7 @@ export default async function MemberDetailsPage({
 
         <div className="flex items-center gap-3">
           {!isCurrentUser && isCurrentUserAdmin && (
-            <>
-              <Button variant="destructive">Remove from Team</Button>
-            </>
+            <RemoveMemberButton memberId={member.id} teamId={teamId} />
           )}
         </div>
       </div>
@@ -272,22 +263,6 @@ export default async function MemberDetailsPage({
                   <p className="font-medium text-sm">Comments</p>
                   <p className="text-xs text-gray-500">
                     Review user's comments
-                  </p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-gray-400" />
-              </Link>
-
-              <Link
-                href={`/settings/team/${teamId}/user-storage?user=${member.userId}`}
-                className="flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
-              >
-                <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:bg-amber-200 dark:group-hover:bg-amber-900/50">
-                  <HardDrive className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-sm">Storage Usage</p>
-                  <p className="text-xs text-gray-500">
-                    Check storage consumption
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-gray-400" />
