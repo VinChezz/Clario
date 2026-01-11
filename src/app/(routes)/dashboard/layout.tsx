@@ -17,6 +17,7 @@ import { FileDataProvider } from "../../_context/FileDataContext";
 import { GithubProvider, useGithub } from "@/app/_context/GithubContext";
 import { CodeViewerModal } from "./_components/github-modal/_components/CodeViewer";
 import { SidebarProvider, useSidebar } from "@/app/_context/SidebarContext";
+import GradientLoader from "@/app/_loaders/GradientLoader";
 
 function GlobalCodeViewer() {
   const { codeViewerState, setCodeViewerState } = useGithub();
@@ -48,9 +49,10 @@ function GlobalCodeViewer() {
 }
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user }: any = useKindeBrowserClient();
+  const { user, isLoading: authLoading } = useKindeBrowserClient();
   const [fileList_, setFileList_] = useState();
   const [isChecking, setIsChecking] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -68,6 +70,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       check2FAStatus();
     } else {
       setIsChecking(false);
+      setPageLoading(false);
     }
   }, [user]);
 
@@ -117,10 +120,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         router.push("/teams/create");
       } else {
         setIsChecking(false);
+        setPageLoading(false);
       }
     } catch (err) {
       console.error("❌ Error checking team:", err);
       setIsChecking(false);
+      setPageLoading(false);
     }
   };
 
@@ -130,6 +135,14 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     if (isLargeTablet) return "w-64";
     return "w-64";
   };
+
+  if (authLoading || pageLoading) {
+    return (
+      <div className="w-full bg-white dark:bg-[#1a1a1c]">
+        <GradientLoader />
+      </div>
+    );
+  }
 
   return (
     <TourProvider>
