@@ -95,11 +95,13 @@ export default function FileList({
         (file) => !file.deletedAt && !file.isDeleted
       );
       setFileList(activeFiles);
-    } else if (fileList_) {
+    } else if (fileList_ && Array.isArray(fileList_)) {
       const activeFiles = fileList_.filter(
         (file: FILE) => !file.deletedAt && !file.isDeleted
       );
       setFileList(activeFiles);
+    } else {
+      setFileList([]);
     }
   }, [files, fileList_]);
 
@@ -151,9 +153,10 @@ export default function FileList({
       const filesResponse = await fetch(`/api/files?teamId=${activeTeam.id}`);
       const allFiles = await filesResponse.json();
 
-      const activeFiles = allFiles.filter(
-        (file: FILE) => !file.deletedAt && !file.isDeleted
-      );
+      const activeFiles = Array.isArray(allFiles)
+        ? allFiles.filter((file: FILE) => !file.deletedAt && !file.isDeleted)
+        : [];
+
       setFileList(activeFiles);
 
       if (setFileList_) {
@@ -196,9 +199,13 @@ export default function FileList({
       setFileList(updatedFileList);
 
       if (setFileList_) {
-        setFileList_((prev: any) =>
-          prev.filter((file: any) => file.id !== fileId)
-        );
+        setFileList_((prev: any) => {
+          // Проверяем, что prev - массив
+          if (Array.isArray(prev)) {
+            return prev.filter((file: any) => file.id !== fileId);
+          }
+          return [];
+        });
       }
 
       updateFromFileList(updatedFileList);
