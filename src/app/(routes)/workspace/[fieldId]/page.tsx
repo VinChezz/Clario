@@ -8,8 +8,17 @@ import LogoClarioLoader from "@/app/_loaders/ClarioLoader";
 import { ActiveComponent, WindowMode } from "@/types/window.interface";
 import dynamic from "next/dynamic";
 import WorkspaceHeader from "../_components/header/WorkspaceHeader";
-import { useIsMobile } from "@/hooks/useIsMobile";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import {
+  useIsHorizontalMobile,
+  useIsHorizontalTablet,
+  useIsLandscape,
+  useIsLargeTablet,
+  useIsMobile,
+  useIsSmallMobile,
+  useIsTablet,
+  useWindowHeight,
+} from "@/hooks/useMediaQuery";
 
 const Editor = dynamic(() => import("../_components/Editor"), {
   loading: () => (
@@ -29,8 +38,31 @@ const Canvas = dynamic(() => import("../_components/Canvas"), {
   ssr: false,
 });
 
+const getDeviceType = (width: number, height: number, isLandscape: boolean) => {
+  if (width <= 380) return "small-mobile";
+
+  if (isLandscape && height <= 600) return "horizontal-mobile";
+
+  if (width <= 767) return "mobile";
+
+  if (width <= 1200 && height <= 980) return "horizontal-tablet";
+
+  if (width >= 768 && width <= 1023) return "tablet";
+
+  if (width >= 1024 && width <= 1400) return "large-tablet";
+
+  return "desktop";
+};
+
 export default function WorkspacePage() {
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
+  const isLargeTablet = useIsLargeTablet();
+  const isSmallMobile = useIsSmallMobile();
+  const isHorizontalMobile = useIsHorizontalMobile();
+  const isHorizontalTablet = useIsHorizontalTablet();
+  const isLandscape = useIsLandscape();
+  const windowHeight = useWindowHeight();
   const params = useParams();
   const fileId = params.fieldId as string;
   const { activeTeam, isLoading: teamLoading } = useActiveTeam();
@@ -59,15 +91,50 @@ export default function WorkspacePage() {
   const [versions, setVersions] = useState<any[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
 
+  const [deviceType, setDeviceType] = useState<string>("desktop");
+
   useEffect(() => {
-    if (isMobile) {
+    const width = window.innerWidth;
+    const height = windowHeight || window.innerHeight;
+    const type = getDeviceType(width, height, isLandscape);
+    setDeviceType(type);
+  }, [
+    isMobile,
+    isTablet,
+    isLargeTablet,
+    isSmallMobile,
+    isHorizontalMobile,
+    isHorizontalTablet,
+    isLandscape,
+    windowHeight,
+  ]);
+
+  useEffect(() => {
+    if (deviceType !== "desktop") {
       setWindowMode("fullscreen");
-      setActiveComponent("editor");
+
+      if (deviceType === "tablet" || deviceType === "large-tablet") {
+        if (isLandscape) {
+          setActiveComponent("both");
+        } else {
+          setActiveComponent("editor");
+        }
+      } else {
+        setActiveComponent("editor");
+      }
     } else {
       setWindowMode("split");
       setActiveComponent("both");
     }
-  }, [isMobile]);
+  }, [deviceType, isLandscape]);
+
+  useEffect(() => {
+    if (deviceType === "small-mobile" || deviceType === "horizontal-mobile") {
+      document.documentElement.style.fontSize = "14px";
+    } else {
+      document.documentElement.style.fontSize = "16px";
+    }
+  }, [deviceType]);
 
   useEffect(() => {
     if (windowMode === "split" && activeComponent !== "both") {
@@ -112,6 +179,8 @@ export default function WorkspacePage() {
   }, [fileId, fetchVersions]);
 
   const startDrag = (e: React.MouseEvent) => {
+    if (deviceType !== "desktop") return;
+
     e.preventDefault();
     draggingRef.current = true;
     setIsDragging(true);
@@ -120,6 +189,8 @@ export default function WorkspacePage() {
   };
 
   const handleMouseUp = () => {
+    if (deviceType !== "desktop") return;
+
     setIsDragging(false);
     draggingRef.current = false;
     document.body.style.cursor = "default";
@@ -128,19 +199,22 @@ export default function WorkspacePage() {
     window.dispatchEvent(new Event("resize"));
   };
 
-  const onMouseMoveWindow = useCallback((e: MouseEvent) => {
-    if (!draggingRef.current) return;
-    const container = splitRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    let percent = (px / rect.width) * 100;
-    percent = Math.max(25, Math.min(75, percent));
-    setDividerPercent(percent);
-  }, []);
+  const onMouseMoveWindow = useCallback(
+    (e: MouseEvent) => {
+      if (!draggingRef.current || deviceType !== "desktop") return;
+      const container = splitRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      let percent = (px / rect.width) * 100;
+      percent = Math.max(25, Math.min(75, percent));
+      setDividerPercent(percent);
+    },
+    [deviceType]
+  );
 
   useEffect(() => {
-    if (isDragging) {
+    if (isDragging && deviceType === "desktop") {
       window.addEventListener("mousemove", onMouseMoveWindow);
       window.addEventListener("mouseup", handleMouseUp);
     } else {
@@ -151,7 +225,7 @@ export default function WorkspacePage() {
       window.removeEventListener("mousemove", onMouseMoveWindow);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, onMouseMoveWindow]);
+  }, [isDragging, onMouseMoveWindow, deviceType]);
 
   const refreshFileData = useCallback(async () => {
     if (!fileId) return;
@@ -208,16 +282,37 @@ export default function WorkspacePage() {
     await fetchVersions(true);
   }, [refreshFileData, fetchVersions]);
 
-  const handleWindowModeChange = useCallback((mode: WindowMode) => {
-    setWindowMode(mode);
-    if (mode === "split") setActiveComponent("both");
-  }, []);
+  const handleWindowModeChange = useCallback(
+    (mode: WindowMode) => {
+      if (deviceType !== "desktop" && mode === "split") {
+        toast.error("Split mode is not supported on this device");
+        return;
+      }
+      setWindowMode(mode);
+      if (mode === "split") setActiveComponent("both");
+    },
+    [deviceType]
+  );
 
   const handleActiveComponentChange = useCallback(
     (component: ActiveComponent) => {
-      setActiveComponent(component);
+      if (
+        deviceType === "mobile" ||
+        deviceType === "small-mobile" ||
+        deviceType === "horizontal-mobile"
+      ) {
+        setActiveComponent(component);
+      } else if (
+        deviceType === "tablet" ||
+        deviceType === "large-tablet" ||
+        deviceType === "horizontal-tablet"
+      ) {
+        setActiveComponent(component);
+      } else {
+        setActiveComponent(component);
+      }
     },
-    []
+    [deviceType]
   );
 
   useEffect(() => {
@@ -387,8 +482,23 @@ export default function WorkspacePage() {
     );
   }
 
+  const getContainerClasses = () => {
+    if (deviceType === "small-mobile") {
+      return "p-1";
+    } else if (deviceType === "mobile" || deviceType === "horizontal-mobile") {
+      return "p-2";
+    } else if (deviceType === "tablet" || deviceType === "horizontal-tablet") {
+      return "p-3";
+    } else if (deviceType === "large-tablet") {
+      return "p-4";
+    }
+    return "p-4";
+  };
+
   return (
-    <div className="h-screen flex flex-col bg-white dark:bg-[#0a0a0a] overflow-hidden">
+    <div
+      className={`h-screen flex flex-col bg-white dark:bg-[#0a0a0a] overflow-hidden ${getContainerClasses()}`}
+    >
       <WorkspaceHeader
         file={fileData}
         onSave={handleSave}
@@ -477,7 +587,7 @@ export default function WorkspacePage() {
                 onRefreshVersions={fetchVersions}
               />
             </div>
-          ) : (
+          ) : activeComponent === "canvas" ? (
             <div className="h-full bg-white dark:bg-[#1a1a1c] rounded-lg shadow-sm border border-gray-100 dark:border-[#2a2a2d]">
               <Canvas
                 fileId={fileId}
@@ -495,6 +605,45 @@ export default function WorkspacePage() {
                 versionsLoading={versionsLoading}
                 onRefreshVersions={fetchVersions}
               />
+            </div>
+          ) : (
+            <div className="flex h-full gap-2">
+              <div className="flex-1 bg-white dark:bg-[#1a1a1c] rounded-lg shadow-sm border border-gray-100 dark:border-[#2a2a2d]">
+                <Editor
+                  fileId={fileId}
+                  fileData={fileData}
+                  onSaveSuccess={handleSaveSuccess}
+                  onVersionRestore={handleVersionRestore}
+                  windowMode={windowMode}
+                  activeComponent={activeComponent}
+                  onWindowModeChange={handleWindowModeChange}
+                  onActiveComponentChange={handleActiveComponentChange}
+                  currentComponent="editor"
+                  isFullscreen={true}
+                  onSaveHandlerChange={handleEditorSaveHandlerChange}
+                  versions={versions}
+                  versionsLoading={versionsLoading}
+                  onRefreshVersions={fetchVersions}
+                />
+              </div>
+              <div className="flex-1 bg-white dark:bg-[#1a1a1c] rounded-lg shadow-sm border border-gray-100 dark:border-[#2a2a2d]">
+                <Canvas
+                  fileId={fileId}
+                  fileData={fileData}
+                  onVersionRestore={handleVersionRestore}
+                  windowMode={windowMode}
+                  activeComponent={activeComponent}
+                  onWindowModeChange={handleWindowModeChange}
+                  onActiveComponentChange={handleActiveComponentChange}
+                  currentComponent="canvas"
+                  isFullscreen={true}
+                  onSaveHandlerChange={handleCanvasSaveHandlerChange}
+                  onSaveSuccess={handleSaveSuccess}
+                  versions={versions}
+                  versionsLoading={versionsLoading}
+                  onRefreshVersions={fetchVersions}
+                />
+              </div>
             </div>
           )}
         </div>
