@@ -529,16 +529,18 @@ function SideNavTopSection({
         gap: "gap-1.5",
         textSize: "text-[14px]",
         minHeight: "min-h-[60px]",
+        showText: true,
       };
     if (isHorizontalMobileDevice || isLandscapeDevice)
       return {
-        buttonClass: "p-1",
-        iconSize: "h-2.5 w-2.5",
-        iconBoxSize: "w-5 h-5",
-        gridCols: "grid-cols-4",
+        buttonClass: "p-2",
+        iconSize: "h-3 w-3",
+        iconBoxSize: "w-6 h-6",
+        gridCols: "grid-cols-2",
         gap: "gap-1",
         textSize: "text-[9px]",
         minHeight: "min-h-[32px]",
+        showText: false,
       };
     if (isHorizontalTablet) {
       return {
@@ -549,6 +551,7 @@ function SideNavTopSection({
         gap: "gap-1",
         textSize: "text-[10px]",
         minHeight: "min-h-[36px]",
+        showText: true,
       };
     }
     if (isTabletDevice)
@@ -560,6 +563,7 @@ function SideNavTopSection({
         gap: "gap-2",
         textSize: "text-xs",
         minHeight: "min-h-[44px]",
+        showText: true,
       };
     if (isLargeTabletDevice)
       return {
@@ -570,6 +574,7 @@ function SideNavTopSection({
         gap: "gap-1.5",
         textSize: "text-sm",
         minHeight: "min-h-[48px]",
+        showText: true,
       };
 
     return {
@@ -580,6 +585,7 @@ function SideNavTopSection({
       gap: "gap-4",
       textSize: "text-xs",
       minHeight: "min-h-[42px]",
+      showText: true,
     };
   };
 
@@ -839,7 +845,7 @@ function SideNavTopSection({
         className={cn("grid", quickAccess.gridCols, quickAccess.gap)}
         id="quick-access-section"
       >
-        {isHorizontalMobileDevice && isLandscapeDevice
+        {!quickAccess.showText
           ? menu.map((item) => (
               <button
                 key={item.id}
@@ -853,12 +859,16 @@ function SideNavTopSection({
                   quickAccess.gap,
                   item.isDisabled && "opacity-50 cursor-not-allowed"
                 )}
-                title={item.isDisabled ? item.disabledTooltip : ""}
+                title={
+                  item.name +
+                  (item.isDisabled ? ` - ${item.disabledTooltip}` : "")
+                }
               >
                 <div
                   className={cn(
-                    "rounded-lg flex items-center justify-center shrink-0 w-8 h-8",
-                    item.iconClass
+                    "rounded-lg flex items-center justify-center",
+                    item.iconClass,
+                    quickAccess.iconBoxSize
                   )}
                 >
                   <item.icon
@@ -866,7 +876,7 @@ function SideNavTopSection({
                   />
                 </div>
                 {item.isDisabled && (
-                  <Lock className="absolute right-2 h-3 w-3 text-gray-400 dark:text-[#707070]" />
+                  <Lock className="absolute right-1.5 h-2.5 w-2.5 text-gray-400 dark:text-[#707070]" />
                 )}
               </button>
             ))
