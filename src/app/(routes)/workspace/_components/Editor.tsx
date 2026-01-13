@@ -484,6 +484,14 @@ interface EditorToolbarProps {
   fileId?: string;
 }
 
+interface EditorToolbarProps {
+  editor: any;
+  isDark?: boolean;
+  isSplitMode?: boolean;
+  handleEditorSave?: () => Promise<void>;
+  fileId?: string;
+}
+
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
   isDark = false,
@@ -501,6 +509,21 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const moreWrapperRef = useRef<HTMLDivElement>(null);
   const { canEdit } = useFilePermissions();
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      setIsTablet(width >= 768 && width < 1024);
+    };
+
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
+
   const isHeadingActive = () => {
     return (
       editor?.isActive("heading", { level: 1 }) ||
@@ -511,15 +534,21 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   const getContainerClass = () => {
-    const baseClass = `sticky z-10 mx-auto my-4 flex justify-center items-center py-1.5 px-6 rounded-md ${
+    const baseClass = `sticky z-10 mx-auto my-0.5 flex justify-center items-center py-1.5 px-4 sm:px-6 rounded-md ${
       isDark
         ? "bg-[#232329] shadow-[0_4px_20px_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.02)]"
         : "bg-white shadow-[0_0.5px_1px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)] border border-black/5 backdrop-blur-sm"
     }`;
 
-    const maxWidthClass = isHeadingActive() ? "max-w-[720px]" : "max-w-[700px]";
+    let maxWidthClass = "max-w-[95vw]";
 
-    return `${baseClass} ${maxWidthClass}`;
+    if (!isMobile) {
+      maxWidthClass = isHeadingActive() ? "max-w-[720px]" : "max-w-[700px]";
+    } else if (isTablet) {
+      maxWidthClass = "max-w-[90vw]";
+    }
+
+    return `${baseClass} ${maxWidthClass} transition-all duration-300`;
   };
 
   useEffect(() => {
@@ -546,44 +575,59 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     return null;
   }
 
-  const buttonClass = `
-    group relative flex items-center justify-center
-    w-8 h-8 rounded-md transition-all duration-150
-    ${
+  const getButtonClass = (isActive = false) => {
+    const sizeClass = isMobile ? "w-8 h-8" : "w-8 h-8";
+    const baseClass = `
+      group relative flex items-center justify-center
+      ${sizeClass} rounded-md transition-all duration-150
+    `;
+
+    if (isActive) {
+      return `${baseClass} ${
+        isDark ? "bg-[#403E6A] text-white" : "bg-[#E0DFFF] text-gray-900"
+      }`;
+    }
+
+    return `${baseClass} ${
       isDark
         ? "hover:bg-[#31303B] text-[#e0e0e0] hover:text-white hover:border-[#555]"
         : "hover:bg-gray-200 text-gray-700 hover:text-gray-900 hover:border-gray-400"
-    }
-  `;
+    }`;
+  };
 
-  const activeButtonClass = `
-    group relative flex items-center justify-center
-    w-8 h-8 rounded-md transition-all duration-150
-    ${isDark ? "bg-[#403E6A] text-white" : "bg-[#E0DFFF] text-gray-900"}
-  `;
+  const getMoreButtonClass = () => {
+    const sizeClass = isMobile ? "w-8 h-8" : "w-8 h-8";
+    return `
+      group relative flex items-center justify-center
+      ${sizeClass} rounded-md transition-all duration-150 ml-1
+      ${
+        isDark
+          ? "hover:bg-[#31303B] text-[#e0e0e0] hover:text-white hover:border-[#555]"
+          : "hover:bg-gray-200 text-gray-700 hover:text-gray-900 hover:border-gray-400"
+      }
+    `;
+  };
 
-  const moreButtonClass = `
-    group relative flex items-center justify-center
-    w-8 h-8 rounded-md transition-all duration-150 ml-1
-    ${
-      isDark
-        ? "hover:bg-[#31303B text-[#e0e0e0] hover:text-white hover:border-[#555]"
-        : "hover:bg-gray-200 text-gray-700 hover:text-gray-900 hover:border-gray-400"
-    }
-  `;
+  const getDropdownButtonClass = () => {
+    const widthClass = isMobile ? "min-w-[80px]" : "min-w-[100px]";
+    const heightClass = isMobile ? "h-7" : "h-8";
+    const paddingClass = isMobile ? "px-2" : "px-3";
 
-  const dropdownButtonClass = `
-    group relative flex items-center justify-center
-    min-w-[100px] h-8 px-3 rounded-md transition-all duration-150 ml-1
-    ${
-      isDark
-        ? "hover:bg-[#232329] text-[#e0e0e0] hover:text-white border border-[#404040] hover:border-[#555]"
-        : "hover:bg-gray-100 text-gray-700 hover:text-gray-900 border border-gray-300 hover:border-gray-400"
-    }
-  `;
+    return `
+      group relative flex items-center justify-center
+      ${widthClass} ${heightClass} ${paddingClass} rounded-md transition-all duration-150 ml-1
+      ${
+        isDark
+          ? "hover:bg-[#232329] text-[#e0e0e0] hover:text-white border border-[#404040] hover:border-[#555]"
+          : "hover:bg-gray-100 text-gray-700 hover:text-gray-900 border border-gray-300 hover:border-gray-400"
+      }
+    `;
+  };
 
   const dropdownClass = `
-    absolute z-[9999] min-w-[160px] rounded-lg border shadow-xl
+    absolute z-[9999] ${
+      isMobile ? "min-w-[140px]" : "min-w-[160px]"
+    } rounded-lg border shadow-xl
     ${
       isDark
         ? "bg-[#1e1e1e] border-[#404040] shadow-[0_12px_48px_rgba(0,0,0,0.48)]"
@@ -592,7 +636,9 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   `;
 
   const dropdownItemClass = `
-    w-full flex items-center justify-between px-3 py-2 text-sm
+    w-full flex items-center justify-between px-3 py-2 ${
+      isMobile ? "text-xs" : "text-sm"
+    }
     transition-colors first:rounded-t-lg last:rounded-b-lg
     ${
       isDark
@@ -637,28 +683,30 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   const Separator = () => (
     <div
-      className={`w-px h-5 mx-1 ${isDark ? "bg-[#404040]" : "bg-gray-300"}`}
+      className={`w-px h-5 mx-0.5 sm:mx-1 ${
+        isDark ? "bg-[#404040]" : "bg-gray-300"
+      }`}
     />
   );
 
   const getCurrentHeadingLabel = () => {
-    if (editor.isActive("heading", { level: 1 })) return "Heading 1";
-    if (editor.isActive("heading", { level: 2 })) return "Heading 2";
-    if (editor.isActive("heading", { level: 3 })) return "Heading 3";
-    if (editor.isActive("heading", { level: 4 })) return "Heading 4";
-    return "Text";
+    if (editor.isActive("heading", { level: 1 })) return "H1";
+    if (editor.isActive("heading", { level: 2 })) return "H2";
+    if (editor.isActive("heading", { level: 3 })) return "H3";
+    if (editor.isActive("heading", { level: 4 })) return "H4";
+    return isMobile ? "Text" : "Text";
   };
 
   const getCurrentHeadingIcon = () => {
     if (editor.isActive("heading", { level: 1 }))
-      return <Heading1 className="w-4 h-4" />;
+      return <Heading1 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
     if (editor.isActive("heading", { level: 2 }))
-      return <Heading2 className="w-4 h-4" />;
+      return <Heading2 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
     if (editor.isActive("heading", { level: 3 }))
-      return <Heading3 className="w-4 h-4" />;
+      return <Heading3 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
     if (editor.isActive("heading", { level: 4 }))
-      return <Heading4 className="w-4 h-4" />;
-    return <Type className="w-4 h-4" />;
+      return <Heading4 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
+    return <Type className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
   };
 
   const addTable = () => {
@@ -688,24 +736,187 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     }
   };
 
+  const IconWrapper = ({
+    children,
+    title,
+  }: {
+    children: React.ReactNode;
+    title: string;
+  }) => (
+    <span className={isMobile ? "scale-90" : ""} title={title}>
+      {children}
+    </span>
+  );
+
+  const renderFormattingButtons = () => (
+    <div className="flex items-center gap-0.5 sm:gap-1">
+      <button
+        onClick={() => editor.chain().focus().toggleBold().run()}
+        className={getButtonClass(editor.isActive("bold"))}
+        title="Bold"
+      >
+        <IconWrapper title="Bold">
+          <BoldIcon className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </IconWrapper>
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+        className={getButtonClass(editor.isActive("italic"))}
+        title="Italic"
+      >
+        <IconWrapper title="Italic">
+          <ItalicIcon className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </IconWrapper>
+      </button>
+      {!isMobile && (
+        <>
+          <button
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            className={getButtonClass(editor.isActive("strike"))}
+            title="Strikethrough"
+          >
+            <IconWrapper title="Strikethrough">
+              <Strikethrough className="w-4 h-4" />
+            </IconWrapper>
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            className={getButtonClass(editor.isActive("code"))}
+            title="Inline Code"
+          >
+            <IconWrapper title="Inline Code">
+              <CodeIcon className="w-4 h-4" />
+            </IconWrapper>
+          </button>
+        </>
+      )}
+    </div>
+  );
+
+  const renderAlignmentButtons = () => (
+    <div className="flex items-center gap-0.5 sm:gap-1">
+      <button
+        onClick={() => editor.chain().focus().setTextAlign("left").run()}
+        className={getButtonClass(editor.isActive({ textAlign: "left" }))}
+        title="Align Left"
+      >
+        <IconWrapper title="Align Left">
+          <AlignLeft className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </IconWrapper>
+      </button>
+      {!isMobile && (
+        <>
+          <button
+            onClick={() => editor.chain().focus().setTextAlign("center").run()}
+            className={getButtonClass(editor.isActive({ textAlign: "center" }))}
+            title="Center"
+          >
+            <IconWrapper title="Center">
+              <AlignCenter className="w-4 h-4" />
+            </IconWrapper>
+          </button>
+          <button
+            onClick={() => editor.chain().focus().setTextAlign("right").run()}
+            className={getButtonClass(editor.isActive({ textAlign: "right" }))}
+            title="Align Right"
+          >
+            <IconWrapper title="Align Right">
+              <AlignRight className="w-4 h-4" />
+            </IconWrapper>
+          </button>
+          <button
+            onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+            className={getButtonClass(
+              editor.isActive({ textAlign: "justify" })
+            )}
+            title="Justify"
+          >
+            <IconWrapper title="Justify">
+              <AlignJustify className="w-4 h-4" />
+            </IconWrapper>
+          </button>
+        </>
+      )}
+    </div>
+  );
+
+  const renderListButtons = () => (
+    <div className="flex items-center gap-0.5 sm:gap-1">
+      <button
+        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        className={getButtonClass(editor.isActive("bulletList"))}
+        title="Bullet List"
+      >
+        <IconWrapper title="Bullet List">
+          <List className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </IconWrapper>
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        className={getButtonClass(editor.isActive("orderedList"))}
+        title="Numbered List"
+      >
+        <IconWrapper title="Numbered List">
+          <ListOrdered className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </IconWrapper>
+      </button>
+    </div>
+  );
+
+  const renderBlockButtons = () => (
+    <div className="flex items-center gap-0.5 sm:gap-1">
+      {!isMobile && (
+        <button
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          className={getButtonClass(editor.isActive("codeBlock"))}
+          title="Code Block"
+        >
+          <IconWrapper title="Code Block">
+            <Code2Icon className="w-4 h-4" />
+          </IconWrapper>
+        </button>
+      )}
+      <button
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        className={getButtonClass(editor.isActive("blockquote"))}
+        title="Blockquote"
+      >
+        <IconWrapper title="Blockquote">
+          <Quote className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </IconWrapper>
+      </button>
+      {!isMobile && (
+        <button
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          className={getButtonClass()}
+          title="Divider"
+        >
+          <IconWrapper title="Divider">
+            <Minus className="w-4 h-4" />
+          </IconWrapper>
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className={getContainerClass()}>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5 sm:gap-1">
         <button
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
-          className={`${buttonClass} disabled:opacity-30 disabled:cursor-not-allowed`}
+          className={`${getButtonClass()} disabled:opacity-30 disabled:cursor-not-allowed`}
           title="Undo"
         >
-          <Undo className="w-4 h-4" />
+          <Undo className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
         </button>
         <button
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
-          className={`${buttonClass} disabled:opacity-30 disabled:cursor-not-allowed`}
+          className={`${getButtonClass()} disabled:opacity-30 disabled:cursor-not-allowed`}
           title="Redo"
         >
-          <Redo className="w-4 h-4" />
+          <Redo className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
         </button>
       </div>
 
@@ -719,19 +930,31 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             setShowHighlightPicker(false);
             setShowMoreMenu(false);
           }}
-          className={dropdownButtonClass}
+          className={getDropdownButtonClass()}
           title="Text Style"
         >
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-1 sm:gap-2">
             {getCurrentHeadingIcon()}
             <span
-              className={`text-sm font-medium truncate ${
-                isHeadingActive() ? "max-w-[70px]" : "max-w-[60px]"
+              className={`${
+                isMobile ? "text-xs" : "text-sm"
+              } font-medium truncate ${
+                isHeadingActive()
+                  ? isMobile
+                    ? "max-w-10"
+                    : "max-w-[70px]"
+                  : isMobile
+                  ? "max-w-[30px]"
+                  : "max-w-[60px]"
               }`}
             >
               {getCurrentHeadingLabel()}
             </span>
-            <ChevronDown className="w-3 h-3 ml-1 shrink-0" />
+            <ChevronDown
+              className={`${
+                isMobile ? "w-2.5 h-2.5" : "w-3 h-3"
+              } ml-0.5 sm:ml-1 shrink-0`}
+            />
           </span>
         </button>
 
@@ -746,11 +969,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Type className="w-4 h-4" />
+                  <Type className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                   <span>Text</span>
                 </div>
                 {editor.isActive("paragraph") && (
-                  <Check className="w-4 h-4 text-blue-500" />
+                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                 )}
               </button>
               <button
@@ -761,11 +984,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Heading1 className="w-4 h-4" />
+                  <Heading1 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                   <span>Heading 1</span>
                 </div>
                 {editor.isActive("heading", { level: 1 }) && (
-                  <Check className="w-4 h-4 text-blue-500" />
+                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                 )}
               </button>
               <button
@@ -776,11 +999,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Heading2 className="w-4 h-4" />
+                  <Heading2 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                   <span>Heading 2</span>
                 </div>
                 {editor.isActive("heading", { level: 2 }) && (
-                  <Check className="w-4 h-4 text-blue-500" />
+                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                 )}
               </button>
               <button
@@ -791,11 +1014,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Heading3 className="w-4 h-4" />
+                  <Heading3 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                   <span>Heading 3</span>
                 </div>
                 {editor.isActive("heading", { level: 3 }) && (
-                  <Check className="w-4 h-4 text-blue-500" />
+                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                 )}
               </button>
               <button
@@ -806,11 +1029,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Heading4 className="w-4 h-4" />
+                  <Heading4 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                   <span>Heading 4</span>
                 </div>
                 {editor.isActive("heading", { level: 4 }) && (
-                  <Check className="w-4 h-4 text-blue-500" />
+                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
                 )}
               </button>
             </div>
@@ -820,281 +1043,241 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       <Separator />
 
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={editor.isActive("bold") ? activeButtonClass : buttonClass}
-          title="Bold"
-        >
-          <BoldIcon className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={
-            editor.isActive("italic") ? activeButtonClass : buttonClass
-          }
-          title="Italic"
-        >
-          <ItalicIcon className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={
-            editor.isActive("strike") ? activeButtonClass : buttonClass
-          }
-          title="Strikethrough"
-        >
-          <Strikethrough className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          className={editor.isActive("code") ? activeButtonClass : buttonClass}
-          title="Inline Code"
-        >
-          <CodeIcon className="w-4 h-4" />
-        </button>
-      </div>
+      {renderFormattingButtons()}
 
       <Separator />
 
-      <div className="flex items-center gap-1">
-        <div className="relative" ref={colorWrapperRef}>
-          <button
-            onClick={() => {
-              setShowColorPicker(!showColorPicker);
-              setShowHeadingMenu(false);
-              setShowHighlightPicker(false);
-              setShowMoreMenu(false);
-            }}
-            className={buttonClass}
-            title="Text Color"
-          >
-            <Palette className="w-4 h-4" />
-          </button>
+      {!isMobile && (
+        <>
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            <div className="relative" ref={colorWrapperRef}>
+              <button
+                onClick={() => {
+                  setShowColorPicker(!showColorPicker);
+                  setShowHeadingMenu(false);
+                  setShowHighlightPicker(false);
+                  setShowMoreMenu(false);
+                }}
+                className={getButtonClass()}
+                title="Text Color"
+              >
+                <IconWrapper title="Text Color">
+                  <Palette className="w-4 h-4" />
+                </IconWrapper>
+              </button>
 
-          {showColorPicker && (
-            <div
-              className={`${dropdownClass} p-3 w-[200px] top-full left-0 mt-1`}
-            >
-              <div className="grid grid-cols-5 gap-2">
-                {textColors.map((color) => (
+              {showColorPicker && (
+                <div
+                  className={`${dropdownClass} p-3 ${
+                    isMobile ? "w-40" : "w-[200px]"
+                  } top-full left-0 mt-1`}
+                >
+                  <div
+                    className={`grid ${
+                      isMobile ? "grid-cols-4 gap-1" : "grid-cols-5 gap-2"
+                    }`}
+                  >
+                    {textColors.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => {
+                          editor.chain().focus().setColor(color).run();
+                          setShowColorPicker(false);
+                        }}
+                        className={`${
+                          isMobile ? "w-6 h-6" : "w-7 h-7"
+                        } rounded-md border-2 border-transparent hover:border-blue-500 hover:scale-110 transition-all`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
                   <button
-                    key={color}
                     onClick={() => {
-                      editor.chain().focus().setColor(color).run();
+                      editor.chain().focus().unsetColor().run();
                       setShowColorPicker(false);
                     }}
-                    className="w-7 h-7 rounded-md border-2 border-transparent hover:border-blue-500 hover:scale-110 transition-all"
-                    style={{ backgroundColor: color }}
-                    title={color}
-                  />
-                ))}
-              </div>
+                    className={`w-full mt-2 px-3 py-2 ${
+                      isMobile ? "text-xs" : "text-sm"
+                    } rounded-md transition-colors ${
+                      isDark
+                        ? "bg-[#2a2a2a] hover:bg-[#323232] text-[#e0e0e0]"
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    Reset Color
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="relative" ref={highlightWrapperRef}>
               <button
                 onClick={() => {
-                  editor.chain().focus().unsetColor().run();
+                  setShowHighlightPicker(!showHighlightPicker);
+                  setShowHeadingMenu(false);
                   setShowColorPicker(false);
+                  setShowMoreMenu(false);
                 }}
-                className={`w-full mt-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                  isDark
-                    ? "bg-[#2a2a2a] hover:bg-[#323232] text-[#e0e0e0]"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                }`}
+                className={getButtonClass(editor.isActive("highlight"))}
+                title="Highlight"
               >
-                Reset Color
+                <IconWrapper title="Highlight">
+                  <HighlighterIcon className="w-4 h-4" />
+                </IconWrapper>
               </button>
-            </div>
-          )}
-        </div>
 
-        <div className="relative" ref={highlightWrapperRef}>
-          <button
-            onClick={() => {
-              setShowHighlightPicker(!showHighlightPicker);
-              setShowHeadingMenu(false);
-              setShowColorPicker(false);
-              setShowMoreMenu(false);
-            }}
-            className={
-              editor.isActive("highlight") ? activeButtonClass : buttonClass
-            }
-            title="Highlight"
-          >
-            <HighlighterIcon className="w-4 h-4" />
-          </button>
-
-          {showHighlightPicker && (
-            <div
-              className={`${dropdownClass} p-3 w-[180px] top-full left-0 mt-1`}
-            >
-              <div className="grid grid-cols-4 gap-2">
-                {highlightColors.map((color) => (
+              {showHighlightPicker && (
+                <div
+                  className={`${dropdownClass} p-3 ${
+                    isMobile ? "w-[140px]" : "w-[180px]"
+                  } top-full left-0 mt-1`}
+                >
+                  <div
+                    className={`grid ${
+                      isMobile ? "grid-cols-3 gap-1" : "grid-cols-4 gap-2"
+                    }`}
+                  >
+                    {highlightColors.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => {
+                          editor
+                            .chain()
+                            .focus()
+                            .toggleHighlight({ color })
+                            .run();
+                          setShowHighlightPicker(false);
+                        }}
+                        className={`${
+                          isMobile ? "w-6 h-6" : "w-8 h-8"
+                        } rounded-md border-2 border-transparent hover:border-blue-500 hover:scale-110 transition-all`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
                   <button
-                    key={color}
                     onClick={() => {
-                      editor.chain().focus().toggleHighlight({ color }).run();
+                      editor.chain().focus().unsetHighlight().run();
                       setShowHighlightPicker(false);
                     }}
-                    className="w-8 h-8 rounded-md border-2 border-transparent hover:border-blue-500 hover:scale-110 transition-all"
-                    style={{ backgroundColor: color }}
-                    title={color}
+                    className={`w-full mt-2 px-3 py-2 ${
+                      isMobile ? "text-xs" : "text-sm"
+                    } rounded-md transition-colors ${
+                      isDark
+                        ? "bg-[#2a2a2a] hover:bg-[#323232] text-[#e0e0e0]"
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    Remove Highlight
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+        </>
+      )}
+
+      {renderAlignmentButtons()}
+
+      <Separator />
+
+      {renderListButtons()}
+
+      <Separator />
+
+      {renderBlockButtons()}
+
+      <div className="relative" ref={moreWrapperRef}>
+        <button
+          onClick={() => {
+            setShowMoreMenu(!showMoreMenu);
+            setShowHeadingMenu(false);
+            setShowColorPicker(false);
+            setShowHighlightPicker(false);
+          }}
+          className={getMoreButtonClass()}
+          title="More"
+        >
+          <MoreHorizontal className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </button>
+
+        {showMoreMenu && (
+          <div
+            className={`${dropdownClass} top-full ${
+              isMobile ? "right-0" : "right-0"
+            } mt-1`}
+          >
+            <div className="py-1">
+              <button onClick={addTable} className={dropdownItemClass}>
+                <div className="flex items-center gap-2">
+                  <TableIcon className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <span>Insert Table</span>
+                </div>
+              </button>
+
+              {isMobile && (
+                <>
+                  <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+                  <button
+                    onClick={() => editor.chain().focus().toggleStrike().run()}
+                    className={dropdownItemClass}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Strikethrough className="w-3.5 h-3.5" />
+                      <span>Strikethrough</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => editor.chain().focus().toggleCode().run()}
+                    className={dropdownItemClass}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CodeIcon className="w-3.5 h-3.5" />
+                      <span>Inline Code</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() =>
+                      editor.chain().focus().toggleCodeBlock().run()
+                    }
+                    className={dropdownItemClass}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Code2Icon className="w-3.5 h-3.5" />
+                      <span>Code Block</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() =>
+                      editor.chain().focus().setHorizontalRule().run()
+                    }
+                    className={dropdownItemClass}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Minus className="w-3.5 h-3.5" />
+                      <span>Divider</span>
+                    </div>
+                  </button>
+                </>
+              )}
+
+              <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+
+              <button onClick={clearFormat} className={dropdownItemClass}>
+                <div className="flex items-center gap-2">
+                  <TextCursor
+                    className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"}
                   />
-                ))}
-              </div>
-              <button
-                onClick={() => {
-                  editor.chain().focus().unsetHighlight().run();
-                  setShowHighlightPicker(false);
-                }}
-                className={`w-full mt-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                  isDark
-                    ? "bg-[#2a2a2a] hover:bg-[#323232] text-[#e0e0e0]"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                }`}
-              >
-                Remove Highlight
+                  <span>Clear Format</span>
+                </div>
               </button>
             </div>
-          )}
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => editor.chain().focus().setTextAlign("left").run()}
-          className={
-            editor.isActive({ textAlign: "left" })
-              ? activeButtonClass
-              : buttonClass
-          }
-          title="Align Left"
-        >
-          <AlignLeft className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().setTextAlign("center").run()}
-          className={
-            editor.isActive({ textAlign: "center" })
-              ? activeButtonClass
-              : buttonClass
-          }
-          title="Center"
-        >
-          <AlignCenter className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().setTextAlign("right").run()}
-          className={
-            editor.isActive({ textAlign: "right" })
-              ? activeButtonClass
-              : buttonClass
-          }
-          title="Align Right"
-        >
-          <AlignRight className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().setTextAlign("justify").run()}
-          className={
-            editor.isActive({ textAlign: "justify" })
-              ? activeButtonClass
-              : buttonClass
-          }
-          title="Justify"
-        >
-          <AlignJustify className="w-4 h-4" />
-        </button>
-      </div>
-
-      <Separator />
-
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={
-            editor.isActive("bulletList") ? activeButtonClass : buttonClass
-          }
-          title="Bullet List"
-        >
-          <List className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={
-            editor.isActive("orderedList") ? activeButtonClass : buttonClass
-          }
-          title="Numbered List"
-        >
-          <ListOrdered className="w-4 h-4" />
-        </button>
-      </div>
-
-      <Separator />
-
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          className={
-            editor.isActive("codeBlock") ? activeButtonClass : buttonClass
-          }
-          title="Code Block"
-        >
-          <Code2Icon className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={
-            editor.isActive("blockquote") ? activeButtonClass : buttonClass
-          }
-          title="Blockquote"
-        >
-          <Quote className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          className={buttonClass}
-          title="Divider"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-        <div className="relative" ref={moreWrapperRef}>
-          <button
-            onClick={() => {
-              setShowMoreMenu(!showMoreMenu);
-              setShowHeadingMenu(false);
-              setShowColorPicker(false);
-              setShowHighlightPicker(false);
-            }}
-            className={moreButtonClass}
-            title="More"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
-
-          {showMoreMenu && (
-            <div className={`${dropdownClass} top-full right-0 mt-1`}>
-              <div className="py-1">
-                <button onClick={addTable} className={dropdownItemClass}>
-                  <div className="flex items-center gap-2">
-                    <TableIcon className="w-4 h-4" />
-                    <span>Insert Table</span>
-                  </div>
-                </button>
-
-                <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
-
-                <button onClick={clearFormat} className={dropdownItemClass}>
-                  <div className="flex items-center gap-2">
-                    <TextCursor className="w-4 h-4" />
-                    <span>Clear Format</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
