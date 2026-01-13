@@ -933,17 +933,19 @@ export function VersionHistory({
                     className="bg-white dark:bg-[#252528] border-gray-300 dark:border-[#2a2a2d] focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-indigo-500 dark:focus:ring-indigo-400 pl-9 text-gray-900 dark:text-[#f0f0f0]"
                   />
                 </div>
-                <div className="flex gap-2 h-10">
-                  <div className="flex-1 relative">
+
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setFilterOpen(!filterOpen)}
-                      className="h-full bg-white dark:bg-[#252528] hover:bg-gray-50 dark:hover:bg-[#2a2a2d] min-w-[180px]"
+                      className="w-full justify-center bg-white dark:bg-[#252528] hover:bg-gray-50 dark:hover:bg-[#2a2a2d] h-9"
                     >
                       <Filter className="h-4 w-4 mr-2" />
                       {filterByAuthor ? "Filtered" : "Filter"}
                     </Button>
+
                     {filterOpen && (
                       <div className="absolute top-full mt-1 left-0 right-0 bg-white dark:bg-[#1a1a1c] border border-gray-200 dark:border-[#2a2a2d] rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
                         <button
@@ -978,26 +980,28 @@ export function VersionHistory({
                   </div>
 
                   {filteredVersions.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const latestVersion = filteredVersions[0];
-                        if (canRestoreVersion(latestVersion)) {
-                          onRestoreVersion(latestVersion);
+                    <div className="flex-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const latestVersion = filteredVersions[0];
+                          if (canRestoreVersion(latestVersion)) {
+                            onRestoreVersion(latestVersion);
+                          }
+                        }}
+                        disabled={!canRestoreVersion(filteredVersions[0])}
+                        className="w-full justify-center bg-white dark:bg-[#252528] hover:bg-gray-50 dark:hover:bg-[#2a2a2d] h-9"
+                        title={
+                          !canRestoreVersion(filteredVersions[0])
+                            ? getRestoreDisabledReason(filteredVersions[0])
+                            : "Restore latest version"
                         }
-                      }}
-                      disabled={!canRestoreVersion(filteredVersions[0])}
-                      className="h-full bg-white dark:bg-[#252528] hover:bg-gray-50 dark:hover:bg-[#2a2a2d] min-w-[180px]"
-                      title={
-                        !canRestoreVersion(filteredVersions[0])
-                          ? getRestoreDisabledReason(filteredVersions[0])
-                          : "Restore latest version"
-                      }
-                    >
-                      <RotateCcw className="h-4 w-4 mr-1" />
-                      Latest
-                    </Button>
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Latest
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
