@@ -14,6 +14,7 @@ import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useFileData } from "../../_context/FileDataContext";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import Virgil from "next/font/local";
+import { useTheme } from "@/app/_context/AppearanceContext";
 
 const virgil = Virgil({
   src: "../../fonts/Virgil.woff2",
@@ -32,7 +33,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
 
   const { updateFromFileList, fileCount } = useFileData();
   const { activeTeam } = useActiveTeam();
-
+  const { fontSize } = useTheme();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
 
@@ -117,8 +118,34 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
     console.log("Team updated");
   };
 
+  const getPaddingClasses = () => {
+    const baseClasses = "px-8";
+
+    if (fontSize === "LARGE") {
+      if (isMobile) {
+        return "px-6";
+      } else if (isTablet) {
+        return "px-8";
+      } else {
+        return "px-10";
+      }
+    } else if (fontSize === "SMALL") {
+      if (isMobile) {
+        return "px-4";
+      } else {
+        return "";
+      }
+    }
+
+    return baseClasses;
+  };
+
+  const paddingClasses = getPaddingClasses();
+
   return (
-    <div className="min-h-screen bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] transform transition-transform duration-300 ease-out lg:static lg:translate-x-0">
+    <div
+      className={`min-h-screen bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${paddingClasses}`}
+    >
       <div className="flex flex-col min-h-screen">
         <div className="flex-1 flex flex-col min-w-0">
           <Header onMenuToggle={onMenuToggle} onTeamUpdate={handleTeamUpdate} />
