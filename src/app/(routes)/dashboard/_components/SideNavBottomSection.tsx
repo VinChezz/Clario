@@ -11,14 +11,9 @@ import {
   CheckCircle2,
   Trash2,
   FileText,
-  Badge,
-  X,
   AlertCircle,
   TrendingUp,
   Zap,
-  RefreshCw,
-  HardDrive,
-  Info,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import {
@@ -32,7 +27,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import Constant from "@/app/_constant/Constant";
 import { TeamMember } from "@prisma/client";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
@@ -65,8 +59,8 @@ import {
   formatTime,
   formatFileSize,
   calculateDaysUntilDeletion,
-  getFileTypeColor,
 } from "@/lib/formatUtils";
+import { useStorage } from "@/hooks/useStorage";
 
 interface StorageIndicatorProps {
   currentUsageGB?: number;
@@ -108,12 +102,7 @@ export function StorageIndicator({
   const [isHovered, setIsHovered] = useState(false);
 
   const useStorageHook = teamId || useTeamStorage;
-  let storageHook = null;
-
-  if (useStorageHook) {
-    const { useStorage } = require("@/hooks/useStorage");
-    storageHook = useStorage(teamId);
-  }
+  const storageHook = useStorageHook ? useStorage(teamId) : null;
 
   let currentUsageGB = propCurrentUsageGB;
   let maxStorageGB = propMaxStorageGB;
@@ -158,7 +147,6 @@ export function StorageIndicator({
   const usagePercentage =
     maxStorageGB > 0 ? (currentUsageGB / maxStorageGB) * 100 : 0;
   const remainingPercentage = 100 - usagePercentage;
-  const remainingGB = maxStorageGB - currentUsageGB;
 
   const getStorageStatus = () => {
     if (usagePercentage >= 100) {
@@ -352,7 +340,7 @@ export function StorageIndicator({
               Using {formatGB(currentUsageGB)} of {formatGB(maxStorageGB)}
             </div>
 
-            {showUpgradeButton && onUpgradeClick && (
+            {showUpgradeButton && onUpgradeClick && plan === "FREE" && (
               <button
                 onClick={onUpgradeClick}
                 className={cn(
@@ -372,7 +360,7 @@ export function StorageIndicator({
         </div>
       </motion.div>
 
-      {!isHovered && showUpgradeButton && onUpgradeClick && (
+      {!isHovered && showUpgradeButton && onUpgradeClick && plan === "FREE" && (
         <div className="pt-2">
           <button
             onClick={onUpgradeClick}
@@ -468,7 +456,7 @@ export default function SideNavBottomSection({
   onAction,
   windowHeight,
 }: SideNavBottomSectionProps) {
-  const { user, isLoading: isUserLoading } = useKindeBrowserClient();
+  const { user } = useKindeBrowserClient();
   const [fileInput, setFileInput] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [githubModalOpen, setGithubModalOpen] = useState(false);
@@ -482,15 +470,14 @@ export default function SideNavBottomSection({
   const [fileToDelete, setFileToDelete] = useState<string | null>(null);
   const [isLoadingStorage, setIsLoadingStorage] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [selectAll, setSelectAll] = useState(false);
 
   const router = useRouter();
 
   const { startTour } = useTour();
-  const { fileCount, hasFiles, isStorageFull, updateFromFileList } =
-    useFileData();
+  const { fileCount, hasFiles, updateFromFileList } = useFileData();
 
-  const { activeTeam, isLoading: isTeamLoading } = useActiveTeam();
+  const { activeTeam } = useActiveTeam();
+  const storageHook = useStorage(activeTeam?.id);
 
   const isMobileDevice = useIsMobile();
   const isTabletDevice = useIsTablet();
@@ -533,7 +520,6 @@ export default function SideNavBottomSection({
       }
 
       const data = await response.json();
-      console.log("Storage data loaded:", data);
 
       const usedBytes = BigInt(data.storage?.usedBytes || 0);
       const limitBytes = BigInt(
@@ -584,10 +570,7 @@ export default function SideNavBottomSection({
   }, [fileCount]);
 
   const actualFileCount = fileCount !== undefined ? fileCount : totalFiles || 0;
-  const actualHasFiles =
-    hasFiles !== undefined ? hasFiles : actualFileCount > 0;
-
-  const actualIsStorageFull = storageData.percentage >= 100;
+  const actualHasFiles = actualFileCount > 0;
 
   useEffect(() => {
     if (user?.email) {
@@ -708,9 +691,7 @@ export default function SideNavBottomSection({
       if (response.ok) {
         const files = await response.json();
         setDeletedFiles(files);
-
         setSelectedFiles([]);
-        setSelectAll(false);
       }
     } catch (error) {
       console.error("Failed to fetch deleted files:", error);
@@ -752,23 +733,6 @@ export default function SideNavBottomSection({
     }
   };
 
-  const deleteAllFiles = async () => {
-    try {
-      setIsLoadingTrash(true);
-
-      for (const file of deletedFiles) {
-        await handleDeletePermanently(file.id);
-      }
-
-      setSelectedFiles([]);
-      setSelectAll(false);
-    } catch (error) {
-      console.error("Failed to delete all files:", error);
-    } finally {
-      setIsLoadingTrash(false);
-    }
-  };
-
   const deleteSelectedFiles = async () => {
     try {
       setIsLoadingTrash(true);
@@ -778,7 +742,6 @@ export default function SideNavBottomSection({
       }
 
       setSelectedFiles([]);
-      setSelectAll(false);
     } catch (error) {
       console.error("Failed to delete selected files:", error);
     } finally {
@@ -787,7 +750,19 @@ export default function SideNavBottomSection({
   };
 
   const emptyTrash = async () => {
-    return deleteAllFiles();
+    try {
+      setIsLoadingTrash(true);
+
+      for (const file of deletedFiles) {
+        await handleDeletePermanently(file.id);
+      }
+
+      setSelectedFiles([]);
+    } catch (error) {
+      console.error("Failed to delete all files:", error);
+    } finally {
+      setIsLoadingTrash(false);
+    }
   };
 
   const handleUpgradeClick = () => {
@@ -845,9 +820,6 @@ export default function SideNavBottomSection({
       id: 2,
       name: isGithubConnected ? "View Repository" : "Connect Repo",
       icon: isGithubConnected ? CheckCircle2 : Github,
-      description: isGithubConnected
-        ? "View connected GitHub repository"
-        : "Link your GitHub repository",
       onClick: () => setGithubModalOpen(true),
       className: isGithubConnected
         ? "text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
@@ -1086,9 +1058,22 @@ export default function SideNavBottomSection({
 
   const buttonSize = getButtonSize();
   const upgradeCard = getUpgradeCardSize();
-  const modalSizes = getModalSizes();
   const spacing = getSpacing();
   const storageInfo = getStorageInfo();
+
+  // Получаем максимальный лимит хранилища
+  const getMaxStorageLimit = () => {
+    // Если есть teamStorage данные в storageHook, используем их
+    if (storageHook?.data?.teamStorage) {
+      const limitBytes = BigInt(storageHook.data.teamStorage.limitBytes || "0");
+      return Number(limitBytes) / (1024 * 1024 * 1024);
+    }
+
+    // Иначе используем данные из storageData
+    return storageData.maxStorageGB;
+  };
+
+  const maxStorageLimit = getMaxStorageLimit();
 
   return (
     <>
@@ -1137,106 +1122,24 @@ export default function SideNavBottomSection({
             ))}
           </div>
 
-          {isHorizontalMobileDevice && isLandscapeDevice ? (
-            <div
-              className={cn(
-                "bg-linear-to-br rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
-                "from-purple-600 to-indigo-700 dark:from-purple-700 dark:to-indigo-800",
-                upgradeCard.padding
-              )}
-              onClick={handleUpgradeClick}
-            >
-              <h3 className={cn("font-bold mb-1", upgradeCard.title)}>
-                Unlock Premium
-              </h3>
-
-              <p
+          {/* Upgrade Card показывается только для FREE плана */}
+          {storageData.plan === "FREE" &&
+            (isHorizontalMobileDevice && isLandscapeDevice ? (
+              <div
                 className={cn(
-                  "text-white/90 leading-relaxed",
-                  upgradeCard.desc
+                  "bg-linear-to-br rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+                  "from-purple-600 to-indigo-700 dark:from-purple-700 dark:to-indigo-800",
+                  upgradeCard.padding
                 )}
+                onClick={handleUpgradeClick}
               >
-                Get unlimited storage & features
-              </p>
-
-              <div className="flex items-center justify-between">
-                <span
-                  className={cn(
-                    "font-semibold",
-                    isLargeTabletDevice
-                      ? "text-base"
-                      : isHorizontalMobileDevice || isLandscapeDevice
-                      ? "text-[10px]"
-                      : "text-sm"
-                  )}
-                >
-                  Upgrade Now
-                </span>
-
-                <div
-                  className={cn(
-                    "bg-white/20 rounded-full font-medium backdrop-blur-sm",
-                    isLargeTabletDevice
-                      ? "px-3 py-1.5 text-sm"
-                      : isHorizontalMobileDevice || isLandscapeDevice
-                      ? "px-2 py-0.5 text-[9px]"
-                      : "px-2 py-1 text-xs"
-                  )}
-                >
-                  $10/mo
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div
-              className={cn(
-                "bg-linear-to-br rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
-                "from-purple-600 to-indigo-700 dark:from-purple-700 dark:to-indigo-800",
-                "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
-                upgradeCard.padding
-              )}
-              onClick={handleUpgradeClick}
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.05),transparent_50%)]"></div>
-
-              <div className="relative z-10">
-                <div
-                  className={cn(
-                    "flex items-center gap-2 mb-2",
-                    (isHorizontalMobileDevice || isLandscapeDevice) && "mb-1",
-                    isLargeTabletDevice && "mb-3"
-                  )}
-                >
-                  <Crown
-                    className={cn(
-                      "text-yellow-300",
-                      isHorizontalMobileDevice || isLandscapeDevice
-                        ? "h-3.5 w-3.5"
-                        : isLargeTabletDevice
-                        ? "h-5 w-5"
-                        : "h-4 w-4"
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "font-bold",
-                      isHorizontalMobileDevice || isLandscapeDevice
-                        ? "text-xs"
-                        : isLargeTabletDevice
-                        ? "text-base"
-                        : "text-sm"
-                    )}
-                  >
-                    PRO FEATURES
-                  </span>
-                </div>
-
                 <h3 className={cn("font-bold mb-1", upgradeCard.title)}>
                   Unlock Premium
                 </h3>
+
                 <p
                   className={cn(
-                    "text-white/90 mb-3 leading-relaxed",
+                    "text-white/90 leading-relaxed",
                     upgradeCard.desc
                   )}
                 >
@@ -1247,22 +1150,23 @@ export default function SideNavBottomSection({
                   <span
                     className={cn(
                       "font-semibold",
-                      isHorizontalMobileDevice || isLandscapeDevice
-                        ? "text-xs"
-                        : isLargeTabletDevice
+                      isLargeTabletDevice
                         ? "text-base"
+                        : isHorizontalMobileDevice || isLandscapeDevice
+                        ? "text-[10px]"
                         : "text-sm"
                     )}
                   >
                     Upgrade Now
                   </span>
+
                   <div
                     className={cn(
                       "bg-white/20 rounded-full font-medium backdrop-blur-sm",
-                      isHorizontalMobileDevice || isLandscapeDevice
-                        ? "px-2 py-1 text-[10px]"
-                        : isLargeTabletDevice
+                      isLargeTabletDevice
                         ? "px-3 py-1.5 text-sm"
+                        : isHorizontalMobileDevice || isLandscapeDevice
+                        ? "px-2 py-0.5 text-[9px]"
                         : "px-2 py-1 text-xs"
                     )}
                   >
@@ -1270,8 +1174,91 @@ export default function SideNavBottomSection({
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div
+                className={cn(
+                  "bg-linear-to-br rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
+                  "from-purple-600 to-indigo-700 dark:from-purple-700 dark:to-indigo-800",
+                  "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
+                  upgradeCard.padding
+                )}
+                onClick={handleUpgradeClick}
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.05),transparent_50%)]"></div>
+
+                <div className="relative z-10">
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 mb-2",
+                      (isHorizontalMobileDevice || isLandscapeDevice) && "mb-1",
+                      isLargeTabletDevice && "mb-3"
+                    )}
+                  >
+                    <Crown
+                      className={cn(
+                        "text-yellow-300",
+                        isHorizontalMobileDevice || isLandscapeDevice
+                          ? "h-3.5 w-3.5"
+                          : isLargeTabletDevice
+                          ? "h-5 w-5"
+                          : "h-4 w-4"
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "font-bold",
+                        isHorizontalMobileDevice || isLandscapeDevice
+                          ? "text-xs"
+                          : isLargeTabletDevice
+                          ? "text-base"
+                          : "text-sm"
+                      )}
+                    >
+                      PRO FEATURES
+                    </span>
+                  </div>
+
+                  <h3 className={cn("font-bold mb-1", upgradeCard.title)}>
+                    Unlock Premium
+                  </h3>
+                  <p
+                    className={cn(
+                      "text-white/90 mb-3 leading-relaxed",
+                      upgradeCard.desc
+                    )}
+                  >
+                    Get unlimited storage & features
+                  </p>
+
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={cn(
+                        "font-semibold",
+                        isHorizontalMobileDevice || isLandscapeDevice
+                          ? "text-xs"
+                          : isLargeTabletDevice
+                          ? "text-base"
+                          : "text-sm"
+                      )}
+                    >
+                      Upgrade Now
+                    </span>
+                    <div
+                      className={cn(
+                        "bg-white/20 rounded-full font-medium backdrop-blur-sm",
+                        isHorizontalMobileDevice || isLandscapeDevice
+                          ? "px-2 py-1 text-[10px]"
+                          : isLargeTabletDevice
+                          ? "px-3 py-1.5 text-sm"
+                          : "px-2 py-1 text-xs"
+                      )}
+                    >
+                      $10/mo
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
 
           {actualHasFiles && (
             <>
@@ -1397,11 +1384,11 @@ export default function SideNavBottomSection({
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-medium">Storage status:</span>
-                          <span>{storageInfo.message}</span>
+                          {/* <span>{storageInfo.message}</span> */}
                         </div>
                         <div className="mt-1 text-xs opacity-80">
                           Using {storageData.currentUsageGB.toFixed(1)}/
-                          {storageData.maxStorageGB.toFixed(1)} GB
+                          {maxStorageLimit.toFixed(1)} GB
                           {storageData.plan === "FREE" && ` (Free plan)`}
                         </div>
                       </div>
@@ -1558,8 +1545,7 @@ export default function SideNavBottomSection({
                                 deleteSelectedFiles();
                               }
                             }}
-                            className="text-sm font-medium px-2 py-1 rounded-md transition-colors text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300
-                            hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="text-sm font-medium px-2 py-1 rounded-md transition-colors text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
                             Delete
                           </button>
@@ -1756,7 +1742,7 @@ export default function SideNavBottomSection({
                     </p>
                     <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-[#707070]">
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-fullbg-gray-300 dark:bg-[#3a3a3d]" />
+                        <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-[#3a3a3d]" />
                         <span>Files stay for 30 days</span>
                       </div>
                       <div className="w-px h-4 bg-gray-300 dark:bg-[#2a2a2d]" />
