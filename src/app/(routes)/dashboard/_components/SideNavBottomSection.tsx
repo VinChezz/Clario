@@ -1061,15 +1061,12 @@ export default function SideNavBottomSection({
   const spacing = getSpacing();
   const storageInfo = getStorageInfo();
 
-  // Получаем максимальный лимит хранилища
   const getMaxStorageLimit = () => {
-    // Если есть teamStorage данные в storageHook, используем их
     if (storageHook?.data?.teamStorage) {
       const limitBytes = BigInt(storageHook.data.teamStorage.limitBytes || "0");
       return Number(limitBytes) / (1024 * 1024 * 1024);
     }
 
-    // Иначе используем данные из storageData
     return storageData.maxStorageGB;
   };
 
@@ -1122,7 +1119,6 @@ export default function SideNavBottomSection({
             ))}
           </div>
 
-          {/* Upgrade Card показывается только для FREE плана */}
           {storageData.plan === "FREE" &&
             (isHorizontalMobileDevice && isLandscapeDevice ? (
               <div
@@ -1384,7 +1380,6 @@ export default function SideNavBottomSection({
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-medium">Storage status:</span>
-                          {/* <span>{storageInfo.message}</span> */}
                         </div>
                         <div className="mt-1 text-xs opacity-80">
                           Using {storageData.currentUsageGB.toFixed(1)}/
