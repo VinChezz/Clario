@@ -527,7 +527,7 @@ function SideNavTopSection({
         iconBoxSize: "w-6 h-6",
         gridCols: "grid-cols-2",
         gap: "gap-1.5",
-        textSize: "text-[14px]",
+        textSize: "text-sm",
         minHeight: "min-h-[60px]",
         showText: true,
       };
@@ -1056,77 +1056,6 @@ function SideNavTopSection({
                   </p>
                 </div>
               )}
-            </div>
-          </div>
-
-          <Separator className="mx-5 bg-gray-200 dark:bg-[#2a2a2d]" />
-
-          <div className={cn("shrink-0", modalSizes.contentPadding)}>
-            <div
-              className={cn(
-                "grid gap-2.5",
-                isHorizontalMobileDevice ||
-                  isLandscapeDevice ||
-                  isHorizontalTablet
-                  ? "grid-cols-1"
-                  : "grid-cols-2"
-              )}
-            >
-              {menu.map((item) => {
-                const isCreateTeamDisabled =
-                  item.id === 1 &&
-                  userPlan === Plan.FREE &&
-                  currentTeamsCount >= 1;
-
-                const itemPath = item.path?.replace(
-                  /:teamId/g,
-                  activeTeam?.id || ""
-                );
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      if (isCreateTeamDisabled) {
-                        router.push("/pricing");
-                      } else {
-                        handleQuickAction(itemPath!);
-                      }
-                    }}
-                    disabled={item.id === 1 && isCreateTeamDisabled}
-                    className={cn(
-                      "flex items-center gap-2.5 p-2.5 rounded-xl border transition-all group relative",
-                      "border-gray-200 dark:border-[#2a2a2d]",
-                      item.buttonClass,
-                      isCreateTeamDisabled && "opacity-50 cursor-not-allowed"
-                    )}
-                    title={isCreateTeamDisabled ? item.disabledTooltip : ""}
-                  >
-                    <div
-                      className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center",
-                        item.iconClass
-                      )}
-                    >
-                      <item.icon
-                        className={cn(quickAccess.iconSize, item.iconColor)}
-                      />
-                    </div>
-                    <span
-                      className={cn(
-                        "text-sm font-medium",
-                        quickAccess.textSize,
-                        "text-gray-700 dark:text-[#f0f0f0]"
-                      )}
-                    >
-                      {item.name}
-                    </span>
-                    {isCreateTeamDisabled && (
-                      <Lock className="absolute right-2 h-3 w-3 text-gray-400 dark:text-[#707070]" />
-                    )}
-                  </button>
-                );
-              })}
             </div>
           </div>
 
