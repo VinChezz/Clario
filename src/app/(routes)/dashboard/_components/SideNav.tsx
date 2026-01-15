@@ -97,7 +97,7 @@ export default function SideNav({
   const getSidebarWidth = () => {
     if (isMobile) return "w-80";
     if (isCollapsibleTablet) return "w-68";
-    return "w-78";
+    return "w-76";
   };
 
   const getSidebarHeight = () => {
@@ -105,10 +105,6 @@ export default function SideNav({
       return "h-[100dvh]";
     }
     return "h-screen";
-  };
-
-  const getPadding = () => {
-    return "p-3";
   };
 
   const getSidebarVisibility = () => {
@@ -125,7 +121,7 @@ export default function SideNav({
     <>
       <div
         className={cn(
-          "fixed top-0 left-0 bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] z-60 transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 flex flex-col w-80",
+          "fixed top-0 left-0 bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 flex flex-col z-70",
           getSidebarWidth(),
           getSidebarHeight(),
           getSidebarVisibility(),
@@ -140,7 +136,6 @@ export default function SideNav({
           className={cn(
             "flex items-center justify-between border-gray-100 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c]/95 backdrop-blur-sm shrink-0",
             "p-4",
-
             isMobile && "pt-[env(safe-area-inset-top,20px)]"
           )}
         >
@@ -198,7 +193,7 @@ export default function SideNav({
       {isMobileMenuOpen && (
         <div
           onClick={onCloseSidebar}
-          className="fixed inset-0 bg-black/40 backdrop-blur-lg z-40 lg:hidden animate-in fade-in duration-300"
+          className="fixed inset-0 bg-black/40 backdrop-blur-lg z-30 lg:hidden animate-in fade-in duration-300"
         />
       )}
     </>
