@@ -15,6 +15,7 @@ import { useFileData } from "../../_context/FileDataContext";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import Virgil from "next/font/local";
 import { useTheme } from "@/app/_context/AppearanceContext";
+import { getTeamWithMembers } from "@/lib/team";
 
 const virgil = Virgil({
   src: "../../fonts/Virgil.woff2",
@@ -30,6 +31,8 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
   const [contentLoaded, setContentLoaded] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [teamMembersCount, setTeamMembersCount] = useState<number>(0);
+  const [storagePercentage, setStoragePercentage] = useState<number>(0);
 
   const { updateFromFileList, fileCount } = useFileData();
   const { activeTeam } = useActiveTeam();
@@ -57,6 +60,63 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
         });
     }
   }, [user, isLoading]);
+
+  useEffect(() => {
+    const loadTeamData = async () => {
+      try {
+        if (!activeTeam?.id) {
+          console.log("❌ No active team found");
+          setTeamMembersCount(0);
+          setStoragePercentage(0);
+
+          return;
+        }
+
+        console.log("🔄 Loading team data for team:", activeTeam.id);
+
+        const teamResponse = await fetch(
+          `/api/teams/${activeTeam.id}/members`,
+          {
+            method: "GET",
+          }
+        );
+
+        if (teamResponse.ok) {
+          const teamData = await teamResponse.json();
+          setTeamMembersCount(teamData.members?.length || 0);
+        }
+
+        const storageResponse = await fetch(
+          `/api/teams/${activeTeam.id}/storage`
+        );
+
+        if (storageResponse.ok) {
+          const storageData = await storageResponse.json();
+
+          const usedBytes = Number(storageData.storage?.usedBytes || 0);
+          const limitBytes = Number(
+            storageData.storage?.limitBytes || 10 * 1024 * 1024 * 1024
+          );
+
+          const percentage =
+            limitBytes > 0 ? (usedBytes / limitBytes) * 100 : 0;
+
+          setStoragePercentage(Math.min(percentage, 100));
+        }
+      } catch (error) {
+        console.error("❌ Failed to load team data:", error);
+        setTeamMembersCount(0);
+        setStoragePercentage(0);
+      }
+    };
+
+    if (user && activeTeam?.id) {
+      loadTeamData();
+    } else {
+      setTeamMembersCount(0);
+      setStoragePercentage(0);
+    }
+  }, [user, activeTeam?.id]);
 
   useEffect(() => {
     const loadFiles = async () => {
@@ -200,7 +260,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
                         <p className="text-xs sm:text-sm text-gray-600 dark:text-[#a0a0a0] mb-1">
                           Total Files
                         </p>
-                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#f0f0f0]">
+                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-600 dark:text-blue-400">
                           {fileCount}
                         </p>
                       </div>
@@ -221,8 +281,8 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
                         <p className="text-xs sm:text-sm text-gray-600 dark:text-[#a0a0a0] mb-1">
                           Team Members
                         </p>
-                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#f0f0f0]">
-                          8
+                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600 dark:text-green-400">
+                          {teamMembersCount}
                         </p>
                       </div>
                     </div>
@@ -248,8 +308,8 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
                           Storage Used
                         </p>
                         <div className="flex items-center gap-3">
-                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#f0f0f0]">
-                            65%
+                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600 dark:text-purple-400">
+                            {Math.round(storagePercentage)}%
                           </p>
                         </div>
                       </div>
