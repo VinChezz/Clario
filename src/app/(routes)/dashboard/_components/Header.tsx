@@ -130,12 +130,6 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         ...(customText && { customStatus: customText }),
       });
 
-      toast.success(
-        `Status updated to ${getStatusLabel(
-          status,
-          customText || userStatus?.customStatus
-        )}`
-      );
       setShowStatusDropdown(false);
     } catch (error) {
       console.error("Failed to update status:", error);
@@ -430,7 +424,6 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
       setTeamMembers(updatedMembers);
 
-      toast.success(`Member role updated to ${getRoleText(newRole)}`);
       onTeamUpdate?.();
       return true;
     } catch (error) {
@@ -474,7 +467,6 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         setTeamMembers(updatedMembers);
       }
 
-      toast.success(`${memberName} removed from team`);
       return true;
     } catch (error) {
       toast.error("Failed to remove member");
