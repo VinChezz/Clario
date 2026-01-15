@@ -131,7 +131,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
       }
     } else if (fontSize === "SMALL") {
       if (isMobile) {
-        return "px-4";
+        return "";
       } else {
         return "";
       }
@@ -145,12 +145,21 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
   return (
     <div
       className={`min-h-screen bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${paddingClasses}`}
+      style={{
+        WebkitOverflowScrolling: "touch",
+        overscrollBehavior: "contain",
+      }}
     >
       <div className="flex flex-col min-h-screen">
         <div className="flex-1 flex flex-col min-w-0">
           <Header onMenuToggle={onMenuToggle} onTeamUpdate={handleTeamUpdate} />
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
+          <main
+            className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto"
+            style={{
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
             <ContentLoader>
               <div className="mb-4 sm:mb-6 lg:mb-8">
                 <h1

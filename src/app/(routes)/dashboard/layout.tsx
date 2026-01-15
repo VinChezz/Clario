@@ -149,7 +149,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       <FileDataProvider>
         <GithubProvider>
           <FileListContext.Provider value={{ fileList_, setFileList_ }}>
-            <div className="flex h-screen w-full bg-background overflow-hidden">
+            <div className="flex min-h-screen w-full bg-background overflow-hidden">
               {isMobile && isSidebarOpen && (
                 <div
                   className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
