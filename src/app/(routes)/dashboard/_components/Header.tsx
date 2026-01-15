@@ -251,7 +251,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
       <div className="relative hidden md:block">
         <Badge
           variant="outline"
-          className={`${config.color} px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:opacity-90 transition-all duration-200 backdrop-blur-sm border rounded-full group`}
+          className={`${config.color} px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:opacity-90 transition-all duration-200 backdrop-blur-sm border rounded-full group p-2`}
           onClick={() => setShowStatusDropdown(!showStatusDropdown)}
         >
           <div
@@ -264,49 +264,49 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
         </Badge>
 
         {showStatusDropdown && (
-          <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-xl border dark:border-gray-700 z-9999 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="p-3">
-              <div className="mb-2 px-2">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Set your status
+          <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-gray-900 rounded-lg shadow-xl border dark:border-gray-700 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="p-2">
+              <div className="mb-1 px-1.5">
+                <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Status
                 </p>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {[
                   {
                     value: "AVAILABLE",
                     label: "Available",
-                    icon: <Zap className="h-4 w-4" />,
+                    icon: <Zap className="h-3 w-3" />,
                   },
                   {
                     value: "FOCUS",
                     label: "Focus mode",
-                    icon: <Coffee className="h-4 w-4" />,
+                    icon: <Coffee className="h-3 w-3" />,
                   },
                   {
                     value: "MEETING",
                     label: "In a meeting",
-                    icon: <Users className="h-4 w-4" />,
+                    icon: <Users className="h-3 w-3" />,
                   },
                   {
                     value: "OOO",
                     label: "Out of office",
-                    icon: <Plane className="h-4 w-4" />,
+                    icon: <Plane className="h-3 w-3" />,
                   },
                 ].map((option) => (
                   <button
                     key={option.value}
-                    className={`flex items-center justify-between w-full p-3 rounded-lg transition-all duration-150 ${
+                    className={`flex items-center justify-between w-full p-2 rounded-md transition-all duration-150 ${
                       availabilityStatus === option.value
                         ? "bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-800/30"
                         : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
                     }`}
                     onClick={() => updateAvailabilityStatus(option.value)}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <div
-                        className={`p-2 rounded-lg ${
+                        className={`p-1.5 rounded-md ${
                           availabilityStatus === option.value
                             ? "bg-linear-to-r from-blue-500 to-indigo-500 text-white"
                             : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
@@ -315,10 +315,10 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                         {option.icon}
                       </div>
                       <div className="text-left">
-                        <span className="font-medium text-gray-900 dark:text-white block">
+                        <span className="font-medium text-gray-900 dark:text-white block text-xs">
                           {option.label}
                         </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
                           {option.value === "AVAILABLE" &&
                             "Ready to collaborate"}
                           {option.value === "FOCUS" && "Do not disturb"}
@@ -328,24 +328,24 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                       </div>
                     </div>
                     {availabilityStatus === option.value && (
-                      <div className="w-2 h-2 rounded-full bg-linear-to-r from-blue-500 to-indigo-500"></div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-linear-to-r from-blue-500 to-indigo-500"></div>
                     )}
                   </button>
                 ))}
 
-                <div className="pt-2 border-t dark:border-gray-700">
+                <div className="pt-1 border-t dark:border-gray-700">
                   <button
-                    className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-150 group"
+                    className="flex items-center gap-2 w-full p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-150 group"
                     onClick={openCustomStatusModal}
                   >
-                    <div className="p-2 rounded-lg bg-linear-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-600 dark:text-gray-400 group-hover:from-gray-200 group-hover:to-gray-300 dark:group-hover:from-gray-700 dark:group-hover:to-gray-800">
-                      <MessageSquare className="h-4 w-4" />
+                    <div className="p-1.5 rounded-md bg-linear-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-600 dark:text-gray-400 group-hover:from-gray-200 group-hover:to-gray-300 dark:group-hover:from-gray-700 dark:group-hover:to-gray-800">
+                      <MessageSquare className="h-3 w-3" />
                     </div>
                     <div className="text-left">
-                      <span className="font-medium text-gray-900 dark:text-white block">
+                      <span className="font-medium text-gray-900 dark:text-white block text-xs">
                         Custom status
                       </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
                         {userStatus?.customStatus || "Set a custom message"}
                       </span>
                     </div>
@@ -537,7 +537,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
   return (
     <header
-      className="sticky top-0 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 z-20"
+      className="sticky top-0 backdrop-blur-xl bg-white/10 dark:bg-gray-900/10 transition-all duration-300 z-45"
       id="dashboard-header"
     >
       <div
