@@ -16,6 +16,11 @@ import {
   EyeOff,
   Eye,
   Lock,
+  Zap,
+  Coffee,
+  Users as UsersIcon,
+  Plane,
+  MessageSquare,
 } from "lucide-react";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 
@@ -42,6 +47,63 @@ export function TeamMembers({
     VIEW: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
   };
 
+  const statusConfig: Record<
+    string,
+    {
+      color: string;
+      icon: React.ReactNode;
+      gradient: string;
+      label: string;
+    }
+  > = {
+    AVAILABLE: {
+      color:
+        "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800",
+      icon: <Zap className="h-3 w-3" />,
+      gradient: "from-green-400 to-emerald-500",
+      label: "Available",
+    },
+    FOCUS: {
+      color:
+        "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800",
+      icon: <Coffee className="h-3 w-3" />,
+      gradient: "from-purple-500 to-violet-600",
+      label: "Focus mode",
+    },
+    MEETING: {
+      color:
+        "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+      icon: <UsersIcon className="h-3 w-3" />,
+      gradient: "from-blue-500 to-cyan-500",
+      label: "In a meeting",
+    },
+    OOO: {
+      color:
+        "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
+      icon: <Plane className="h-3 w-3" />,
+      gradient: "from-red-500 to-orange-500",
+      label: "Out of office",
+    },
+    CUSTOM: {
+      color:
+        "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 dark:from-gray-800 dark:to-gray-900 dark:text-gray-300 border-gray-300 dark:border-gray-700",
+      icon: <MessageSquare className="h-3 w-3" />,
+      gradient: "from-gray-500 to-slate-600",
+      label: "Custom",
+    },
+  };
+
+  const getStatusLabel = (status: string, customStatusText?: string) => {
+    const labels: Record<string, string> = {
+      AVAILABLE: "Available",
+      FOCUS: "Focus mode",
+      MEETING: "In a meeting",
+      OOO: "Out of office",
+      CUSTOM: customStatusText || "Custom",
+    };
+    return labels[status] || status.toLowerCase().replace("_", " ");
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "AVAILABLE":
@@ -61,30 +123,25 @@ export function TeamMembers({
     return currentUser?.email === userEmail;
   };
 
-  // Проверяем, может ли пользователь просматривать детали участника
   const canViewMemberDetails = (member: TeamMember & { user: User }) => {
-    // 1. Всегда можно смотреть свои детали
     if (isCurrentUserMember(member.user.email)) {
       return true;
     }
 
-    // 2. Только ADMIN могут смотреть детали других участников
     if (currentUserRole === "ADMIN" || isCurrentUserCreator) {
       return true;
     }
 
-    // 3. VIEW и EDIT пользователи НЕ могут смотреть детали других
     return false;
   };
 
   const handleMemberClick = (member: TeamMember & { user: User }) => {
-    // Проверяем права на просмотр
     if (!canViewMemberDetails(member)) {
-      return; // Не делаем ничего, если нет прав
+      return;
     }
 
     if (isCurrentUserMember(member.user.email)) {
-      return; // Не переходим на страницу деталей себя
+      return;
     }
 
     router.push(`/settings/team/${teamId}/members/${member.userId}`);
@@ -97,6 +154,16 @@ export function TeamMembers({
         const isSelf = isCurrentUserMember(member.user.email);
         const canView = canViewMemberDetails(member);
         const isInteractive = canView && !isSelf;
+
+        const availabilityStatus =
+          member.user.availabilityStatus || "AVAILABLE";
+        const customStatusText = member.user.customStatus || "";
+        const config =
+          statusConfig[availabilityStatus] || statusConfig.AVAILABLE;
+        const displayText = getStatusLabel(
+          availabilityStatus,
+          customStatusText
+        );
 
         return (
           <div
@@ -166,6 +233,19 @@ export function TeamMembers({
                         }`}
                       >
                         {member.role}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={`${config.color} px-2 flex items-center gap-1 text-xs backdrop-blur-sm border`}
+                      >
+                        <div
+                          className={`p-0.5 rounded-full bg-linear-to-r ${config.gradient} text-white`}
+                        >
+                          {config.icon}
+                        </div>
+                        <span className="font-medium capitalize">
+                          {displayText}
+                        </span>
                       </Badge>
                     </div>
 
@@ -248,6 +328,22 @@ export function TeamMembers({
                             </div>
 
                             <div className="space-y-1">
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <div
+                                  className={`p-0.5 rounded-full bg-linear-to-r ${config.gradient}`}
+                                >
+                                  {config.icon}
+                                </div>
+                                <span>Status</span>
+                              </div>
+                              <p className="text-sm font-medium">
+                                {displayText}
+                                {member.user.customStatus &&
+                                  `: ${member.user.customStatus}`}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
                               <p className="text-xs text-gray-500">
                                 Last Active
                               </p>
@@ -260,15 +356,6 @@ export function TeamMembers({
                                       day: "numeric",
                                     })
                                   : "Never"}
-                              </p>
-                            </div>
-
-                            <div className="space-y-1">
-                              <p className="text-xs text-gray-500">
-                                Files Created
-                              </p>
-                              <p className="text-sm font-medium">
-                                {member.user.totalCreatedFiles}
                               </p>
                             </div>
                           </div>
