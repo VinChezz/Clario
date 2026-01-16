@@ -1263,23 +1263,6 @@ export default function SideNavBottomSection({
                         value={fileInput}
                         autoFocus
                       />
-
-                      <div
-                        className={cn(
-                          "text-sm p-3 rounded-lg",
-                          storageInfo.bgColor,
-                          storageInfo.color
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">Storage status:</span>
-                        </div>
-                        <div className="mt-1 text-xs opacity-80">
-                          Using {storageData.currentUsageGB.toFixed(1)}/
-                          {maxStorageLimit.toFixed(1)} GB
-                          {storageData.plan === "FREE" && ` (Free plan)`}
-                        </div>
-                      </div>
                     </div>
 
                     <DialogFooter
