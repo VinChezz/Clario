@@ -215,7 +215,7 @@ export function TeamMembers({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <h4 className="font-semibold text-gray-900 dark:text-white truncate flex items-center gap-2">
                         {member.user.name}
                         {isSelf && (
@@ -338,8 +338,6 @@ export function TeamMembers({
                               </div>
                               <p className="text-sm font-medium">
                                 {displayText}
-                                {member.user.customStatus &&
-                                  `: ${member.user.customStatus}`}
                               </p>
                             </div>
 
