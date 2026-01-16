@@ -96,13 +96,13 @@ export function AnimatedHeader({
 
   const getTitleSize = () => {
     if (isSmallMobile) return "text-lg";
-    if (isMobile) return "text-xl";
+    if (isMobile) return "text-lg";
     return "text-3xl";
   };
 
   const getSubtitleSize = () => {
     if (isSmallMobile) return "text-xs";
-    if (isMobile) return "text-sm";
+    if (isMobile) return "text-xs";
     return "text-base";
   };
 
