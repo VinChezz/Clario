@@ -122,7 +122,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
   const updateAvailabilityStatus = async (
     status: string,
-    customText?: string
+    customText?: string,
   ) => {
     try {
       await updateStatus({
@@ -375,7 +375,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
   }, [activeTeam]);
 
   const currentUserMember = teamMembers.find(
-    (member) => member.userId === dbUser?.id
+    (member) => member.userId === dbUser?.id,
   );
   const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
 
@@ -388,7 +388,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
   const updateMemberRole = async (
     memberId: string,
-    newRole: "VIEW" | "EDIT" | "ADMIN"
+    newRole: "VIEW" | "EDIT" | "ADMIN",
   ) => {
     if (newRole === "ADMIN" && !isCurrentUserCreator) {
       toast.error("Only team creator can assign ADMIN role");
@@ -419,7 +419,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
       }
 
       const updatedMembers = teamMembers.map((member) =>
-        member.id === memberId ? { ...member, role: newRole } : member
+        member.id === memberId ? { ...member, role: newRole } : member,
       );
 
       setTeamMembers(updatedMembers);
@@ -452,7 +452,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
 
       if (activeTeam?.members) {
         const updatedMembers = activeTeam.members.filter(
-          (member) => member.id !== memberId
+          (member) => member.id !== memberId,
         );
 
         setActiveTeam({
@@ -535,7 +535,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
       <div
         className={cn(
           "flex items-center justify-between py-4 mx-auto max-w-7xl",
-          isMobile ? "px-4" : "px-4"
+          isMobile ? "px-4" : "px-4",
         )}
       >
         <div className="flex items-center flex-1 min-w-0">
@@ -544,7 +544,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
             size="icon"
             className={cn(
               "shrink-0 lg:hidden backdrop-blur-xl transition-all duration-300 hover:bg-white/20 dark:hover:bg-gray-800/20",
-              isMobile ? "h-10 w-10 mr-2" : "h-12 w-12 mr-3"
+              isMobile ? "h-10 w-10 mr-2" : "h-12 w-12 mr-3",
             )}
             onClick={handleMenuClick}
           >
@@ -561,7 +561,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                     "h-auto rounded-2xl backdrop-blur-xl transition-all duration-300 hover:bg-white/20 dark:hover:bg-gray-800/20",
                     isMobile
                       ? "px-3 py-2 max-w-[200px] min-h-10"
-                      : "px-4 py-3 max-w-[280px] min-h-12"
+                      : "px-4 py-3 max-w-[280px] min-h-12",
                   )}
                 >
                   <div className="flex items-center gap-2 w-full min-w-0">
@@ -574,7 +574,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                           <div
                             className={cn(
                               "rounded-xl bg-linear-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-xl flex items-center justify-center transition-all duration-300 hover:scale-105 shrink-0",
-                              isMobile ? "w-8 h-8" : "w-10 h-10"
+                              isMobile ? "w-8 h-8" : "w-10 h-10",
                             )}
                           >
                             <Image
@@ -591,7 +591,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                         <div
                           className={cn(
                             "bg-linear-to-br from-gray-100/40 to-gray-200/40 dark:from-gray-800/40 dark:to-gray-700/40 rounded-xl flex items-center justify-center font-medium text-gray-600 dark:text-gray-400 backdrop-blur-xl",
-                            isMobile ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm"
+                            isMobile ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm",
                           )}
                         >
                           +{extraMembersCount}
@@ -602,7 +602,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                       <p
                         className={cn(
                           "font-semibold text-gray-900 dark:text-white truncate",
-                          isMobile ? "text-sm" : "text-base"
+                          isMobile ? "text-sm" : "text-base",
                         )}
                       >
                         {activeTeam.name}
@@ -679,7 +679,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                           variant="secondary"
                           className={cn(
                             "text-xs py-1 px-2 font-medium backdrop-blur-sm",
-                            getRoleColor(member.role)
+                            getRoleColor(member.role),
                           )}
                         >
                           {getRoleText(member.role)}
@@ -726,7 +726,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
                                   onClick={() =>
                                     openRemoveConfirmation(
                                       member.id,
-                                      member.user.name
+                                      member.user.name,
                                     )
                                   }
                                   className="text-sm text-red-600 dark:text-red-400 cursor-pointer focus:text-red-600 dark:focus:text-red-400 backdrop-blur-sm"
@@ -759,7 +759,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <StatusBadge />
 
           <Button
@@ -767,11 +767,19 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
             size="icon"
             className={cn(
               "backdrop-blur-xl transition-all duration-300 hover:scale-110 relative hover:bg-white/20 dark:hover:bg-gray-800/20",
-              isMobile ? "h-9 w-9" : "h-11 w-11"
+              isMobile ? "h-9 w-9" : "h-11 w-11",
             )}
           >
             <Bell className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-900 backdrop-blur-sm"></span>
+            <span
+              className={cn(
+                "absolute -top-1 -right-2.5 rounded-full bg-red-500 text-white font-semibold",
+                "px-1.5 py-0.5 text-[9px] leading-none",
+                "border border-white dark:border-gray-900 shadow-sm",
+              )}
+            >
+              soon
+            </span>
           </Button>
 
           <Button
@@ -779,7 +787,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
             size="icon"
             className={cn(
               "backdrop-blur-xl transition-all duration-300 hover:scale-110 hover:bg-white/20 dark:hover:bg-gray-800/20",
-              isMobile ? "h-9 w-9" : "h-11 w-11"
+              isMobile ? "h-9 w-9" : "h-11 w-11",
             )}
             onClick={handleToggleTheme}
             title={`Switch to ${theme === "LIGHT" ? "dark" : "light"} theme`}
@@ -796,7 +804,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
             size="icon"
             className={cn(
               "backdrop-blur-xl transition-all duration-300 hover:scale-110 hover:bg-white/20 dark:hover:bg-gray-800/20",
-              isMobile ? "h-9 w-9" : "h-11 w-11"
+              isMobile ? "h-9 w-9" : "h-11 w-11",
             )}
             onClick={navigateToSettings}
             title="User Settings"
