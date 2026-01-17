@@ -10,7 +10,7 @@ interface WhiteboardData {
 
 export function calculateFileSize(
   document?: string | null,
-  whiteboard?: string | null
+  whiteboard?: string | null,
 ): bigint {
   const BASE_WEIGHT = 75 * 1024 * 1024; // 75 MB
   const TEXT_WEIGHT_PER_1000_CHARS = 25 * 1024 * 1024; // 25 MB
@@ -24,12 +24,6 @@ export function calculateFileSize(
     const charCount = document.length;
     const thousandsOfChars = Math.ceil(charCount / 1000);
     totalWeight += thousandsOfChars * TEXT_WEIGHT_PER_1000_CHARS;
-
-    console.log(
-      `📄 Text calculation: ${charCount} chars = ${thousandsOfChars} * 25MB = ${
-        thousandsOfChars * 25
-      }MB`
-    );
   }
 
   if (whiteboard && typeof whiteboard === "string") {
@@ -37,18 +31,11 @@ export function calculateFileSize(
       const whiteboardData: WhiteboardData = JSON.parse(whiteboard);
 
       totalWeight += WHITEBOARD_BASE_WEIGHT;
-      console.log(`🎨 Whiteboard base: +25MB`);
 
       if (whiteboardData.elements && Array.isArray(whiteboardData.elements)) {
         const elementCount = whiteboardData.elements.length;
         const elementsWeight = elementCount * WHITEBOARD_ELEMENT_WEIGHT;
         totalWeight += elementsWeight;
-
-        console.log(
-          `📊 Elements: ${elementCount} * 10MB = ${
-            elementsWeight / (1024 * 1024)
-          }MB`
-        );
 
         let imageWeight = 0;
         whiteboardData.elements.forEach((element: WhiteboardElement) => {
@@ -64,23 +51,16 @@ export function calculateFileSize(
 
         if (imageWeight > 0) {
           totalWeight += imageWeight;
-          console.log(
-            `🖼️ Images weight: +${Math.ceil(imageWeight / (1024 * 1024))}MB`
-          );
         }
       }
     } catch (e) {
       const charCount = whiteboard.length;
       const thousandsOfChars = Math.ceil(charCount / 1000);
       totalWeight += thousandsOfChars * TEXT_WEIGHT_PER_1000_CHARS;
-      console.log(
-        `📝 Whiteboard as text: ${charCount} chars = ${thousandsOfChars} * 25MB`
-      );
     }
   }
 
   const totalMB = Math.ceil(totalWeight / (1024 * 1024));
-  console.log(`⚖️ Total file weight: ${totalMB} MB`);
 
   return BigInt(totalWeight);
 }
