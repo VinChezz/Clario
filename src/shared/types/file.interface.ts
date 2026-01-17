@@ -1,32 +1,27 @@
 export interface FILE {
-  id: string;
+  id?: string;
   fileName: string;
-  archive: boolean;
-  document?: string;
-  whiteboard?: string;
+  archive?: boolean;
+  document?: string | null;
+  whiteboard?: string | null;
   teamId: string;
   createdById: string;
   createdAt: string;
   updatedAt: string;
-  deletedAt: string;
-  isPublic: boolean;
-  isDeleted: boolean;
-  permissions: string;
-  shareToken?: string;
-  version: number;
-  currentVersion: number;
-  autoVersioning: boolean;
-  createdBy: {
+  isPublic?: boolean;
+  deletedAt?: string | null;
+  permissions?: string;
+  shareToken?: string | null;
+  version?: number;
+  sizeBytes?: bigint | number;
+  currentVersion?: number;
+  autoVersioning?: boolean;
+  createdBy?: {
     id: string;
     name: string;
     email: string;
     image?: string;
   };
-  team: {
-    id: string;
-    name: string;
-    description?: string;
-    logo?: string;
-  };
   size?: number;
+  isDeleted?: boolean;
 }
