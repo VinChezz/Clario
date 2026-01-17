@@ -759,7 +759,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-3.5 shrink-0">
           <StatusBadge />
 
           <Button
