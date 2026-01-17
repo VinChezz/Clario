@@ -162,7 +162,7 @@ export function TeamMembers({
           statusConfig[availabilityStatus] || statusConfig.AVAILABLE;
         const displayText = getStatusLabel(
           availabilityStatus,
-          customStatusText
+          customStatusText,
         );
 
         return (
@@ -199,7 +199,7 @@ export function TeamMembers({
                     </Avatar>
                     <div
                       className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
-                        member.user.availabilityStatus
+                        member.user.availabilityStatus,
                       )} rounded-full border-2 border-white dark:border-gray-900`}
                     />
                     {isSelf && (
@@ -308,7 +308,7 @@ export function TeamMembers({
                                     month: "short",
                                     day: "numeric",
                                     year: "numeric",
-                                  }
+                                  },
                                 )}
                               </p>
                             </div>
@@ -322,8 +322,8 @@ export function TeamMembers({
                                 {member.role === "ADMIN"
                                   ? "Full access"
                                   : member.role === "EDIT"
-                                  ? "Can edit"
-                                  : "View only"}
+                                    ? "Can edit"
+                                    : "View only"}
                               </p>
                             </div>
 
@@ -348,7 +348,7 @@ export function TeamMembers({
                               <p className="text-sm font-medium">
                                 {member.user.lastLoginAt
                                   ? new Date(
-                                      member.user.lastLoginAt
+                                      member.user.lastLoginAt,
                                     ).toLocaleDateString("en-US", {
                                       month: "short",
                                       day: "numeric",
