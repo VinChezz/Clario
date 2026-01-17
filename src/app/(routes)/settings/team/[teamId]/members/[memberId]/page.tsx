@@ -11,11 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Activity,
-  Calendar,
   FileText,
   MessageSquare,
   ExternalLink,
@@ -57,7 +54,7 @@ export default async function MemberDetailsPage({
   }
 
   const currentUserMember = team.members.find(
-    (m) => m.user.email === user.email
+    (m) => m.user.email === user.email,
   );
 
   const canViewMember = () => {
@@ -157,9 +154,9 @@ export default async function MemberDetailsPage({
                     </CardDescription>
                   </div>
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex flex-wrap justify-between gap-1">
                   <Badge
-                    className={`${planInfo.color} font-medium text-base`}
+                    className={`${planInfo.color} font-medium text-sm`}
                     variant={"secondary"}
                   >
                     <span className="font-medium text-base">
@@ -174,8 +171,8 @@ export default async function MemberDetailsPage({
                       member.role === "ADMIN"
                         ? "destructive"
                         : member.role === "EDIT"
-                        ? "default"
-                        : "secondary"
+                          ? "default"
+                          : "secondary"
                     }
                   >
                     {member.role}
