@@ -4,6 +4,7 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { canCreateFile, getPlanLimit, formatBytes } from "@/lib/planUtils";
 import { Plan } from "@prisma/client";
 import { serializeBigInt } from "@/lib/serializeBigInt";
+import { calculateFileSize } from "@/lib/fileSizeCalculator";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,14 +20,14 @@ export async function POST(req: NextRequest) {
     if (!fileName?.trim()) {
       return NextResponse.json(
         { error: "File name is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!teamId) {
       return NextResponse.json(
         { error: "Team ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,13 +69,11 @@ export async function POST(req: NextRequest) {
           error:
             "Insufficient permissions. Only EDIT and ADMIN roles can create files.",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     const fileSize = calculateFileSize(document, whiteboard);
-
-    const userStorageLimit = getPlanLimit(dbUser.plan as Plan).maxStorage;
 
     if (
       !canCreateFile(dbUser.plan as Plan, dbUser.storageUsedBytes, fileSize)
@@ -83,7 +82,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: `Storage limit exceeded. Your ${dbUser.plan.toLowerCase()} plan has ${formatBytes(
-            limits.maxStorage
+            limits.maxStorage,
           )} limit.`,
           errorCode: "STORAGE_LIMIT_EXCEEDED",
           currentPlan: dbUser.plan,
@@ -91,7 +90,7 @@ export async function POST(req: NextRequest) {
           storageLimit: limits.maxStorage,
           requiresUpgrade: true,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -104,7 +103,7 @@ export async function POST(req: NextRequest) {
           error: "Team storage limit exceeded",
           errorCode: "TEAM_STORAGE_LIMIT_EXCEEDED",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -147,7 +146,7 @@ export async function POST(req: NextRequest) {
     console.error("❌ Error creating file:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -167,7 +166,7 @@ export async function GET(request: Request) {
     if (!teamId) {
       return NextResponse.json(
         { error: "Team ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -199,7 +198,7 @@ export async function GET(request: Request) {
     if (!teamAccess) {
       return NextResponse.json(
         { error: "Team not found or access denied" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -222,72 +221,45 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json(serializeBigInt(files), { status: 200 });
+    const filesWithTotalSize = await Promise.all(
+      files.map(async (file) => {
+        const mainFileSize = calculateFileSize(
+          file.document || undefined,
+          file.whiteboard || undefined,
+        );
+
+        const versions = await prisma.documentVersion.findMany({
+          where: { fileId: file.id },
+        });
+
+        let versionsSize = BigInt(0);
+        versions.forEach((version) => {
+          const versionSize = calculateFileSize(
+            version.type === "document" ? version.content : undefined,
+            version.type === "whiteboard" ? version.content : undefined,
+          );
+          versionsSize += versionSize;
+        });
+
+        const totalSize = mainFileSize + versionsSize;
+
+        return {
+          ...file,
+          sizeBytes: totalSize,
+
+          size: Number(totalSize),
+        };
+      }),
+    );
+
+    return NextResponse.json(serializeBigInt(filesWithTotalSize), {
+      status: 200,
+    });
   } catch (err) {
     console.log("Error fetching files: ", err);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-}
-
-export function calculateFileSize(
-  document?: string,
-  whiteboard?: string
-): bigint {
-  const BASE_WEIGHT = 75 * 1024 * 1024; // 75 MB
-
-  const TEXT_WEIGHT_PER_1000_CHARS = 25 * 1024 * 1024; // 25 MB
-  const WHITEBOARD_ELEMENT_WEIGHT = 10 * 1024 * 1024; // 10 MB
-  const IMAGE_WEIGHT_MULTIPLIER = 2.5;
-  const WHITEBOARD_BASE_WEIGHT = 25 * 1024 * 1024; // 25 MB
-
-  let totalWeight = BASE_WEIGHT;
-
-  if (document) {
-    const charCount = document.length;
-    const thousandsOfChars = Math.ceil(charCount / 1000);
-    totalWeight += thousandsOfChars * TEXT_WEIGHT_PER_1000_CHARS;
-
-    console.log(
-      `📄 Document weight: ${charCount} chars = ${thousandsOfChars * 25} MB`
-    );
-  }
-
-  if (whiteboard) {
-    try {
-      const whiteboardData = JSON.parse(whiteboard);
-
-      totalWeight += WHITEBOARD_BASE_WEIGHT;
-
-      if (whiteboardData.elements && Array.isArray(whiteboardData.elements)) {
-        const elementCount = whiteboardData.elements.length;
-        totalWeight += elementCount * WHITEBOARD_ELEMENT_WEIGHT;
-
-        console.log(
-          `🎨 Whiteboard elements: ${elementCount} = ${elementCount * 10} MB`
-        );
-
-        whiteboardData.elements.forEach((element: any) => {
-          if (element.type === "image" && element.dataUrl) {
-            const base64Data = element.dataUrl.split(",")[1];
-            if (base64Data) {
-              const imageSize = Math.ceil(base64Data.length * 0.75);
-              totalWeight += imageSize * IMAGE_WEIGHT_MULTIPLIER;
-            }
-          }
-        });
-      }
-    } catch (e) {
-      const charCount = whiteboard.length;
-      const thousandsOfChars = Math.ceil(charCount / 1000);
-      totalWeight += thousandsOfChars * TEXT_WEIGHT_PER_1000_CHARS;
-    }
-  }
-
-  const weightInMB = Math.ceil(totalWeight / (1024 * 1024));
-  console.log(`⚖️ Total file weight: ${weightInMB} MB`);
-
-  return BigInt(totalWeight);
 }
