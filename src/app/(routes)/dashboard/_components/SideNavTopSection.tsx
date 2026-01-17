@@ -15,6 +15,7 @@ import {
   FolderOpen,
   Lock,
   ChevronLeft,
+  Heart,
 } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useMemo, useState } from "react";
@@ -82,6 +83,8 @@ interface SideNavTopSectionProps {
   favoriteFiles?: FILE[];
 }
 
+const FAVORITES_UPDATED_EVENT = "favorites-updated";
+
 function SideNavTopSection({
   user,
   setActiveTeamInfo,
@@ -101,7 +104,7 @@ function SideNavTopSection({
   const [filesModalOpen, setFilesModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [fileFilter, setFileFilter] = useState<"all" | "recent" | "favorites">(
-    "all"
+    "all",
   );
   const [localFileList, setLocalFileList] = useState<FILE[]>(fileList_);
 
@@ -110,6 +113,7 @@ function SideNavTopSection({
   const [canCreateTeam, setCanCreateTeam] = useState(true);
   const [recentFilesList, setRecentFilesList] = useState<FILE[]>([]);
   const [favoriteFilesList, setFavoriteFilesList] = useState<FILE[]>([]);
+  const [userFavorites, setUserFavorites] = useState<Set<string>>(new Set());
 
   const isMobileDevice = useIsMobile();
   const isTabletDevice = useIsTablet();
@@ -121,8 +125,39 @@ function SideNavTopSection({
 
   const memoizedLocalFileList = useMemo(
     () => localFileList,
-    [JSON.stringify(localFileList)]
+    [JSON.stringify(localFileList)],
   );
+
+  const loadFavorites = () => {
+    if (typeof window !== "undefined" && user?.id) {
+      const savedFavorites = localStorage.getItem(`favorites_${user.id}`);
+      if (savedFavorites) {
+        try {
+          const favoritesArray = JSON.parse(savedFavorites);
+          setUserFavorites(new Set(favoritesArray));
+        } catch (error) {
+          console.error("Error loading favorites:", error);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadFavorites();
+
+    const handleFavoritesUpdated = () => {
+      loadFavorites();
+    };
+
+    window.addEventListener(FAVORITES_UPDATED_EVENT, handleFavoritesUpdated);
+
+    return () => {
+      window.removeEventListener(
+        FAVORITES_UPDATED_EVENT,
+        handleFavoritesUpdated,
+      );
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (refreshTrigger > 0) {
@@ -140,6 +175,40 @@ function SideNavTopSection({
   useEffect(() => {
     if (activeTeam) setActiveTeamInfo(activeTeam);
   }, [activeTeam]);
+
+  useEffect(() => {
+    if (activeTeam?.id) {
+      loadFiles();
+      updateRecentFiles();
+      updateFavoriteFiles();
+    }
+  }, [activeTeam?.id, localFileList, userFavorites]);
+
+  const updateRecentFiles = () => {
+    if (localFileList.length === 0) return;
+
+    const recent = [...localFileList]
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
+      .slice(0, 10);
+
+    setRecentFilesList(recent);
+  };
+
+  const updateFavoriteFiles = () => {
+    if (localFileList.length === 0 || userFavorites.size === 0) {
+      setFavoriteFilesList([]);
+      return;
+    }
+
+    const favorites = localFileList.filter(
+      (file) => file.id && userFavorites.has(file.id),
+    );
+
+    setFavoriteFilesList(favorites);
+  };
 
   const fetchUserPlan = async () => {
     try {
@@ -180,59 +249,6 @@ function SideNavTopSection({
       setLocalFileList([]);
     }
   };
-
-  const loadRecentFiles = async () => {
-    try {
-      if (!activeTeam?.id) return;
-
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      const response = await fetch(
-        `/api/files?teamId=${
-          activeTeam.id
-        }&fromDate=${sevenDaysAgo.toISOString()}`
-      );
-
-      if (response.ok) {
-        const files = await response.json();
-        const activeFiles = Array.isArray(files)
-          ? files.filter((file) => !file.deletedAt)
-          : [];
-        setRecentFilesList(activeFiles);
-      }
-    } catch (error) {
-      console.error("Error loading recent files:", error);
-    }
-  };
-
-  const loadFavoriteFiles = async () => {
-    try {
-      if (!activeTeam?.id) return;
-
-      const response = await fetch(
-        `/api/files?teamId=${activeTeam.id}&favorite=true`
-      );
-
-      if (response.ok) {
-        const files = await response.json();
-        const activeFiles = Array.isArray(files)
-          ? files.filter((file) => !file.deletedAt)
-          : [];
-        setFavoriteFilesList(activeFiles);
-      }
-    } catch (error) {
-      console.error("Error loading favorite files:", error);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTeam?.id) {
-      loadFiles();
-      loadRecentFiles();
-      loadFavoriteFiles();
-    }
-  }, [activeTeam?.id]);
 
   const getTeamList = async () => {
     try {
@@ -330,7 +346,7 @@ function SideNavTopSection({
     } else if (item.actionType === "route" && item.path) {
       const pathWithTeamId = item.path.replace(
         /:teamId/g,
-        activeTeam?.id || ""
+        activeTeam?.id || "",
       );
       router.push(pathWithTeamId);
     }
@@ -339,34 +355,59 @@ function SideNavTopSection({
   };
 
   const filteredTeams = teamList?.filter((team) =>
-    team.name.toLowerCase().includes(searchQuery.toLowerCase())
+    team.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const filteredFiles = useMemo(() => {
-    let filesToFilter = memoizedLocalFileList;
+  const getFilesForCurrentFilter = () => {
+    switch (fileFilter) {
+      case "recent":
+        return recentFilesList;
+      case "favorites":
+        return favoriteFilesList;
+      default:
+        return localFileList;
+    }
+  };
 
-    if (fileFilter === "recent" && recentFiles) {
-      filesToFilter = recentFiles;
-    } else if (fileFilter === "favorites" && favoriteFiles) {
-      filesToFilter = favoriteFiles;
-    } else if (fileFilter === "recent") {
-      filesToFilter = recentFilesList;
-    } else if (fileFilter === "favorites") {
-      filesToFilter = favoriteFilesList;
+  const currentFiles = getFilesForCurrentFilter();
+
+  const filteredFiles = useMemo(() => {
+    return currentFiles.filter((file) =>
+      file.fileName.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [currentFiles, searchQuery]);
+
+  const isFavorite = (fileId: string): boolean => {
+    return userFavorites.has(fileId);
+  };
+
+  const toggleFavorite = (fileId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
     }
 
-    return filesToFilter.filter((file) =>
-      file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [
-    memoizedLocalFileList,
-    fileFilter,
-    searchQuery,
-    recentFilesList,
-    favoriteFilesList,
-    recentFiles,
-    favoriteFiles,
-  ]);
+    const newFavorites = new Set(userFavorites);
+
+    if (newFavorites.has(fileId)) {
+      newFavorites.delete(fileId);
+    } else {
+      newFavorites.add(fileId);
+    }
+
+    setUserFavorites(newFavorites);
+
+    if (typeof window !== "undefined" && user?.id) {
+      localStorage.setItem(
+        `favorites_${user.id}`,
+        JSON.stringify(Array.from(newFavorites)),
+      );
+    }
+
+    window.dispatchEvent(new CustomEvent(FAVORITES_UPDATED_EVENT));
+
+    updateFavoriteFiles();
+  };
 
   const handleRefreshFiles = () => {
     loadFiles();
@@ -721,7 +762,7 @@ function SideNavTopSection({
           "hover:border-gray-300 dark:hover:border-[#3a3a3d]",
           "hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
           buttonSize.padding,
-          buttonSize.gap
+          buttonSize.gap,
         )}
         id="team-switcher"
       >
@@ -732,9 +773,9 @@ function SideNavTopSection({
             buttonSize.avatarSize,
             activeTeam && teamList
               ? getTeamColor(
-                  teamList.findIndex((t) => t.id === activeTeam.id) || 0
+                  teamList.findIndex((t) => t.id === activeTeam.id) || 0,
                 )
-              : "from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700"
+              : "from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700",
           )}
         >
           {activeTeam ? getTeamInitials(activeTeam.name) : "T"}
@@ -745,7 +786,7 @@ function SideNavTopSection({
               <Crown
                 className={cn(
                   "text-amber-500 dark:text-amber-400 shrink-0",
-                  buttonSize.crownSize
+                  buttonSize.crownSize,
                 )}
               />
             )}
@@ -753,7 +794,7 @@ function SideNavTopSection({
               className={cn(
                 "font-semibold truncate",
                 "text-gray-900 dark:text-[#f0f0f0]",
-                buttonSize.text
+                buttonSize.text,
               )}
             >
               {activeTeam?.name || "Select Team"}
@@ -766,7 +807,7 @@ function SideNavTopSection({
                 isLandscapeDevice ||
                 isHorizontalTablet
                 ? "text-[10px]"
-                : "text-xs"
+                : "text-xs",
             )}
           >
             {activeTeam?._count?.members || 0} members
@@ -775,7 +816,7 @@ function SideNavTopSection({
         <ChevronRight
           className={cn(
             "text-gray-400 dark:text-[#707070] group-hover:text-gray-600 dark:group-hover:text-[#a0a0a0] transition-colors shrink-0",
-            buttonSize.chevronSize
+            buttonSize.chevronSize,
           )}
         />
       </button>
@@ -792,33 +833,43 @@ function SideNavTopSection({
           "hover:border-gray-300 dark:hover:border-[#3a3a3d]",
           "hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
           buttonSize.padding,
-          buttonSize.gap
+          buttonSize.gap,
         )}
         id="all-files"
       >
         <div
           className={cn(
             "rounded-xl bg-linear-to-br flex items-center justify-center",
-            "from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-700",
+            fileFilter === "recent"
+              ? "from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-700"
+              : fileFilter === "favorites"
+                ? "from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700"
+                : "from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700",
             "shadow-sm dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)]",
-            buttonSize.avatarSize
+            buttonSize.avatarSize,
           )}
         >
-          <FileText className={cn("text-white", buttonSize.icon)} />
+          {fileFilter === "recent" ? (
+            <Clock className={cn("text-white", buttonSize.icon)} />
+          ) : fileFilter === "favorites" ? (
+            <Star className={cn("text-white", buttonSize.icon)} />
+          ) : (
+            <FileText className={cn("text-white", buttonSize.icon)} />
+          )}
         </div>
         <div className="flex-1 text-left min-w-0">
           <span
             className={cn(
               "font-semibold block mb-0.5",
               "text-gray-900 dark:text-[#f0f0f0]",
-              buttonSize.text
+              buttonSize.text,
             )}
           >
             {fileFilter === "recent"
               ? "Recent Files"
               : fileFilter === "favorites"
-              ? "Favorite Files"
-              : "All Files"}
+                ? "Favorite Files"
+                : "All Files"}
           </span>
           <p
             className={cn(
@@ -827,16 +878,20 @@ function SideNavTopSection({
                 isLandscapeDevice ||
                 isHorizontalTablet
                 ? "text-[10px]"
-                : "text-xs"
+                : "text-xs",
             )}
           >
-            {filteredFiles.length} files
+            {fileFilter === "recent"
+              ? `${recentFilesList.length} recent files`
+              : fileFilter === "favorites"
+                ? `${favoriteFilesList.length} favorite files`
+                : `${localFileList.length} files`}
           </p>
         </div>
         <ChevronRight
           className={cn(
             "text-gray-400 dark:text-[#707070] group-hover:text-gray-600 dark:group-hover:text-[#a0a0a0] transition-colors shrink-0",
-            buttonSize.chevronSize
+            buttonSize.chevronSize,
           )}
         />
       </button>
@@ -857,7 +912,7 @@ function SideNavTopSection({
                   item.buttonClass,
                   quickAccess.buttonClass,
                   quickAccess.gap,
-                  item.isDisabled && "opacity-50 cursor-not-allowed"
+                  item.isDisabled && "opacity-50 cursor-not-allowed",
                 )}
                 title={
                   item.name +
@@ -868,7 +923,7 @@ function SideNavTopSection({
                   className={cn(
                     "rounded-lg flex items-center justify-center",
                     item.iconClass,
-                    quickAccess.iconBoxSize
+                    quickAccess.iconBoxSize,
                   )}
                 >
                   <item.icon
@@ -891,7 +946,7 @@ function SideNavTopSection({
                   item.buttonClass,
                   quickAccess.buttonClass,
                   quickAccess.gap,
-                  item.isDisabled && "opacity-50 cursor-not-allowed"
+                  item.isDisabled && "opacity-50 cursor-not-allowed",
                 )}
                 title={item.isDisabled ? item.disabledTooltip : ""}
               >
@@ -903,7 +958,7 @@ function SideNavTopSection({
                       isLandscapeDevice ||
                       isHorizontalTablet
                       ? "w-8 h-8"
-                      : "w-10 h-10"
+                      : "w-10 h-10",
                   )}
                 >
                   <item.icon
@@ -917,7 +972,7 @@ function SideNavTopSection({
                       "font-medium overflow-hidden",
                       quickAccess.textSize,
                       "text-gray-700 dark:text-[#f0f0f0]",
-                      item.textClass
+                      item.textClass,
                     )}
                   >
                     {item.name}
@@ -936,7 +991,7 @@ function SideNavTopSection({
             "p-0 gap-0 overflow-hidden rounded-2xl flex flex-col",
             "bg-white dark:bg-[#1a1a1c]",
             "border border-gray-200 dark:border-[#2a2a2d]",
-            isHorizontalTablet ? "max-w-[70vw] max-h-[80vh]" : modalSizes.teams
+            isHorizontalTablet ? "max-w-[70vw] max-h-[80vh]" : modalSizes.teams,
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -946,14 +1001,14 @@ function SideNavTopSection({
               "bg-linear-to-br from-gray-50 to-white dark:from-[#1a1a1c] dark:to-[#0f0f10]",
               "border-gray-200 dark:border-[#2a2a2d]",
               modalSizes.contentPadding,
-              "pb-3"
+              "pb-3",
             )}
           >
             <DialogTitle
               className={cn(
                 "font-bold",
                 "text-gray-900 dark:text-[#f0f0f0]",
-                modalSizes.title
+                modalSizes.title,
               )}
             >
               Teams
@@ -973,7 +1028,7 @@ function SideNavTopSection({
                   "focus:border-blue-500 dark:focus:border-blue-500",
                   "bg-white dark:bg-[#252528]",
                   "text-gray-900 dark:text-[#f0f0f0]",
-                  modalSizes.inputHeight
+                  modalSizes.inputHeight,
                 )}
               />
             </div>
@@ -983,7 +1038,7 @@ function SideNavTopSection({
             className={cn(
               "overflow-y-auto flex-1",
               modalSizes.contentPadding,
-              "pt-0"
+              "pt-0",
             )}
           >
             <div className="space-y-2">
@@ -997,7 +1052,7 @@ function SideNavTopSection({
                       modalSizes.teamItemPadding,
                       activeTeam?.id === team.id
                         ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-500 shadow-sm"
-                        : "hover:bg-gray-50 dark:hover:bg-[#252528] border-2 border-transparent hover:border-gray-200 dark:hover:border-[#3a3a3d]"
+                        : "hover:bg-gray-50 dark:hover:bg-[#252528] border-2 border-transparent hover:border-gray-200 dark:hover:border-[#3a3a3d]",
                     )}
                   >
                     <div
@@ -1005,7 +1060,7 @@ function SideNavTopSection({
                         "rounded-xl bg-linear-to-br flex items-center justify-center text-white font-bold",
                         "shadow-sm dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)]",
                         modalSizes.teamAvatar,
-                        getTeamColor(index)
+                        getTeamColor(index),
                       )}
                     >
                       {getTeamInitials(team.name)}
@@ -1016,7 +1071,7 @@ function SideNavTopSection({
                           <Crown
                             className={cn(
                               "h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0",
-                              buttonSize.crownSize
+                              buttonSize.crownSize,
                             )}
                           />
                         )}
@@ -1024,7 +1079,7 @@ function SideNavTopSection({
                           className={cn(
                             "font-semibold truncate",
                             "text-gray-900 dark:text-[#f0f0f0]",
-                            buttonSize.text
+                            buttonSize.text,
                           )}
                         >
                           {team.name}
@@ -1037,7 +1092,7 @@ function SideNavTopSection({
                             isLandscapeDevice ||
                             isHorizontalTablet
                             ? "text-[10px]"
-                            : "text-xs"
+                            : "text-xs",
                         )}
                       >
                         {team._count?.members || 0} members
@@ -1065,7 +1120,7 @@ function SideNavTopSection({
             className={cn(
               "shrink-0",
               modalSizes.contentPadding,
-              "bg-gray-50 dark:bg-[#252528]"
+              "bg-gray-50 dark:bg-[#252528]",
             )}
           >
             {user && (
@@ -1105,7 +1160,7 @@ function SideNavTopSection({
             "border border-gray-200 dark:border-[#2a2a2d]",
             isHorizontalMobileDevice || isLandscapeDevice
               ? "max-h-96"
-              : "max-h-[600px]"
+              : "max-h-[600px]",
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -1116,14 +1171,14 @@ function SideNavTopSection({
                   className={cn(
                     "font-bold",
                     "text-gray-900 dark:text-[#f0f0f0]",
-                    modalSizes.title
+                    modalSizes.title,
                   )}
                 >
                   {fileFilter === "recent"
                     ? "Recent Files"
                     : fileFilter === "favorites"
-                    ? "Favorite Files"
-                    : "All Files"}
+                      ? "Favorite Files"
+                      : "All Files"}
                 </DialogTitle>
                 {fileFilter === "recent" && (
                   <Clock className="h-5 w-5 text-indigo-500" />
@@ -1156,7 +1211,7 @@ function SideNavTopSection({
                   "focus:border-indigo-500 dark:focus:border-indigo-500",
                   "bg-white dark:bg-[#252528]",
                   "text-gray-900 dark:text-[#f0f0f0]",
-                  modalSizes.inputHeight
+                  modalSizes.inputHeight,
                 )}
               />
             </div>
@@ -1191,7 +1246,7 @@ function SideNavTopSection({
                     "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0",
                     fileFilter === filter.value
                       ? `bg-linear-to-br ${filter.color} text-white shadow-md dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)]`
-                      : "bg-gray-100 dark:bg-[#252528] text-gray-600 dark:text-[#a0a0a0] hover:bg-gray-200 dark:hover:bg-[#2a2a2d]"
+                      : "bg-gray-100 dark:bg-[#252528] text-gray-600 dark:text-[#a0a0a0] hover:bg-gray-200 dark:hover:bg-[#2a2a2d]",
                   )}
                 >
                   <filter.icon className="h-3.5 w-3.5" />
@@ -1217,40 +1272,105 @@ function SideNavTopSection({
                 isLandscapeDevice ||
                 isHorizontalTablet
                 ? "max-h-48"
-                : "max-h-[480px]"
+                : "max-h-[480px]",
             )}
           >
-            {filteredFiles && filteredFiles.length > 0 ? (
+            {filteredFiles.length > 0 ? (
               <div className={cn("grid gap-3", modalSizes.fileGrid)}>
                 {filteredFiles.map((file) => (
-                  <button
+                  <div
                     key={file.id}
-                    onClick={() => handleFileClick(file.id)}
-                    className="group flex flex-col rounded-xl border overflow-hidden transition-all duration-300 border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] hover:border-indigo-200 dark:hover:border-indigo-500/50 hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)] hover:-translate-y-1"
+                    onClick={() => file.id && handleFileClick(file.id)}
+                    className="group relative w-full text-left flex flex-col rounded-xl border overflow-hidden transition-all duration-300 border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] hover:border-indigo-200 dark:hover:border-indigo-500/50 hover:shadow-md dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)] hover:-translate-y-1 cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        file.id && handleFileClick(file.id);
+                      }
+                    }}
                   >
-                    <div className="w-full aspect-video flex items-center justify-center bg-linear-to-br from-gray-50 to-gray-100 dark:from-[#252528] dark:to-[#2a2a2d] group-hover:from-transparent group-hover:to-transparent transition-all">
+                    <div className="relative w-full aspect-video flex items-center justify-center bg-linear-to-br from-gray-50 to-gray-100 dark:from-[#252528] dark:to-[#2a2a2d] group-hover:from-transparent group-hover:to-transparent transition-all">
                       <FileText className="h-8 w-8 text-gray-400 dark:text-[#707070] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
+
+                      {file.id && isFavorite(file.id) && (
+                        <div className="absolute top-2 right-2">
+                          <div className="w-6 h-6 rounded-full bg-amber-500/20 backdrop-blur-sm flex items-center justify-center">
+                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="p-3">
-                      <p className="font-semibold text-sm truncate mb-1 text-gray-900 dark:text-[#f0f0f0]">
-                        {file.fileName}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
-                        {new Date(file.createdAt).toLocaleDateString()}
-                      </p>
+                      <div className="flex items-start justify-between mb-1">
+                        <p className="font-semibold text-sm truncate text-gray-900 dark:text-[#f0f0f0]">
+                          {file.fileName}
+                        </p>
+                        {file.id && isFavorite(file.id) && (
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0 mt-0.5" />
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                          {new Date(file.createdAt).toLocaleDateString()}
+                        </p>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(file.id!, e);
+                          }}
+                          className="text-xs text-gray-400 hover:text-amber-500 dark:text-[#707070] dark:hover:text-amber-400 transition-colors cursor-pointer"
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleFavorite(file.id!);
+                            }
+                          }}
+                        >
+                          {isFavorite(file.id!) ? "Remove" : "Add"}
+                        </div>
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-12 text-gray-400 dark:text-[#707070]">
-                <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                <p className="text-sm font-semibold mb-1 text-gray-900 dark:text-[#f0f0f0]">
-                  No files yet
-                </p>
-                <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
-                  Create your first file to get started
-                </p>
+                {fileFilter === "recent" ? (
+                  <>
+                    <Clock className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                    <p className="text-sm font-semibold mb-1 text-gray-900 dark:text-[#f0f0f0]">
+                      No recent files
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                      Recently modified files will appear here
+                    </p>
+                  </>
+                ) : fileFilter === "favorites" ? (
+                  <>
+                    <Heart className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                    <p className="text-sm font-semibold mb-1 text-gray-900 dark:text-[#f0f0f0]">
+                      No favorite files
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                      Mark files as favorite to see them here
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                    <p className="text-sm font-semibold mb-1 text-gray-900 dark:text-[#f0f0f0]">
+                      No files yet
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                      Create your first file to get started
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </div>
