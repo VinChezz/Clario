@@ -211,7 +211,7 @@ export function StorageIndicator({
       className={cn(
         `bg-linear-to-br ${status.bgColor} rounded-xl border shadow-sm`,
         "border-gray-200 dark:border-[#2a2a2d]",
-        storageSize
+        storageSize,
       )}
       id="storage-section"
       onMouseEnter={() => setIsHovered(true)}
@@ -225,8 +225,8 @@ export function StorageIndicator({
             isHorizontalMobile || isLandscape
               ? "text-xs"
               : isTablet
-              ? "text-xs"
-              : "text-sm"
+                ? "text-xs"
+                : "text-sm",
           )}
         >
           Storage {plan !== "FREE" && `(${plan})`}
@@ -238,8 +238,8 @@ export function StorageIndicator({
             isHorizontalMobile || isLandscape
               ? "text-xs"
               : isTablet
-              ? "text-xs"
-              : "text-sm"
+                ? "text-xs"
+                : "text-sm",
           )}
         >
           {Math.round(usagePercentage)}%
@@ -280,8 +280,8 @@ export function StorageIndicator({
                 isHorizontalMobile || isLandscape
                   ? "text-[9px]"
                   : isTablet
-                  ? "text-[10px]"
-                  : "text-xs"
+                    ? "text-[10px]"
+                    : "text-xs",
               )}
             >
               {formatGB(currentUsageGB)}
@@ -292,8 +292,8 @@ export function StorageIndicator({
                 isHorizontalMobile || isLandscape
                   ? "text-[7px]"
                   : isTablet
-                  ? "text-[8px]"
-                  : "text-[10px]"
+                    ? "text-[8px]"
+                    : "text-[10px]",
               )}
             >
               / {formatGB(maxStorageGB)}
@@ -306,8 +306,8 @@ export function StorageIndicator({
               isHorizontalMobile || isLandscape
                 ? "text-[9px]"
                 : isTablet
-                ? "text-[10px]"
-                : "text-xs"
+                  ? "text-[10px]"
+                  : "text-xs",
             )}
           >
             {status.message}
@@ -331,8 +331,8 @@ export function StorageIndicator({
                 {usagePercentage >= 100
                   ? "Storage full - upgrade needed"
                   : usagePercentage >= 80
-                  ? `${Math.round(remainingPercentage)}% space remaining`
-                  : `${Math.round(remainingPercentage)}% free space`}
+                    ? `${Math.round(remainingPercentage)}% space remaining`
+                    : `${Math.round(remainingPercentage)}% free space`}
               </p>
             </div>
 
@@ -349,8 +349,8 @@ export function StorageIndicator({
                   status.textColor.includes("red")
                     ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30"
                     : status.textColor.includes("orange")
-                    ? "bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-                    : "bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
+                      ? "bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+                      : "bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30",
                 )}
               >
                 Upgrade plan for more storage
@@ -370,8 +370,8 @@ export function StorageIndicator({
               status.textColor.includes("red")
                 ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30"
                 : status.textColor.includes("orange")
-                ? "bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-                : "bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
+                  ? "bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+                  : "bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30",
             )}
           >
             Upgrade for more storage
@@ -512,7 +512,7 @@ export default function SideNavBottomSection({
     setIsLoadingStorage(true);
     try {
       const response = await fetch(
-        `/api/users/storage?teamId=${activeTeam.id}`
+        `/api/users/storage?teamId=${activeTeam.id}`,
       );
 
       if (!response.ok) {
@@ -523,7 +523,7 @@ export default function SideNavBottomSection({
 
       const usedBytes = BigInt(data.storage?.usedBytes || 0);
       const limitBytes = BigInt(
-        data.storage?.limitBytes || 10 * 1024 * 1024 * 1024
+        data.storage?.limitBytes || 10 * 1024 * 1024 * 1024,
       );
 
       const currentUsageGB = Number(usedBytes) / (1024 * 1024 * 1024);
@@ -599,7 +599,7 @@ export default function SideNavBottomSection({
     setIsCheckingRepo(true);
     try {
       const response = await fetch(
-        `/api/github/connect?teamId=${activeTeam.id}`
+        `/api/github/connect?teamId=${activeTeam.id}`,
       );
       const result = await response.json();
       setIsGithubConnected(result.connected);
@@ -618,7 +618,7 @@ export default function SideNavBottomSection({
   const handleFileCreate = async (fileName: string) => {
     if (!storageData.canCreateFiles) {
       alert(
-        "Not enough storage space! Please free up some space or upgrade your plan."
+        "Not enough storage space! Please free up some space or upgrade your plan.",
       );
       return;
     }
@@ -636,7 +636,7 @@ export default function SideNavBottomSection({
   };
 
   const currentUserMember = teamMembers.find(
-    (member) => member.userId === dbUser?.id
+    (member) => member.userId === dbUser?.id,
   );
   const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
 
@@ -972,7 +972,7 @@ export default function SideNavBottomSection({
           "flex flex-col justify-between",
           isMobileDevice || isHorizontalMobileDevice || isLandscapeDevice
             ? "overflow-hidden"
-            : "overflow-visible"
+            : "overflow-visible",
         )}
       >
         <div className={cn("flex-1", spacing)}>
@@ -988,7 +988,7 @@ export default function SideNavBottomSection({
                   buttonSize.padding,
                   buttonSize.text,
                   buttonSize.gap,
-                  menu.className
+                  menu.className,
                 )}
                 onClick={menu.onClick}
                 disabled={menu.id === 2 && isCheckingRepo}
@@ -1018,7 +1018,7 @@ export default function SideNavBottomSection({
                 className={cn(
                   "bg-linear-to-br rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
                   "from-purple-600 to-indigo-700 dark:from-purple-700 dark:to-indigo-800",
-                  upgradeCard.padding
+                  upgradeCard.padding,
                 )}
                 onClick={handleUpgradeClick}
               >
@@ -1029,7 +1029,7 @@ export default function SideNavBottomSection({
                 <p
                   className={cn(
                     "text-white/90 leading-relaxed",
-                    upgradeCard.desc
+                    upgradeCard.desc,
                   )}
                 >
                   Get unlimited storage & features
@@ -1042,8 +1042,8 @@ export default function SideNavBottomSection({
                       isLargeTabletDevice
                         ? "text-base"
                         : isHorizontalMobileDevice || isLandscapeDevice
-                        ? "text-[10px]"
-                        : "text-sm"
+                          ? "text-[10px]"
+                          : "text-sm",
                     )}
                   >
                     Upgrade Now
@@ -1055,8 +1055,8 @@ export default function SideNavBottomSection({
                       isLargeTabletDevice
                         ? "px-3 py-1.5 text-sm"
                         : isHorizontalMobileDevice || isLandscapeDevice
-                        ? "px-2 py-0.5 text-[9px]"
-                        : "px-2 py-1 text-xs"
+                          ? "px-2 py-0.5 text-[9px]"
+                          : "px-2 py-1 text-xs",
                     )}
                   >
                     $10/mo
@@ -1069,7 +1069,7 @@ export default function SideNavBottomSection({
                   "bg-linear-to-br rounded-xl text-white relative overflow-hidden group cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl",
                   "from-purple-600 to-indigo-700 dark:from-purple-700 dark:to-indigo-800",
                   "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
-                  upgradeCard.padding
+                  upgradeCard.padding,
                 )}
                 onClick={handleUpgradeClick}
               >
@@ -1080,7 +1080,7 @@ export default function SideNavBottomSection({
                     className={cn(
                       "flex items-center gap-2 mb-2",
                       (isHorizontalMobileDevice || isLandscapeDevice) && "mb-1",
-                      isLargeTabletDevice && "mb-3"
+                      isLargeTabletDevice && "mb-3",
                     )}
                   >
                     <Crown
@@ -1089,8 +1089,8 @@ export default function SideNavBottomSection({
                         isHorizontalMobileDevice || isLandscapeDevice
                           ? "h-3.5 w-3.5"
                           : isLargeTabletDevice
-                          ? "h-5 w-5"
-                          : "h-4 w-4"
+                            ? "h-5 w-5"
+                            : "h-4 w-4",
                       )}
                     />
                     <span
@@ -1099,8 +1099,8 @@ export default function SideNavBottomSection({
                         isHorizontalMobileDevice || isLandscapeDevice
                           ? "text-xs"
                           : isLargeTabletDevice
-                          ? "text-base"
-                          : "text-sm"
+                            ? "text-base"
+                            : "text-sm",
                       )}
                     >
                       PRO FEATURES
@@ -1113,7 +1113,7 @@ export default function SideNavBottomSection({
                   <p
                     className={cn(
                       "text-white/90 mb-3 leading-relaxed",
-                      upgradeCard.desc
+                      upgradeCard.desc,
                     )}
                   >
                     Get unlimited storage & features
@@ -1126,8 +1126,8 @@ export default function SideNavBottomSection({
                         isHorizontalMobileDevice || isLandscapeDevice
                           ? "text-xs"
                           : isLargeTabletDevice
-                          ? "text-base"
-                          : "text-sm"
+                            ? "text-base"
+                            : "text-sm",
                       )}
                     >
                       Upgrade Now
@@ -1138,8 +1138,8 @@ export default function SideNavBottomSection({
                         isHorizontalMobileDevice || isLandscapeDevice
                           ? "px-2 py-1 text-[10px]"
                           : isLargeTabletDevice
-                          ? "px-3 py-1.5 text-sm"
-                          : "px-2 py-1 text-xs"
+                            ? "px-3 py-1.5 text-sm"
+                            : "px-2 py-1 text-xs",
                       )}
                     >
                       $10/mo
@@ -1159,7 +1159,7 @@ export default function SideNavBottomSection({
                     "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)]",
                     buttonSize.height,
                     buttonSize.text,
-                    buttonSize.gap
+                    buttonSize.gap,
                   )}
                   id="storage-full-button"
                   disabled
@@ -1169,8 +1169,8 @@ export default function SideNavBottomSection({
                     {storageInfo.status === "full"
                       ? "Storage Full"
                       : storageInfo.status === "warning"
-                      ? "Almost Full"
-                      : "No Permission"}
+                        ? "Almost Full"
+                        : "No Permission"}
                   </span>
                 </Button>
               ) : (
@@ -1178,14 +1178,14 @@ export default function SideNavBottomSection({
                   <DialogTrigger className="w-full" asChild>
                     <Button
                       className={cn(
-                        "w-full bg-linear-to-r shadow-lg hover:shadow-xl transition-all duration-300",
+                        "group relative px-6 py-3 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300",
                         storageInfo.status === "warning"
                           ? "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 dark:from-amber-600 dark:to-orange-700 dark:hover:from-amber-700 dark:hover:to-orange-800"
                           : "from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 dark:from-blue-500 dark:to-indigo-600 dark:hover:from-blue-600 dark:hover:to-indigo-700",
                         "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
                         buttonSize.height,
                         buttonSize.text,
-                        buttonSize.gap
+                        buttonSize.gap,
                       )}
                       disabled={!canCreateFiles}
                       id="create-file-button-sidenav"
@@ -1203,9 +1203,9 @@ export default function SideNavBottomSection({
                       isHorizontalMobileDevice || isLandscapeDevice
                         ? "sm:max-w-xs"
                         : isMobileDevice
-                        ? "sm:max-w-sm"
-                        : "sm:max-w-lg",
-                      isLargeTabletDevice && "sm:max-w-lg"
+                          ? "sm:max-w-sm"
+                          : "sm:max-w-lg",
+                      isLargeTabletDevice && "sm:max-w-lg",
                     )}
                   >
                     <DialogHeader>
@@ -1215,9 +1215,9 @@ export default function SideNavBottomSection({
                           isHorizontalMobileDevice || isLandscapeDevice
                             ? "text-base"
                             : isMobileDevice
-                            ? "text-lg"
-                            : "text-xl",
-                          isLargeTabletDevice && "text-2xl"
+                              ? "text-lg"
+                              : "text-xl",
+                          isLargeTabletDevice && "text-2xl",
                         )}
                       >
                         Create New File
@@ -1228,9 +1228,9 @@ export default function SideNavBottomSection({
                           isHorizontalMobileDevice || isLandscapeDevice
                             ? "text-xs"
                             : isMobileDevice
-                            ? "text-sm"
-                            : "text-base",
-                          isLargeTabletDevice && "text-lg"
+                              ? "text-sm"
+                              : "text-base",
+                          isLargeTabletDevice && "text-lg",
                         )}
                       >
                         {storageInfo.status === "warning" ? (
@@ -1255,9 +1255,9 @@ export default function SideNavBottomSection({
                           isHorizontalMobileDevice || isLandscapeDevice
                             ? "text-xs h-9"
                             : isMobileDevice
-                            ? "text-sm h-10"
-                            : "text-base h-12",
-                          isLargeTabletDevice && "text-lg h-14"
+                              ? "text-sm h-10"
+                              : "text-base h-12",
+                          isLargeTabletDevice && "text-lg h-14",
                         )}
                         onChange={(e) => setFileInput(e.target.value)}
                         value={fileInput}
@@ -1271,7 +1271,7 @@ export default function SideNavBottomSection({
                         (isHorizontalMobileDevice || isLandscapeDevice) &&
                           "gap-2",
                         isTabletDevice && "gap-2",
-                        isLargeTabletDevice && "gap-4"
+                        isLargeTabletDevice && "gap-4",
                       )}
                     >
                       <DialogClose asChild>
@@ -1283,9 +1283,9 @@ export default function SideNavBottomSection({
                             isHorizontalMobileDevice || isLandscapeDevice
                               ? "text-xs h-8"
                               : isMobileDevice
-                              ? "text-sm h-9"
-                              : "text-base h-11",
-                            isLargeTabletDevice && "text-lg h-12"
+                                ? "text-sm h-9"
+                                : "text-base h-11",
+                            isLargeTabletDevice && "text-lg h-12",
                           )}
                         >
                           Cancel
@@ -1294,16 +1294,16 @@ export default function SideNavBottomSection({
                       <DialogClose asChild>
                         <Button
                           className={cn(
-                            "bg-linear-to-br hover:shadow-lg transition-all",
+                            "group relative px-6 py-3 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300",
                             storageInfo.status === "warning"
                               ? "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 dark:from-amber-600 dark:to-orange-700 dark:hover:from-amber-700 dark:hover:to-orange-800"
                               : "from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 dark:from-blue-500 dark:to-indigo-600 dark:hover:from-blue-600 dark:hover:to-indigo-700",
                             isHorizontalMobileDevice || isLandscapeDevice
                               ? "text-xs h-8"
                               : isMobileDevice
-                              ? "text-sm h-9"
-                              : "text-base h-11",
-                            isLargeTabletDevice && "text-lg h-12"
+                                ? "text-sm h-9"
+                                : "text-base h-11",
+                            isLargeTabletDevice && "text-lg h-12",
                           )}
                           disabled={!(fileInput && fileInput.length > 3)}
                           onClick={() => {
@@ -1329,7 +1329,7 @@ export default function SideNavBottomSection({
                 "border border-gray-200 dark:border-[#2a2a2d]",
                 isHorizontalMobileDevice || isLandscapeDevice
                   ? "max-h-[85vh]"
-                  : "max-h-[80vh]"
+                  : "max-h-[80vh]",
               )}
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
@@ -1337,7 +1337,7 @@ export default function SideNavBottomSection({
                 className={cn(
                   "px-8 pt-8 pb-6 border-b",
                   "bg-linear-to-br from-gray-50 to-white dark:from-[#1a1a1c] dark:to-[#0f0f10]",
-                  "border-gray-100 dark:border-[#2a2a2d]"
+                  "border-gray-100 dark:border-[#2a2a2d]",
                 )}
               >
                 <div className="flex items-center justify-between">
@@ -1395,7 +1395,7 @@ export default function SideNavBottomSection({
                           <button
                             onClick={() => {
                               selectedFiles.forEach((id) =>
-                                handleRestoreFile(id)
+                                handleRestoreFile(id),
                               );
                               setSelectedFiles([]);
                             }}
@@ -1410,7 +1410,7 @@ export default function SideNavBottomSection({
                                 confirm(
                                   `Permanently delete ${
                                     selectedFiles.length
-                                  } item${selectedFiles.length > 1 ? "s" : ""}?`
+                                  } item${selectedFiles.length > 1 ? "s" : ""}?`,
                                 )
                               ) {
                                 deleteSelectedFiles();
@@ -1434,7 +1434,7 @@ export default function SideNavBottomSection({
                             confirm(
                               `Empty trash? This will permanently delete ${
                                 deletedFiles.length
-                              } item${deletedFiles.length > 1 ? "s" : ""}.`
+                              } item${deletedFiles.length > 1 ? "s" : ""}.`,
                             )
                           ) {
                             emptyTrash();
@@ -1461,7 +1461,7 @@ export default function SideNavBottomSection({
                     isLandscapeDevice ||
                     isHorizontalTablet
                     ? "max-h-[50vh]"
-                    : "max-h-[50vh]"
+                    : "max-h-[50vh]",
                 )}
               >
                 {deletedFiles && deletedFiles.length > 0 ? (
@@ -1477,12 +1477,12 @@ export default function SideNavBottomSection({
                             "hover:border-gray-300 dark:hover:border-[#3a3a3d]",
                             "hover:shadow-lg dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]",
                             selectedFiles.includes(file.id) &&
-                              "ring-2 ring-red-500 dark:ring-red-600 border-red-500 dark:border-red-600"
+                              "ring-2 ring-red-500 dark:ring-red-600 border-red-500 dark:border-red-600",
                           )}
                           onClick={() => {
                             if (selectedFiles.includes(file.id)) {
                               setSelectedFiles((prev) =>
-                                prev.filter((id) => id !== file.id)
+                                prev.filter((id) => id !== file.id),
                               );
                             } else {
                               setSelectedFiles((prev) => [...prev, file.id]);
@@ -1507,7 +1507,7 @@ export default function SideNavBottomSection({
                                   ]);
                                 } else {
                                   setSelectedFiles((prev) =>
-                                    prev.filter((id) => id !== file.id)
+                                    prev.filter((id) => id !== file.id),
                                   );
                                 }
                               }}
