@@ -42,6 +42,7 @@ import {
 } from "@/hooks/useMediaQuery";
 import { Plan } from "@prisma/client";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import { useFavorites } from "@/app/_context/FavoritesContext";
 
 export interface TeamMember {
   id: string;
@@ -83,8 +84,6 @@ interface SideNavTopSectionProps {
   favoriteFiles?: FILE[];
 }
 
-const FAVORITES_UPDATED_EVENT = "favorites-updated";
-
 function SideNavTopSection({
   user,
   setActiveTeamInfo,
@@ -113,7 +112,6 @@ function SideNavTopSection({
   const [canCreateTeam, setCanCreateTeam] = useState(true);
   const [recentFilesList, setRecentFilesList] = useState<FILE[]>([]);
   const [favoriteFilesList, setFavoriteFilesList] = useState<FILE[]>([]);
-  const [userFavorites, setUserFavorites] = useState<Set<string>>(new Set());
 
   const isMobileDevice = useIsMobile();
   const isTabletDevice = useIsTablet();
@@ -123,41 +121,12 @@ function SideNavTopSection({
   const isLandscapeDevice = useIsLandscape();
   const { activeTeam, setActiveTeam } = useActiveTeam();
 
+  const { isFavorite, toggleFavorite } = useFavorites();
+
   const memoizedLocalFileList = useMemo(
     () => localFileList,
     [JSON.stringify(localFileList)],
   );
-
-  const loadFavorites = () => {
-    if (typeof window !== "undefined" && user?.id) {
-      const savedFavorites = localStorage.getItem(`favorites_${user.id}`);
-      if (savedFavorites) {
-        try {
-          const favoritesArray = JSON.parse(savedFavorites);
-          setUserFavorites(new Set(favoritesArray));
-        } catch (error) {
-          console.error("Error loading favorites:", error);
-        }
-      }
-    }
-  };
-
-  useEffect(() => {
-    loadFavorites();
-
-    const handleFavoritesUpdated = () => {
-      loadFavorites();
-    };
-
-    window.addEventListener(FAVORITES_UPDATED_EVENT, handleFavoritesUpdated);
-
-    return () => {
-      window.removeEventListener(
-        FAVORITES_UPDATED_EVENT,
-        handleFavoritesUpdated,
-      );
-    };
-  }, [user?.id]);
 
   useEffect(() => {
     if (refreshTrigger > 0) {
@@ -182,7 +151,7 @@ function SideNavTopSection({
       updateRecentFiles();
       updateFavoriteFiles();
     }
-  }, [activeTeam?.id, localFileList, userFavorites]);
+  }, [activeTeam?.id, localFileList]);
 
   const updateRecentFiles = () => {
     if (localFileList.length === 0) return;
@@ -198,13 +167,13 @@ function SideNavTopSection({
   };
 
   const updateFavoriteFiles = () => {
-    if (localFileList.length === 0 || userFavorites.size === 0) {
+    if (localFileList.length === 0) {
       setFavoriteFilesList([]);
       return;
     }
 
     const favorites = localFileList.filter(
-      (file) => file.id && userFavorites.has(file.id),
+      (file) => file.id && isFavorite(file.id),
     );
 
     setFavoriteFilesList(favorites);
@@ -243,10 +212,12 @@ function SideNavTopSection({
         : [];
 
       setLocalFileList(activeFiles);
+      updateFavoriteFiles();
       console.log("✅ Sidenav files loaded successfully:", activeFiles.length);
     } catch (error) {
       console.error("❌ Failed to load files in sidenav:", error);
       setLocalFileList([]);
+      setFavoriteFilesList([]);
     }
   };
 
@@ -321,12 +292,6 @@ function SideNavTopSection({
     }
   };
 
-  const handleQuickAction = (path: string) => {
-    router.push(path);
-    setTeamsModalOpen(false);
-    onItemClick?.();
-  };
-
   const onMenuClick = async (item: any) => {
     if (item.id === 1 && item.isDisabled) {
       router.push("/pricing");
@@ -372,42 +337,10 @@ function SideNavTopSection({
   const currentFiles = getFilesForCurrentFilter();
 
   const filteredFiles = useMemo(() => {
-    return currentFiles.filter((file) =>
-      file.fileName.toLowerCase().includes(searchQuery.toLowerCase()),
+    return (currentFiles || []).filter((file) =>
+      file?.fileName?.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [currentFiles, searchQuery]);
-
-  const isFavorite = (fileId: string): boolean => {
-    return userFavorites.has(fileId);
-  };
-
-  const toggleFavorite = (fileId: string, e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-
-    const newFavorites = new Set(userFavorites);
-
-    if (newFavorites.has(fileId)) {
-      newFavorites.delete(fileId);
-    } else {
-      newFavorites.add(fileId);
-    }
-
-    setUserFavorites(newFavorites);
-
-    if (typeof window !== "undefined" && user?.id) {
-      localStorage.setItem(
-        `favorites_${user.id}`,
-        JSON.stringify(Array.from(newFavorites)),
-      );
-    }
-
-    window.dispatchEvent(new CustomEvent(FAVORITES_UPDATED_EVENT));
-
-    updateFavoriteFiles();
-  };
 
   const handleRefreshFiles = () => {
     loadFiles();
@@ -1318,7 +1251,7 @@ function SideNavTopSection({
                         <div
                           onClick={(e) => {
                             e.stopPropagation();
-                            toggleFavorite(file.id!, e);
+                            toggleFavorite(file.id!);
                           }}
                           className="text-xs text-gray-400 hover:text-amber-500 dark:text-[#707070] dark:hover:text-amber-400 transition-colors cursor-pointer"
                           role="button"
