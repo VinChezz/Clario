@@ -177,7 +177,7 @@ export function SettingsGeneral({
       createFiles: true,
       editFiles: true,
       deleteFiles: false,
-      inviteMembers: true,
+      inviteMembers: false,
       manageSettings: false,
       removeMembers: false,
     },
