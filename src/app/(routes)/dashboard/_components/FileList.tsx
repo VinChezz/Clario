@@ -67,6 +67,7 @@ import { useFavorites } from "@/app/_context/FavoritesContext";
 
 type ViewMode = "grid" | "list" | "table";
 type SortOrder = "asc" | "desc";
+type UserRole = "ADMIN" | "VIEW" | "EDIT";
 
 interface FileListProps {
   files?: FILE[];
@@ -81,7 +82,7 @@ export default function FileList({
   onCreateFile,
   onMenuToggle,
 }: FileListProps) {
-  const { fileList_, setFileList_ } = useContext(FileListContext);
+  const { user }: any = useKindeBrowserClient();
   const [fileList, setFileList] = useState<FILE[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,14 +94,56 @@ export default function FileList({
   const [newFileName, setNewFileName] = useState("");
   const [isCreatingFile, setIsCreatingFile] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
-  const { user }: any = useKindeBrowserClient();
+  const [userRole, setUserRole] = useState<UserRole>("ADMIN");
+  const [loadingRole, setLoadingRole] = useState(true);
+
   const router = useRouter();
   const isMobile = useIsMobile();
   const { activeTeam } = useActiveTeam();
-
+  const { fileList_, setFileList_ } = useContext(FileListContext);
   const { isFavorite, toggleFavorite, favoritesCount } = useFavorites();
-
   const { updateFromFileList } = useFileData();
+
+  const fetchUserRole = async () => {
+    if (!user || !activeTeam?.id) {
+      console.log("No user or active team");
+      setUserRole("VIEW");
+      setLoadingRole(false);
+      return;
+    }
+
+    try {
+      setLoadingRole(true);
+      console.log(`Fetching role for user ${user.id} in team ${activeTeam.id}`);
+
+      const response = await fetch(
+        `/api/teams/${activeTeam.id}/members/${user.id}/role`,
+      );
+
+      console.log("Role API response status:", response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Role API response data:", data);
+        setUserRole(data.role || "VIEW");
+      } else {
+        console.log("Role API failed, setting VIEW as default");
+        setUserRole("VIEW");
+      }
+    } catch (error) {
+      console.error("Failed to fetch user role:", error);
+    } finally {
+      setLoadingRole(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserRole();
+  }, [user, activeTeam?.id]);
+
+  const canCreate = userRole !== "VIEW";
+  const canDelete = userRole === "ADMIN";
+  const canRename = userRole === "ADMIN";
 
   useEffect(() => {
     if (files && files.length > 0) {
@@ -494,10 +537,20 @@ export default function FileList({
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => setCreateFileModalOpen(true)}
-        className="group relative px-6 py-3 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300"
+        onClick={() => canCreate && setCreateFileModalOpen(true)}
+        disabled={!canCreate}
+        className={`group relative px-6 py-3 rounded-xl text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 ${
+          canCreate
+            ? "bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/25 hover:shadow-blue-500/40"
+            : "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+        }`}
       >
-        <div className="absolute inset-0 rounded-xl bg-white/10 group-hover:bg-white/20 transition-colors" />
+        <div
+          className={`absolute inset-0 rounded-xl transition-colors ${
+            canCreate ? "bg-white/10 group-hover:bg-white/20" : ""
+          }`}
+          id="create-file-button-filelist"
+        />
         <div className="relative flex items-center gap-2">
           <Plus className="h-4 w-4" />
           <span>Create new document</span>
@@ -526,6 +579,7 @@ export default function FileList({
           onSubmit={handleCreateFile}
           isCreating={isCreatingFile}
           activeTeam={activeTeam}
+          canCreate={canCreate}
         />
       </>
     );
@@ -557,8 +611,13 @@ export default function FileList({
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setCreateFileModalOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/25 transition-all duration-300 flex items-center gap-2"
+                  onClick={() => canCreate && setCreateFileModalOpen(true)}
+                  disabled={!canCreate}
+                  className={`px-4 py-2 rounded-xl text-white font-medium shadow-lg transition-all duration-300 flex items-center gap-2 ${
+                    canCreate
+                      ? "bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/25"
+                      : "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+                  }`}
                 >
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">New</span>
@@ -759,6 +818,8 @@ export default function FileList({
                           toggleFavorite(fileId);
                         }
                       }}
+                      canDelete={canDelete}
+                      canRename={canRename}
                     />
                   ))}
                 </motion.div>
@@ -790,6 +851,8 @@ export default function FileList({
                           toggleFavorite(file.id);
                         }
                       }}
+                      canDelete={canDelete}
+                      canRename={canRename}
                     />
                   ))}
                 </motion.div>
@@ -952,14 +1015,17 @@ export default function FileList({
                                       <Download className="h-4 w-4 mr-2" />{" "}
                                       Download
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={(e) =>
-                                        handleFileAction("rename", file, e)
-                                      }
-                                      className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
-                                    >
-                                      <Edit3 className="h-4 w-4 mr-2" /> Rename
-                                    </DropdownMenuItem>
+                                    {canRename && (
+                                      <DropdownMenuItem
+                                        onClick={(e) =>
+                                          handleFileAction("rename", file, e)
+                                        }
+                                        className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                                      >
+                                        <Edit3 className="h-4 w-4 mr-2" />{" "}
+                                        Rename
+                                      </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem
                                       onClick={(e) =>
                                         handleFileAction("share", file, e)
@@ -968,15 +1034,20 @@ export default function FileList({
                                     >
                                       <Share className="h-4 w-4 mr-2" /> Share
                                     </DropdownMenuItem>
-                                    <DropdownMenuSeparator className="bg-gray-200 dark:bg-[#2a2a2d]" />
-                                    <DropdownMenuItem
-                                      className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                      onClick={(e) =>
-                                        handleFileAction("delete", file, e)
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                    </DropdownMenuItem>
+                                    {canDelete && (
+                                      <>
+                                        <DropdownMenuSeparator className="bg-gray-200 dark:bg-[#2a2a2d]" />
+                                        <DropdownMenuItem
+                                          className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                          onClick={(e) =>
+                                            handleFileAction("delete", file, e)
+                                          }
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />{" "}
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
@@ -1001,6 +1072,7 @@ export default function FileList({
         onSubmit={handleCreateFile}
         isCreating={isCreatingFile}
         activeTeam={activeTeam}
+        canCreate={canCreate}
       />
 
       <TrashDialog
@@ -1021,6 +1093,7 @@ const CreateFileDialog = ({
   onSubmit,
   isCreating,
   activeTeam,
+  canCreate,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1029,6 +1102,7 @@ const CreateFileDialog = ({
   onSubmit: (shouldOpenFile: boolean) => void;
   isCreating: boolean;
   activeTeam: any;
+  canCreate: boolean;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-md bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
@@ -1037,40 +1111,51 @@ const CreateFileDialog = ({
           New Document
         </DialogTitle>
         <DialogDescription className="text-gray-500 dark:text-[#a0a0a0]">
-          Give your document a name to get started
+          {canCreate
+            ? "Give your document a name to get started"
+            : "You don't have permission to create documents"}
         </DialogDescription>
       </DialogHeader>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="space-y-4"
-      >
-        <Input
-          placeholder="Document name..."
-          value={fileName}
-          onChange={(e) => setFileName(e.target.value)}
-          onKeyDown={(e) => {
-            if (
-              e.key === "Enter" &&
-              fileName.trim() &&
-              !isCreating &&
-              activeTeam?.id
-            ) {
-              onSubmit(false);
-            }
-          }}
-          disabled={isCreating}
-          autoFocus
-          className="h-11 rounded-xl border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] text-gray-900 dark:text-[#f0f0f0]"
-        />
+      {canCreate ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="space-y-4"
+        >
+          <Input
+            placeholder="Document name..."
+            value={fileName}
+            onChange={(e) => setFileName(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                fileName.trim() &&
+                !isCreating &&
+                activeTeam?.id
+              ) {
+                onSubmit(false);
+              }
+            }}
+            disabled={isCreating}
+            autoFocus
+            className="h-11 rounded-xl border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] text-gray-900 dark:text-[#f0f0f0]"
+          />
 
-        {!activeTeam?.id && (
-          <p className="text-sm text-red-500 font-medium">
-            Please select a team first
+          {!activeTeam?.id && (
+            <p className="text-sm text-red-500 font-medium">
+              Please select a team first
+            </p>
+          )}
+        </motion.div>
+      ) : (
+        <div className="text-center py-6">
+          <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-gray-700 dark:text-[#a0a0a0]">
+            Your role doesn't allow creating new documents.
           </p>
-        )}
-      </motion.div>
+        </div>
+      )}
 
       <DialogFooter className="gap-2">
         <Button
@@ -1081,30 +1166,32 @@ const CreateFileDialog = ({
         >
           Cancel
         </Button>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => onSubmit(false)}
-            disabled={!fileName.trim() || isCreating || !activeTeam?.id}
-            className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-          >
-            {isCreating ? (
-              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              "Create"
-            )}
-          </Button>
-          <Button
-            onClick={() => onSubmit(true)}
-            disabled={!fileName.trim() || isCreating || !activeTeam?.id}
-            className="bg-linear-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
-          >
-            {isCreating ? (
-              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              "Create & Open"
-            )}
-          </Button>
-        </div>
+        {canCreate && (
+          <div className="flex gap-2">
+            <Button
+              onClick={() => onSubmit(false)}
+              disabled={!fileName.trim() || isCreating || !activeTeam?.id}
+              className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
+              {isCreating ? (
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                "Create"
+              )}
+            </Button>
+            <Button
+              onClick={() => onSubmit(true)}
+              disabled={!fileName.trim() || isCreating || !activeTeam?.id}
+              className="bg-linear-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+            >
+              {isCreating ? (
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                "Create & Open"
+              )}
+            </Button>
+          </div>
+        )}
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -1190,6 +1277,8 @@ const FileGridItem = ({
   formatFileSize,
   isFavorite,
   onToggleFavorite,
+  canDelete,
+  canRename,
 }: any) => {
   const fileSize = getFileSize(file);
 
@@ -1300,25 +1389,31 @@ const FileGridItem = ({
                 >
                   <Download className="h-4 w-4 mr-2" /> Download
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={(e) => onFileAction("rename", file, e)}
-                  className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
-                >
-                  <Edit3 className="h-4 w-4 mr-2" /> Rename
-                </DropdownMenuItem>
+                {canRename && (
+                  <DropdownMenuItem
+                    onClick={(e) => onFileAction("rename", file, e)}
+                    className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                  >
+                    <Edit3 className="h-4 w-4 mr-2" /> Rename
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={(e) => onFileAction("share", file, e)}
                   className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
                 >
                   <Share className="h-4 w-4 mr-2" /> Share
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-gray-200 dark:bg-[#2a2a2d]" />
-                <DropdownMenuItem
-                  className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                  onClick={(e) => onFileAction("delete", file, e)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
-                </DropdownMenuItem>
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator className="bg-gray-200 dark:bg-[#2a2a2d]" />
+                    <DropdownMenuItem
+                      className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      onClick={(e) => onFileAction("delete", file, e)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" /> Delete
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -1365,6 +1460,8 @@ const FileListItem = ({
   formatFileSize,
   isFavorite,
   onToggleFavorite,
+  canDelete,
+  canRename,
 }: any) => {
   const fileSize = getFileSize(file);
 
@@ -1485,25 +1582,31 @@ const FileListItem = ({
               >
                 <Download className="h-4 w-4 mr-2" /> Download
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => onFileAction("rename", file, e)}
-                className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
-              >
-                <Edit3 className="h-4 w-4 mr-2" /> Rename
-              </DropdownMenuItem>
+              {canRename && (
+                <DropdownMenuItem
+                  onClick={(e) => onFileAction("rename", file, e)}
+                  className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
+                >
+                  <Edit3 className="h-4 w-4 mr-2" /> Rename
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={(e) => onFileAction("share", file, e)}
                 className="text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528]"
               >
                 <Share className="h-4 w-4 mr-2" /> Share
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-gray-200 dark:bg-[#2a2a2d]" />
-              <DropdownMenuItem
-                className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                onClick={(e) => onFileAction("delete", file, e)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" /> Delete
-              </DropdownMenuItem>
+              {canDelete && (
+                <>
+                  <DropdownMenuSeparator className="bg-gray-200 dark:bg-[#2a2a2d]" />
+                  <DropdownMenuItem
+                    className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    onClick={(e) => onFileAction("delete", file, e)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
           <ChevronRight className="h-4 w-4 text-gray-400 dark:text-[#707070]" />
