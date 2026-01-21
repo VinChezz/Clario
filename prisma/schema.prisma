@@ -205,9 +205,10 @@ model UserSettings {
   mentionEmails      Boolean @default(true)
   commentEmails      Boolean @default(true)
 
+  lineNumbers   Boolean @default(false)
+  wrapLines     Boolean @default(false)
   autoSave      Boolean @default(true)
   spellCheck    Boolean @default(true)
-  lineNumbers   Boolean @default(false)
 
   user User @relation(fields: [userId], references: [id])
 }
