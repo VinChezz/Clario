@@ -19,6 +19,7 @@ import { CodeViewerModal } from "./_components/github-modal/_components/CodeView
 import { SidebarProvider, useSidebar } from "@/app/_context/SidebarContext";
 import GradientLoader from "@/app/_loaders/GradientLoader";
 import { FavoritesProvider } from "@/app/_context/FavoritesContext";
+import { ApperanceProvider } from "@/app/_context/AppearanceContext";
 
 function GlobalCodeViewer() {
   const { codeViewerState, setCodeViewerState } = useGithub();
@@ -146,21 +147,22 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <TourProvider>
-      <FileDataProvider>
-        <GithubProvider>
-          <FavoritesProvider>
-            <FileListContext.Provider value={{ fileList_, setFileList_ }}>
-              <div className="flex min-h-screen w-full bg-background overflow-hidden">
-                {isMobile && isSidebarOpen && (
-                  <div
-                    className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
-                    onClick={closeSidebar}
-                  />
-                )}
+    <ApperanceProvider>
+      <TourProvider>
+        <FileDataProvider>
+          <GithubProvider>
+            <FavoritesProvider>
+              <FileListContext.Provider value={{ fileList_, setFileList_ }}>
+                <div className="flex min-h-screen w-full bg-background overflow-hidden">
+                  {isMobile && isSidebarOpen && (
+                    <div
+                      className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
+                      onClick={closeSidebar}
+                    />
+                  )}
 
-                <div
-                  className={`
+                  <div
+                    className={`
                 fixed lg:static
                 top-0 left-0
                 h-screen
@@ -173,28 +175,29 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                     : "-translate-x-full lg:translate-x-0 lg:shadow-none"
                 }
               `}
-                >
-                  <div className="h-full bg-background border-r border-gray-200">
-                    <SideNav
-                      onCloseSidebar={closeSidebar}
-                      isMobileMenuOpen={isSidebarOpen}
-                    />
+                  >
+                    <div className="h-full bg-background border-r border-gray-200">
+                      <SideNav
+                        onCloseSidebar={closeSidebar}
+                        isMobileMenuOpen={isSidebarOpen}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                  <div className="flex-1 overflow-y-auto">
-                    <GettingStartedTour />
-                    {children}
+                  <div className="flex-1 flex flex-col h-screen overflow-hidden">
+                    <div className="flex-1 overflow-y-auto">
+                      <GettingStartedTour />
+                      {children}
+                    </div>
                   </div>
+                  <GlobalCodeViewer />
                 </div>
-                <GlobalCodeViewer />
-              </div>
-            </FileListContext.Provider>
-          </FavoritesProvider>
-        </GithubProvider>
-      </FileDataProvider>
-    </TourProvider>
+              </FileListContext.Provider>
+            </FavoritesProvider>
+          </GithubProvider>
+        </FileDataProvider>
+      </TourProvider>
+    </ApperanceProvider>
   );
 }
 
