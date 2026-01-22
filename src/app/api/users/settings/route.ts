@@ -121,7 +121,7 @@ export async function GET() {
     console.error("Error fetching user settings:", error);
     return NextResponse.json(
       { error: "Failed to fetch settings" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -144,7 +144,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     const data = await request.json();
-    console.log("Received update data:", data);
 
     const userData: any = {};
     const settingsData: any = {};
@@ -169,6 +168,7 @@ export async function PATCH(request: NextRequest) {
       "autoSave",
       "spellCheck",
       "lineNumbers",
+      "wrapLines",
     ];
 
     Object.keys(data).forEach((key) => {
@@ -221,7 +221,7 @@ export async function PATCH(request: NextRequest) {
     if (!updatedSettings) {
       return NextResponse.json(
         { error: "Settings not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -230,7 +230,7 @@ export async function PATCH(request: NextRequest) {
     console.error("Error updating user settings:", error);
     return NextResponse.json(
       { error: "Failed to update settings" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
