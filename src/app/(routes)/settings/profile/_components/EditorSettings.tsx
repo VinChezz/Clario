@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Card,
@@ -13,53 +13,20 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Save, SpellCheck, Hash, Loader2 } from "lucide-react";
+import { Save, SpellCheck, Hash, Loader2, WrapText } from "lucide-react";
+import { useEditorSettings } from "@/hooks/useEditorSettings";
 
 export function EditorSettings() {
-  const queryClient = useQueryClient();
+  const { settings, isLoading, updateSettings } = useEditorSettings();
 
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ["user-settings"],
-    queryFn: async () => {
-      const res = await fetch("/api/users/settings");
-      if (!res.ok) throw new Error("Failed to fetch settings");
-      return res.json();
-    },
-  });
+  const toggleSetting = async (key: string, value: boolean) => {
+    const success = await updateSettings({ [key]: value });
 
-  const mutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch("/api/users/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update editor settings");
-      return res.json();
-    },
-    onMutate: async (newData) => {
-      await queryClient.cancelQueries({ queryKey: ["user-settings"] });
-
-      const previousSettings = queryClient.getQueryData(["user-settings"]);
-
-      queryClient.setQueryData(["user-settings"], (old: any) => ({
-        ...old,
-        ...newData,
-      }));
-
-      return { previousSettings };
-    },
-    onError: (err, newData, context) => {
-      queryClient.setQueryData(["user-settings"], context?.previousSettings);
-      toast("Failed to update editor settings");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-settings"] });
-    },
-  });
-
-  const toggleSetting = (key: string, value: boolean) => {
-    mutation.mutate({ [key]: value });
+    if (success) {
+      toast.success("Settings updated");
+    } else {
+      toast.error("Failed to update settings");
+    }
   };
 
   if (isLoading) {
@@ -97,6 +64,27 @@ export function EditorSettings() {
             id="auto-save"
             checked={settings?.autoSave ?? true}
             onCheckedChange={(checked) => toggleSetting("autoSave", checked)}
+          />
+        </div>
+
+        <Separator />
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <WrapText className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div className="space-y-0.5">
+              <Label htmlFor="wrap-lines">Wrap Lines</Label>
+              <p className="text-sm text-gray-500">
+                Wrap long lines in the editor
+              </p>
+            </div>
+          </div>
+          <Switch
+            id="wrap-lines"
+            checked={settings?.wrapLines ?? false}
+            onCheckedChange={(checked) => toggleSetting("wrapLines", checked)}
           />
         </div>
 
@@ -155,10 +143,10 @@ export function EditorSettings() {
               settings?.fontSize === "SMALL"
                 ? "text-sm"
                 : settings?.fontSize === "MEDIUM"
-                ? "text-base"
-                : settings?.fontSize === "LARGE"
-                ? "text-lg"
-                : "text-xl"
+                  ? "text-base"
+                  : settings?.fontSize === "LARGE"
+                    ? "text-lg"
+                    : "text-xl"
             }`}
           >
             <div className="flex">
