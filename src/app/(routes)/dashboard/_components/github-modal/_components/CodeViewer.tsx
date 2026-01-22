@@ -16,11 +16,12 @@ import {
   Monitor,
   WrapText,
   Check,
-  ChevronDown,
   FileCode,
   ArrowUp,
   ArrowDown,
   X,
+  Loader2,
+  Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -28,6 +29,8 @@ import {
   vscDarkPlus,
   vs,
 } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useTheme } from "@/app/_context/AppearanceContext";
+import { useEditorSettings } from "@/hooks/useEditorSettings";
 
 interface CodeViewerModalProps {
   open: boolean;
@@ -38,8 +41,6 @@ interface CodeViewerModalProps {
   branch: string;
   teamId: string;
 }
-
-type Theme = "light" | "dark" | "auto";
 
 export function CodeViewerModal({
   open,
@@ -54,9 +55,6 @@ export function CodeViewerModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [theme, setTheme] = useState<Theme>("auto");
-  const [activeTheme, setActiveTheme] = useState<"light" | "dark">("dark");
-  const [wrapLines, setWrapLines] = useState(false);
   const [copied, setCopied] = useState(false);
   const [fileInfo, setFileInfo] = useState({
     size: 0,
@@ -70,6 +68,25 @@ export function CodeViewerModal({
   const [indentInfo, setIndentInfo] = useState({ type: "Spaces", size: 2 });
 
   const codeContainerRef = useRef<HTMLDivElement>(null);
+  const { theme, fontSize, isDark, setTheme, setFontSize } = useTheme();
+  const { settings: editorSettings, updateSettings } = useEditorSettings();
+
+  const { wrapLines, lineNumbers } = editorSettings;
+
+  const getFontSizeValue = (): string => {
+    switch (fontSize) {
+      case "SMALL":
+        return "13px";
+      case "MEDIUM":
+        return "14px";
+      case "LARGE":
+        return "15px";
+      default:
+        return "14px";
+    }
+  };
+
+  const fontSizeValue = getFontSizeValue();
 
   const detectLanguage = (filename: string): string => {
     const ext = filename.split(".").pop()?.toLowerCase() || "";
@@ -84,92 +101,44 @@ export function CodeViewerModal({
       cjs: "javascript",
       py: "python",
       pyw: "python",
-      pyc: "python",
       java: "java",
-      class: "java",
-      jar: "java",
       go: "go",
       rs: "rust",
-      rlib: "rust",
       css: "css",
       scss: "scss",
       sass: "sass",
       less: "less",
       html: "html",
       htm: "html",
-      xhtml: "html",
       json: "json",
-      json5: "json",
-      jsonc: "json",
       xml: "xml",
       yml: "yaml",
       yaml: "yaml",
       rb: "ruby",
-      erb: "ruby",
       php: "php",
-      phtml: "php",
-      php4: "php",
-      php5: "php",
-      php7: "php",
-      phps: "php",
       cpp: "cpp",
-      cc: "cpp",
-      cxx: "cpp",
       c: "c",
-      h: "c",
       cs: "csharp",
-      swift: "swift",
+      swift: "Swift",
       kt: "kotlin",
-      kts: "kotlin",
       scala: "scala",
-      sc: "scala",
       r: "r",
-      R: "r",
       pl: "perl",
-      pm: "perl",
-      t: "perl",
       lua: "lua",
       sql: "sql",
       sh: "bash",
       bash: "bash",
-      zsh: "bash",
-      fish: "bash",
       ps1: "powershell",
-      psd1: "powershell",
-      psm1: "powershell",
       bat: "batch",
-      cmd: "batch",
-
-      env: "bash",
-      gitignore: "git",
-      gitattributes: "git",
-      gitmodules: "git",
       dockerfile: "dockerfile",
-      dockerignore: "dockerfile",
-      makefile: "makefile",
-      mk: "makefile",
-
       md: "markdown",
       markdown: "markdown",
-      mdx: "markdown",
-      rst: "rest",
-      tex: "latex",
       txt: "text",
-
-      csv: "csv",
-      tsv: "csv",
-      toml: "toml",
-      ini: "ini",
-      cfg: "ini",
-      conf: "ini",
-
+      env: "bash",
+      gitignore: "git",
+      dockerignore: "dockerfile",
+      makefile: "makefile",
       lock: "json",
-      gemfile: "ruby",
-      rakefile: "ruby",
-      cmake: "cmake",
-      gradle: "gradle",
-      properties: "properties",
-
       svg: "xml",
       graphql: "graphql",
       gql: "graphql",
@@ -179,17 +148,9 @@ export function CodeViewerModal({
     if (name === "makefile") return "makefile";
     if (name === "gemfile") return "ruby";
     if (name === "rakefile") return "ruby";
-    if (name === "procfile") return "yaml";
     if (name === "readme") return "markdown";
     if (name === "license") return "text";
-    if (name === "docker-compose.yml" || name === "docker-compose.yaml")
-      return "yaml";
-    if (
-      name === ".env.example" ||
-      name === ".env.local" ||
-      name === ".env.production"
-    )
-      return "bash";
+    if (name.includes("docker-compose")) return "yaml";
 
     return langMap[ext] || "text";
   };
@@ -231,20 +192,11 @@ export function CodeViewerModal({
       dockerfile: "Dockerfile",
       makefile: "Makefile",
       markdown: "Markdown",
-      rest: "reStructuredText",
-      latex: "LaTeX",
       text: "Text",
-      csv: "CSV",
       toml: "TOML",
       ini: "INI",
       cmake: "CMake",
-      gradle: "Gradle",
-      properties: "Properties",
-      jinja2: "Jinja2",
-      twig: "Twig",
       graphql: "GraphQL",
-      wasm: "WebAssembly",
-      lisp: "WebAssembly Text",
     };
 
     return displayNames[lang] || lang.charAt(0).toUpperCase() + lang.slice(1);
@@ -301,16 +253,6 @@ export function CodeViewerModal({
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
-  const getSystemTheme = (): "light" | "dark" =>
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-
-  useEffect(() => {
-    if (theme === "auto") setActiveTheme(getSystemTheme());
-    else setActiveTheme(theme);
-  }, [theme, open]);
-
   const fetchFile = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -319,6 +261,7 @@ export function CodeViewerModal({
       url.searchParams.set("teamId", teamId);
       url.searchParams.set("path", filePath);
       url.searchParams.set("branch", branch);
+
       const response = await fetch(url.toString());
       const result = await response.json();
 
@@ -348,8 +291,9 @@ export function CodeViewerModal({
   }, [filePath, branch, teamId, fileName]);
 
   useEffect(() => {
-    if (open) fetchFile();
-    else {
+    if (open) {
+      fetchFile();
+    } else {
       setContent("");
       setError(null);
       setIsFullscreen(false);
@@ -403,9 +347,10 @@ export function CodeViewerModal({
   };
 
   const cycleTheme = () => {
-    const themes: Theme[] = ["light", "dark", "auto"];
+    const themes: Array<"LIGHT" | "DARK" | "AUTO"> = ["LIGHT", "DARK", "AUTO"];
     const currentIndex = themes.indexOf(theme);
-    setTheme(themes[(currentIndex + 1) % themes.length]);
+    const newTheme = themes[(currentIndex + 1) % themes.length];
+    setTheme(newTheme);
   };
 
   const scrollToTop = () =>
@@ -415,14 +360,6 @@ export function CodeViewerModal({
       top: codeContainerRef.current.scrollHeight,
       behavior: "smooth",
     });
-
-  const ThemeIcon =
-    theme === "auto" ? Monitor : activeTheme === "light" ? Sun : Moon;
-  const bgClass = activeTheme === "light" ? "bg-white" : "bg-[#0d1117]";
-  const textClass = activeTheme === "light" ? "text-gray-900" : "text-gray-100";
-
-  const iconColorClass =
-    activeTheme === "light" ? "text-gray-600" : "text-gray-300";
 
   const getScrollPercentage = () => {
     if (!codeContainerRef.current || !content) return 0;
@@ -436,14 +373,14 @@ export function CodeViewerModal({
     ...vs,
     'code[class*="language-"]': {
       ...vs['code[class*="language-"]'],
-      fontSize: "14px",
+      fontSize: fontSizeValue,
       lineHeight: "1.5",
       fontFamily:
         'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
     },
     'pre[class*="language-"]': {
       ...vs['pre[class*="language-"]'],
-      fontSize: "14px",
+      fontSize: fontSizeValue,
       lineHeight: "1.5",
       fontFamily:
         'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
@@ -457,14 +394,14 @@ export function CodeViewerModal({
     ...vscDarkPlus,
     'code[class*="language-"]': {
       ...vscDarkPlus['code[class*="language-"]'],
-      fontSize: "14px",
+      fontSize: fontSizeValue,
       lineHeight: "1.5",
       fontFamily:
         'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
     },
     'pre[class*="language-"]': {
       ...vscDarkPlus['pre[class*="language-"]'],
-      fontSize: "14px",
+      fontSize: fontSizeValue,
       lineHeight: "1.5",
       fontFamily:
         'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
@@ -473,6 +410,10 @@ export function CodeViewerModal({
       padding: "16px 0",
     },
   };
+
+  const iconColorClass = isDark ? "text-gray-300" : "text-gray-600";
+  const bgClass = isDark ? "bg-[#0d1117]" : "bg-white";
+  const textClass = isDark ? "text-gray-100" : "text-gray-900";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -487,9 +428,7 @@ export function CodeViewerModal({
         className={cn(
           "p-0 gap-0 border-0 shadow-2xl transition-all duration-300 flex flex-col overflow-hidden",
           bgClass,
-          activeTheme === "light"
-            ? "border border-gray-200"
-            : "border border-gray-800"
+          isDark ? "border border-gray-800" : "border border-gray-200",
         )}
       >
         <style jsx>{`
@@ -504,18 +443,18 @@ export function CodeViewerModal({
         <div
           className={cn(
             "flex items-center justify-between px-3 py-4 border-b shrink-0 backdrop-blur-xl",
-            activeTheme === "light"
-              ? "border-gray-200 bg-white/95"
-              : "border-gray-800 bg-[#161b22]/95"
+            isDark
+              ? "border-gray-800 bg-[#161b22]/95"
+              : "border-gray-200 bg-white/95",
           )}
         >
           <div className="flex items-center gap-4 min-w-0 flex-1 pl-6">
             <div
               className={cn(
                 "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                activeTheme === "light"
-                  ? "bg-blue-50 text-blue-600 border border-blue-200"
-                  : "bg-blue-900/30 text-blue-400 border border-blue-800/50"
+                isDark
+                  ? "bg-blue-900/30 text-blue-400 border border-blue-800/50"
+                  : "bg-blue-50 text-blue-600 border border-blue-200",
               )}
             >
               <FileCode className="w-5 h-5" />
@@ -529,9 +468,9 @@ export function CodeViewerModal({
                   variant="secondary"
                   className={cn(
                     "text-xs font-mono",
-                    activeTheme === "light"
-                      ? "bg-gray-100 text-gray-700"
-                      : "bg-gray-800 text-gray-300"
+                    isDark
+                      ? "bg-gray-800 text-gray-300"
+                      : "bg-gray-100 text-gray-700",
                   )}
                 >
                   {getLanguageDisplayName(fileInfo.language)}
@@ -541,28 +480,16 @@ export function CodeViewerModal({
                 <p
                   className={cn(
                     "truncate font-mono text-sm",
-                    activeTheme === "light" ? "text-gray-600" : "text-gray-400"
+                    isDark ? "text-gray-400" : "text-gray-600",
                   )}
                 >
                   {filePath}
                 </p>
                 <div className="flex items-center gap-4 text-xs">
-                  <span
-                    className={
-                      activeTheme === "light"
-                        ? "text-gray-500"
-                        : "text-gray-500"
-                    }
-                  >
+                  <span className={isDark ? "text-gray-500" : "text-gray-500"}>
                     {fileInfo.lines} lines
                   </span>
-                  <span
-                    className={
-                      activeTheme === "light"
-                        ? "text-gray-500"
-                        : "text-gray-500"
-                    }
-                  >
+                  <span className={isDark ? "text-gray-500" : "text-gray-500"}>
                     {formatSize(fileInfo.size)}
                   </span>
                 </div>
@@ -577,32 +504,19 @@ export function CodeViewerModal({
               onClick={cycleTheme}
               className={cn(
                 "h-9 w-9 p-0",
-                activeTheme === "light"
-                  ? "hover:bg-gray-200"
-                  : "hover:bg-gray-700"
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-200",
               )}
               title={`Theme: ${theme}`}
             >
-              <ThemeIcon className={cn("w-4 h-4", iconColorClass)} />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setWrapLines(!wrapLines)}
-              className={cn(
-                "h-9 w-9 p-0",
-                activeTheme === "light"
-                  ? "hover:bg-gray-200"
-                  : "hover:bg-gray-700",
-                wrapLines &&
-                  (activeTheme === "light"
-                    ? "bg-blue-100 text-blue-600"
-                    : "bg-blue-900/50 text-blue-400")
+              {theme === "AUTO" ? (
+                <Monitor className={cn("w-4 h-4", iconColorClass)} />
+              ) : theme === "LIGHT" ? (
+                <Sun className={cn("w-4 h-4", iconColorClass)} />
+              ) : (
+                <Moon className={cn("w-4 h-4", iconColorClass)} />
               )}
-              title="Wrap lines"
-            >
-              <WrapText className={cn("w-4 h-4", iconColorClass)} />
             </Button>
+
             <Button
               size="sm"
               variant="ghost"
@@ -610,9 +524,7 @@ export function CodeViewerModal({
               disabled={!content}
               className={cn(
                 "h-9 w-9 p-0",
-                activeTheme === "light"
-                  ? "hover:bg-gray-200"
-                  : "hover:bg-gray-700"
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-200",
               )}
               title="Scroll to top"
             >
@@ -625,9 +537,7 @@ export function CodeViewerModal({
               disabled={!content}
               className={cn(
                 "h-9 w-9 p-0",
-                activeTheme === "light"
-                  ? "hover:bg-gray-200"
-                  : "hover:bg-gray-700"
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-200",
               )}
               title="Scroll to bottom"
             >
@@ -636,7 +546,7 @@ export function CodeViewerModal({
             <div
               className={cn(
                 "w-px h-6 mx-1",
-                activeTheme === "light" ? "bg-gray-300" : "bg-gray-700"
+                isDark ? "bg-gray-700" : "bg-gray-300",
               )}
             />
             <Button
@@ -645,9 +555,7 @@ export function CodeViewerModal({
               onClick={handleCopy}
               className={cn(
                 "h-9 w-9 p-0",
-                activeTheme === "light"
-                  ? "hover:bg-gray-200"
-                  : "hover:bg-gray-700"
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-200",
               )}
               title="Copy code"
             >
@@ -663,9 +571,7 @@ export function CodeViewerModal({
               onClick={handleDownload}
               className={cn(
                 "h-9 w-9 p-0",
-                activeTheme === "light"
-                  ? "hover:bg-gray-200"
-                  : "hover:bg-gray-700"
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-200",
               )}
               title="Download file"
             >
@@ -677,9 +583,7 @@ export function CodeViewerModal({
               onClick={handleOpenInGithub}
               className={cn(
                 "h-9 w-9 p-0",
-                activeTheme === "light"
-                  ? "hover:bg-gray-200"
-                  : "hover:bg-gray-700"
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-200",
               )}
               title="Open in GitHub"
             >
@@ -691,9 +595,7 @@ export function CodeViewerModal({
               onClick={() => setIsFullscreen(!isFullscreen)}
               className={cn(
                 "h-9 w-9 p-0",
-                activeTheme === "light"
-                  ? "hover:bg-gray-200"
-                  : "hover:bg-gray-700"
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-200",
               )}
               title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
             >
@@ -706,7 +608,7 @@ export function CodeViewerModal({
             <div
               className={cn(
                 "w-px h-6 mx-1",
-                activeTheme === "light" ? "bg-gray-300" : "bg-gray-700"
+                isDark ? "bg-gray-700" : "bg-gray-300",
               )}
             />
 
@@ -716,15 +618,13 @@ export function CodeViewerModal({
               onClick={() => onOpenChange(false)}
               className={cn(
                 "h-9 w-9 p-0",
-                activeTheme === "light"
-                  ? "hover:bg-gray-300"
-                  : "hover:bg-gray-700"
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-300",
               )}
             >
               <X
                 className={cn(
-                  "w-px h-6 mx-1",
-                  activeTheme === "light" ? "text-gray-700" : "text-white"
+                  "w-4 h-4",
+                  isDark ? "text-white" : "text-gray-700",
                 )}
               />
             </Button>
@@ -743,30 +643,33 @@ export function CodeViewerModal({
             <div
               className={cn(
                 "absolute inset-0 flex items-center justify-center",
-                activeTheme === "light" ? "bg-white" : "bg-[#0d1117]"
+                isDark ? "bg-[#0d1117]" : "bg-white",
               )}
             >
-              <div
-                className={cn(
-                  "animate-pulse text-lg",
-                  activeTheme === "light" ? "text-gray-600" : "text-gray-300"
-                )}
-              >
-                Loading...
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                <p
+                  className={cn(
+                    "text-sm",
+                    isDark ? "text-gray-300" : "text-gray-600",
+                  )}
+                >
+                  Loading...
+                </p>
               </div>
             </div>
           ) : error ? (
             <div
               className={cn(
                 "absolute inset-0 flex items-center justify-center",
-                activeTheme === "light" ? "bg-white" : "bg-[#0d1117]"
+                isDark ? "bg-[#0d1117]" : "bg-white",
               )}
             >
               <div className="text-center">
                 <div
                   className={cn(
                     "text-lg mb-2",
-                    activeTheme === "light" ? "text-red-600" : "text-red-400"
+                    isDark ? "text-red-400" : "text-red-600",
                   )}
                 >
                   Error loading file
@@ -774,7 +677,7 @@ export function CodeViewerModal({
                 <div
                   className={cn(
                     "text-sm",
-                    activeTheme === "light" ? "text-gray-600" : "text-gray-300"
+                    isDark ? "text-gray-300" : "text-gray-600",
                   )}
                 >
                   {error}
@@ -784,14 +687,12 @@ export function CodeViewerModal({
           ) : (
             <SyntaxHighlighter
               language={fileInfo.language}
-              style={
-                activeTheme === "light" ? githubLightStyle : githubDarkStyle
-              }
-              showLineNumbers
+              style={isDark ? githubDarkStyle : githubLightStyle}
+              showLineNumbers={lineNumbers}
               wrapLongLines={wrapLines}
               wrapLines={wrapLines}
               lineNumberStyle={{
-                color: activeTheme === "light" ? "#1f2328" : "#888888",
+                color: isDark ? "#888888" : "#1f2328",
                 paddingRight: "16px",
                 paddingLeft: "16px",
                 minWidth: "50px",
@@ -799,29 +700,24 @@ export function CodeViewerModal({
                 userSelect: "none",
                 fontSize: "12px",
                 fontWeight: "400",
-                backgroundColor:
-                  activeTheme === "light" ? "#ffffff" : "#0d1117",
-                borderRight:
-                  activeTheme === "light"
-                    ? "1px solid #e1e4e8"
-                    : "1px solid #30363d",
+                backgroundColor: isDark ? "#0d1117" : "#ffffff",
+                borderRight: isDark ? "1px solid #30363d" : "1px solid #e1e4e8",
               }}
               lineNumberContainerStyle={{
                 paddingRight: "0",
                 float: "left",
-                backgroundColor:
-                  activeTheme === "light" ? "#ffffff" : "#0d1117",
+                backgroundColor: isDark ? "#0d1117" : "#ffffff",
               }}
               customStyle={{
                 margin: 0,
                 padding: "16px 0",
-                background: activeTheme === "light" ? "#ffffff" : "#0d1117",
-                fontSize: "14px",
+                background: isDark ? "#0d1117" : "#ffffff",
+                fontSize: fontSizeValue,
                 fontFamily:
                   'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
                 fontWeight: "400",
                 lineHeight: 1.5,
-                color: activeTheme === "light" ? "#1f2328" : "#f0f6fc",
+                color: isDark ? "#f0f6fc" : "#1f2328",
                 border: "none",
               }}
               codeTagProps={{
@@ -841,9 +737,9 @@ export function CodeViewerModal({
           <div
             className={cn(
               "flex items-center justify-between px-4 py-2 text-xs border-t",
-              activeTheme === "light"
-                ? "border-gray-200 bg-gray-50/80 text-gray-600"
-                : "border-gray-800 bg-[#161b22]/80 text-gray-300"
+              isDark
+                ? "border-gray-800 bg-[#161b22]/80 text-gray-300"
+                : "border-gray-200 bg-gray-50/80 text-gray-600",
             )}
             style={{
               fontFamily:
@@ -858,6 +754,9 @@ export function CodeViewerModal({
               <span>{fileInfo.encoding}</span>
               <span>{fileInfo.lineEndings}</span>
               <span>{getLanguageDisplayName(fileInfo.language)}</span>
+              <span>Font: {fontSize}</span>
+              <span>Wrap: {wrapLines ? "ON" : "OFF"}</span>
+              <span>Line #: {lineNumbers ? "ON" : "OFF"}</span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -868,7 +767,7 @@ export function CodeViewerModal({
               <div
                 className={cn(
                   "w-px h-4",
-                  activeTheme === "light" ? "bg-gray-300" : "bg-gray-600"
+                  isDark ? "bg-gray-600" : "bg-gray-300",
                 )}
               />
               <span>
