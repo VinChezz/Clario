@@ -19,13 +19,8 @@ import {
   Calendar,
   FileText,
   Users,
-  Eye,
-  EyeOff,
-  Key,
   Database,
   Zap,
-  Globe,
-  Server,
   Lock,
   CheckCircle,
   Clock,
@@ -37,8 +32,7 @@ import {
   Target,
   BarChart3,
   ShieldCheck,
-  Cpu,
-  Cloud,
+  Server,
   Headphones,
   Share2,
   Palette,
@@ -52,20 +46,21 @@ import {
   Loader2,
   Github,
   X,
+  HardDrive,
+  HardDriveIcon,
+  Save,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { GithubConnectModal } from "@/app/(routes)/dashboard/_components/github-modal/GithubConnectModal";
 import { GithubProvider } from "@/app/_context/GithubContext";
-import bcrypt from "bcryptjs";
 
 const PLANS = {
   FREE: {
     name: "Free",
-    files: 10,
     storage: "2GB",
+    limitBytes: 2147483648, // 2GB in bytes
     features: [
-      { name: "Up to 10 files", icon: <FileText className="h-4 w-4" /> },
       { name: "Basic collaboration", icon: <Users className="h-4 w-4" /> },
       { name: "2GB storage", icon: <Database className="h-4 w-4" /> },
       { name: "Standard support", icon: <Headphones className="h-4 w-4" /> },
@@ -76,28 +71,26 @@ const PLANS = {
   },
   PRO: {
     name: "Pro",
-    files: "Unlimited",
-    storage: "100GB",
+    storage: "10GB",
+    limitBytes: 10737418240, // 10GB in bytes
     features: [
-      { name: "Unlimited files", icon: <ZapIcon className="h-4 w-4" /> },
       { name: "Advanced collaboration", icon: <Users2 className="h-4 w-4" /> },
-      { name: "100GB storage", icon: <Database className="h-4 w-4" /> },
+      { name: "10GB storage", icon: <Database className="h-4 w-4" /> },
       { name: "Priority support", icon: <Headphones className="h-4 w-4" /> },
       { name: "Private sharing", icon: <Share2 className="h-4 w-4" /> },
       { name: "Custom branding", icon: <Palette className="h-4 w-4" /> },
       { name: "Advanced analytics", icon: <BarChart3 className="h-4 w-4" /> },
-      { name: "API access", icon: <Cpu className="h-4 w-4" /> },
     ],
     color: "from-red-600 to-pink-600",
     description: "For teams and professionals",
   },
   ENTERPRISE: {
     name: "Enterprise",
-    files: "Unlimited",
-    storage: "Unlimited",
+    storage: "20GB",
+    limitBytes: 21474836480, // 20GB in bytes
     features: [
       { name: "Everything in Pro", icon: <CheckCircle className="h-4 w-4" /> },
-      { name: "Unlimited storage", icon: <Zap className="h-4 w-4" /> },
+      { name: "20GB storage", icon: <Database className="h-4 w-4" /> },
       { name: "Dedicated support", icon: <Headphones className="h-4 w-4" /> },
       { name: "SAML/SSO", icon: <ShieldCheck className="h-4 w-4" /> },
       { name: "Custom contracts", icon: <FileBarChart className="h-4 w-4" /> },
@@ -118,9 +111,38 @@ interface TwoFactorStatus {
   error?: string;
 }
 
+interface StorageStats {
+  storage: {
+    usedBytes: string;
+    usedFormatted: string;
+    usedFormattedGB: string;
+    limitBytes: string;
+    limitFormatted: string;
+    limitFormattedGB: string;
+    percentage: number;
+    remainingBytes: string;
+    remainingFormatted: string;
+    remainingFormattedGB: string;
+  };
+  teamStorage: {
+    teamId: string;
+    teamName: string;
+    usedFormatted: string;
+    usedFormattedGB: string;
+    limitFormatted: string;
+    limitFormattedGB: string;
+    availableFormatted: string;
+    availableFormattedGB: string;
+    percentage: number;
+    creatorPlan: PlanType;
+    filesCount: number;
+    membersCount: number;
+  };
+  requiresUpgrade: boolean;
+}
+
 export function AccountInfo() {
   const router = useRouter();
-  const [showSensitiveInfo, setShowSensitiveInfo] = useState(false);
   const [showAccountDetails, setShowAccountDetails] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [githubConnected, setGithubConnected] = useState(false);
@@ -138,6 +160,18 @@ export function AccountInfo() {
       return res.json();
     },
   });
+
+  const { data: storageStats, isLoading: isLoadingStorage } =
+    useQuery<StorageStats>({
+      queryKey: ["storage-stats", settings?.teamId],
+      queryFn: async () => {
+        if (!settings?.teamId) return null;
+        const res = await fetch(`/api/teams/${settings.teamId}/storage`);
+        if (!res.ok) throw new Error("Failed to fetch storage stats");
+        return res.json();
+      },
+      enabled: !!settings?.teamId,
+    });
 
   const { data: twoFactorStatus, isLoading: isLoading2FA } =
     useQuery<TwoFactorStatus>({
@@ -166,7 +200,6 @@ export function AccountInfo() {
 
   useEffect(() => {
     if (twoFactorStatus) {
-      console.log("2FA Status received:", twoFactorStatus);
       setTwoFactorEnabled(twoFactorStatus.isEnabled || false);
       setTwoFactorMethod(twoFactorStatus.method || null);
     }
@@ -218,15 +251,7 @@ export function AccountInfo() {
     }
   };
 
-  const handleRepoConnected = () => {
-    if (settings?.teamId) {
-      checkGitHubConnection(settings.teamId);
-    }
-    setGithubModalOpen(false);
-    toast.success("GitHub repository connected successfully!");
-  };
-
-  if (isLoading) {
+  if (isLoading || isLoadingStorage) {
     return (
       <Card>
         <CardContent className="pt-6">
@@ -238,28 +263,71 @@ export function AccountInfo() {
     );
   }
 
-  console.log("Settings:", settings);
-  console.log("Team ID:", settings?.teamId);
-  console.log("User:", settings?.user);
-
   const user = settings?.user;
   const planType = (user?.plan || "FREE") as PlanType;
   const currentPlan = PLANS[planType];
 
-  const fileUsage = user?.totalCreatedFiles || 0;
-  const maxFiles = planType === "FREE" ? 10 : Infinity;
-  const usagePercentage =
-    planType === "FREE" ? Math.min((fileUsage / maxFiles) * 100, 100) : 0;
+  const storageUsed = storageStats?.storage?.usedFormattedGB || "0 GB";
+  const storageUsedFormatted = storageStats?.storage?.usedFormatted || "0 MB";
+  const storageLimit = currentPlan.storage;
+  const storagePercentage = storageStats?.storage?.percentage || 0;
+  const filesCount = storageStats?.teamStorage?.filesCount || 0;
 
-  const getStorageUsageInfo = () => {
-    if (planType === "FREE") {
-      return `${fileUsage}/10 files used`;
-    } else if (planType === "PRO") {
-      return `${fileUsage} files created`;
-    } else {
-      return "Unlimited files available";
+  const getStorageProgressValue = () => {
+    if (storageStats?.storage?.percentage) {
+      return Math.min(storageStats.storage.percentage, 100);
+    }
+
+    if (storageStats?.storage) {
+      const usedBytes = parseFloat(storageStats.storage.usedBytes);
+      const limitBytes = parseFloat(storageStats.storage.limitBytes);
+
+      if (limitBytes > 0) {
+        const percentage = (usedBytes / limitBytes) * 100;
+        return Math.min(percentage, 100);
+      }
+    }
+
+    try {
+      const usedMatch = storageUsed.match(/([\d.]+)\s*(\w+)/);
+      if (!usedMatch) return 0;
+
+      const usedValue = parseFloat(usedMatch[1]);
+      const usedUnit = usedMatch[2].toUpperCase();
+
+      let usedMB = usedValue;
+      if (usedUnit === "GB") usedMB = usedValue * 1024;
+      if (usedUnit === "TB") usedMB = usedValue * 1024 * 1024;
+
+      const limitGB = planType === "FREE" ? 2 : planType === "PRO" ? 10 : 20;
+      const limitMB = limitGB * 1024;
+
+      const percentage = (usedMB / limitMB) * 100;
+      return Math.min(percentage, 100);
+    } catch {
+      return 0;
     }
   };
+
+  const getAvailableSpaceMessage = () => {
+    const progressValue = getStorageProgressValue();
+
+    if (storageStats?.storage?.remainingFormattedGB) {
+      return `${storageStats.storage.remainingFormattedGB} available`;
+    }
+
+    if (progressValue < 50) {
+      return "Plenty of storage space available";
+    } else if (progressValue < 80) {
+      return "Storage usage is moderate";
+    } else if (progressValue < 90) {
+      return "Storage usage is high";
+    } else {
+      return "Storage almost full! Consider managing your files.";
+    }
+  };
+
+  const shouldShowWarning = getStorageProgressValue() >= 80;
 
   const handleUpgrade = () => {
     router.push("/pricing");
@@ -299,7 +367,7 @@ export function AccountInfo() {
   const handleDeleteAccount = () => {
     if (
       confirm(
-        "Are you sure you want to delete your account? This action cannot be undone."
+        "Are you sure you want to delete your account? This action cannot be undone.",
       )
     ) {
       toast.info("Account deletion feature coming soon");
@@ -332,6 +400,8 @@ export function AccountInfo() {
     }
   };
 
+  const showUpgradeButton = planType !== "ENTERPRISE";
+
   return (
     <GithubProvider>
       <div className="space-y-8">
@@ -355,48 +425,52 @@ export function AccountInfo() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                      <span className="font-medium">File Usage</span>
+                      <HardDrive className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                      <span className="font-medium">Storage Usage</span>
                     </div>
                     <span className="text-sm font-medium">
-                      {getStorageUsageInfo()}
+                      {storageUsedFormatted} / {storageLimit} used
                     </span>
                   </div>
-                  {planType === "FREE" && (
-                    <>
-                      <Progress value={usagePercentage} className="h-2" />
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {usagePercentage >= 80 ? (
-                          <span className="text-amber-600 font-medium">
-                            ⚠️ Storage almost full! Consider upgrading.
-                          </span>
-                        ) : (
-                          `${10 - fileUsage} files remaining`
-                        )}
-                      </p>
-                    </>
-                  )}
+                  <Progress value={getStorageProgressValue()} className="h-2" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {shouldShowWarning ? (
+                      <span className="text-amber-600 font-medium">
+                        ⚠️ Storage almost full! Consider managing your files.
+                      </span>
+                    ) : (
+                      getAvailableSpaceMessage()
+                    )}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <Database className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                      <span className="text-sm font-medium">Storage</span>
+                      <span className="text-sm font-medium">Storage Used</span>
                     </div>
-                    <p className="text-2xl font-bold">{currentPlan.storage}</p>
+                    <p className="text-2xl font-bold">{storageUsedFormatted}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {filesCount} files
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                      <span className="text-sm font-medium">Files</span>
+                      <span className="text-sm font-medium">Storage Limit</span>
                     </div>
-                    <p className="text-2xl font-bold">{currentPlan.files}</p>
+                    <p className="text-2xl font-bold">{storageLimit}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {planType === "ENTERPRISE"
+                        ? "20GB Enterprise plan"
+                        : "Total available"}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {planType !== "ENTERPRISE" && (
+              {showUpgradeButton && (
                 <Button
                   onClick={handleUpgrade}
                   className={`w-full bg-linear-to-r ${
@@ -418,7 +492,7 @@ export function AccountInfo() {
                   Key Features
                 </h4>
                 <div className="space-y-2">
-                  {currentPlan.features.slice(0, 3).map((feature, index) => (
+                  {currentPlan.features.slice(0, 4).map((feature, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <div className="text-green-600">
                         <CheckCircle className="h-4 w-4" />
@@ -426,9 +500,9 @@ export function AccountInfo() {
                       <span className="text-sm">{feature.name}</span>
                     </div>
                   ))}
-                  {currentPlan.features.length > 3 && (
+                  {currentPlan.features.length > 4 && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      + {currentPlan.features.length - 3} more features
+                      + {currentPlan.features.length - 4} more features
                     </p>
                   )}
                 </div>
@@ -598,7 +672,7 @@ export function AccountInfo() {
                                   if (
                                     teamId &&
                                     confirm(
-                                      "Are you sure you want to disconnect GitHub repository?"
+                                      "Are you sure you want to disconnect GitHub repository?",
                                     )
                                   ) {
                                     handleDisconnectGitHub(teamId);
@@ -661,14 +735,14 @@ export function AccountInfo() {
                                       const teamId = settings?.teamId;
                                       if (!teamId) {
                                         toast.error(
-                                          "No team found. Please create or join a team first."
+                                          "No team found. Please create or join a team first.",
                                         );
                                         return;
                                       }
 
                                       try {
                                         const checkResponse = await fetch(
-                                          `/api/github/check?teamId=${teamId}`
+                                          `/api/github/check?teamId=${teamId}`,
                                         );
                                         const checkData =
                                           await checkResponse.json();
@@ -681,7 +755,7 @@ export function AccountInfo() {
                                       } catch (error) {
                                         console.error(
                                           "Failed to check GitHub connection:",
-                                          error
+                                          error,
                                         );
                                         setGithubModalOpen(true);
                                       }
@@ -705,7 +779,7 @@ export function AccountInfo() {
                                       setTimeout(() => {
                                         setIsLoadingGithub(false);
                                         toast.success(
-                                          "GitHub repository connected successfully!"
+                                          "GitHub repository connected successfully!",
                                         );
                                       }, 1000);
                                     }}
@@ -800,8 +874,8 @@ export function AccountInfo() {
                       planType === "FREE"
                         ? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-700"
                         : planType === "PRO"
-                        ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/40"
-                        : "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/40"
+                          ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/40"
+                          : "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/40"
                     } transition-colors`}
                   >
                     {feature.icon}
@@ -820,106 +894,102 @@ export function AccountInfo() {
           </CardContent>
         </Card>
 
-        {(planType === "PRO" || planType === "ENTERPRISE") && (
-          <Card className="border shadow-sm dark:border-gray-700 dark:bg-gray-900/30">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2 text-foreground">
-                <BarChart3 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                Usage Insights
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Detailed analytics and usage statistics
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="space-y-2 p-4 rounded-lg bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 border dark:border-gray-700">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    <span className="font-medium text-foreground">
-                      Files Created
-                    </span>
-                  </div>
-                  <p className="text-3xl font-bold text-foreground">
-                    {fileUsage}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Total files in your workspace
-                  </p>
-                  <div className="pt-2">
-                    <Progress
-                      value={
-                        planType === "PRO"
-                          ? Math.min((fileUsage / 1000) * 100, 100)
-                          : 0
-                      }
-                      className="h-1.5"
-                    />
-                    {planType === "PRO" && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {Math.min(fileUsage, 1000)}/1000 files
-                      </p>
-                    )}
-                  </div>
+        <Card className="border shadow-sm dark:border-gray-700 dark:bg-gray-900/30">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2 text-foreground">
+              <BarChart3 className="h-5 w-5 text-green-600 dark:text-green-400" />
+              Usage Insights
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Detailed analytics and usage statistics
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="space-y-2 p-4 rounded-lg bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 border dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <HardDriveIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <span className="font-medium text-foreground">
+                    Storage Used
+                  </span>
                 </div>
-
-                <div className="space-y-2 p-4 rounded-lg bg-linear-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 border dark:border-gray-700">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    <span className="font-medium text-foreground">
-                      Account Age
-                    </span>
-                  </div>
-                  <p className="text-3xl font-bold text-foreground">
-                    {user?.createdAt
-                      ? Math.floor(
-                          (new Date().getTime() -
-                            new Date(user.createdAt).getTime()) /
-                            (1000 * 60 * 60 * 24)
-                        )
-                      : 0}
+                <p className="text-3xl font-bold text-foreground">
+                  {storageUsedFormatted}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {filesCount} files in your workspace
+                </p>
+                <div className="pt-2">
+                  <Progress
+                    value={getStorageProgressValue()}
+                    className="h-1.5"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {Math.round(getStorageProgressValue())}% of {storageLimit}{" "}
+                    used
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    Days since registration
-                  </p>
-                  <div className="pt-2">
-                    <p className="text-xs text-blue-600 dark:text-blue-400">
-                      🎉 Thank you for being with us!
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2 p-4 rounded-lg bg-linear-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 border dark:border-gray-700">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                    <span className="font-medium text-foreground">
-                      Storage Status
-                    </span>
-                  </div>
-                  <p className="text-3xl font-bold text-foreground">
-                    {currentPlan.storage}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {planType === "PRO"
-                      ? "Available storage"
-                      : "Unlimited storage"}
-                  </p>
-                  {planType === "PRO" && (
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Used</span>
-                        <span className="font-medium text-foreground">
-                          5.2GB / 100GB
-                        </span>
-                      </div>
-                      <Progress value={5.2} className="h-1.5 mt-1" />
-                    </div>
-                  )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+
+              <div className="space-y-2 p-4 rounded-lg bg-linear-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 border dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <span className="font-medium text-foreground">
+                    Account Age
+                  </span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">
+                  {user?.createdAt
+                    ? Math.floor(
+                        (new Date().getTime() -
+                          new Date(user.createdAt).getTime()) /
+                          (1000 * 60 * 60 * 24),
+                      )
+                    : 0}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Days since registration
+                </p>
+                <div className="pt-2">
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    🎉 Thank you for being with us!
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 p-4 rounded-lg bg-linear-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 border dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <Save className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  <span className="font-medium text-foreground">
+                    Storage Limit
+                  </span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">
+                  {storageLimit}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {planType === "ENTERPRISE"
+                    ? "20GB Enterprise plan"
+                    : "Total storage available"}
+                </p>
+                {storageStats?.storage && (
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Available</span>
+                      <span className="font-medium text-foreground">
+                        {storageStats.storage.remainingFormattedGB}
+                      </span>
+                    </div>
+                    <Progress
+                      value={getStorageProgressValue()}
+                      className="h-1.5 mt-1"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {planType !== "ENTERPRISE" && (
           <Card className="border shadow-sm dark:border-gray-700 dark:bg-gray-900/30">
@@ -950,8 +1020,8 @@ export function AccountInfo() {
                       .filter(
                         (feature) =>
                           !currentPlan.features.some(
-                            (f) => f.name === feature.name
-                          )
+                            (f) => f.name === feature.name,
+                          ),
                       )
                       .slice(0, 6)
                       .map((feature, index) => (
@@ -1092,6 +1162,7 @@ export function AccountInfo() {
                   variant="outline"
                   className="mt-2 border-input bg-background hover:bg-accent hover:text-accent-foreground"
                   onClick={() => router.push("/settings/apps")}
+                  disabled
                 >
                   Manage Apps
                 </Button>
@@ -1106,8 +1177,6 @@ export function AccountInfo() {
 
 function getFeatureDescription(featureName: string): string {
   switch (featureName) {
-    case "Up to 10 files":
-      return "Maximum number of files you can create";
     case "Basic collaboration":
       return "Share files with team members";
     case "2GB storage":
@@ -1116,11 +1185,9 @@ function getFeatureDescription(featureName: string): string {
       return "Email support with 48-hour response";
     case "Public sharing":
       return "Share files with public links";
-    case "Unlimited files":
-      return "Create as many files as you need";
     case "Advanced collaboration":
       return "Real-time collaboration with permissions";
-    case "100GB storage":
+    case "10GB storage":
       return "Ample space for all your documents";
     case "Priority support":
       return "24/7 chat support with 2-hour response";
@@ -1130,12 +1197,10 @@ function getFeatureDescription(featureName: string): string {
       return "Add your logo and brand colors";
     case "Advanced analytics":
       return "Detailed usage reports and insights";
-    case "API access":
-      return "Integrate with your existing tools";
     case "Everything in Pro":
       return "All Pro features plus more";
-    case "Unlimited storage":
-      return "No storage limits whatsoever";
+    case "20GB storage":
+      return "Generous storage for enterprise needs";
     case "Dedicated support":
       return "Personal account manager";
     case "SAML/SSO":
