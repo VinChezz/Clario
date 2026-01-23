@@ -1,23 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserProfileForm } from "./_components/UserProfileForm";
 import { AppearanceSettings } from "./_components/AppearanceSettings";
 import { NotificationSettings } from "./_components/NotificationSettings";
 import { EditorSettings } from "./_components/EditorSettings";
 import { AccountInfo } from "./_components/AccountInfo";
-import Header from "../../dashboard/_components/Header";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function UserSettingsPage() {
   const router = useRouter();
@@ -83,9 +76,15 @@ export default function UserSettingsPage() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="notifications"
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700"
+                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 relative"
                 >
                   Notifications
+                  <Badge
+                    variant="outline"
+                    className="ml-2 text-xs py-0 px-1 h-4 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300 dark:border-amber-700"
+                  >
+                    Soon
+                  </Badge>
                 </TabsTrigger>
                 <TabsTrigger
                   value="editor"
