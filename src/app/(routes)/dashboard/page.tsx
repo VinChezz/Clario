@@ -78,7 +78,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
           `/api/teams/${activeTeam.id}/members`,
           {
             method: "GET",
-          }
+          },
         );
 
         if (teamResponse.ok) {
@@ -87,7 +87,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
         }
 
         const storageResponse = await fetch(
-          `/api/teams/${activeTeam.id}/storage`
+          `/api/teams/${activeTeam.id}/storage`,
         );
 
         if (storageResponse.ok) {
@@ -95,7 +95,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
 
           const usedBytes = Number(storageData.storage?.usedBytes || 0);
           const limitBytes = Number(
-            storageData.storage?.limitBytes || 10 * 1024 * 1024 * 1024
+            storageData.storage?.limitBytes || 10 * 1024 * 1024 * 1024,
           );
 
           const percentage =
@@ -131,7 +131,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
         console.log("🔄 Loading files for team:", activeTeam.id);
 
         const response = await fetch(
-          `/api/files?teamId=${activeTeam.id}&includeTrashed=false`
+          `/api/files?teamId=${activeTeam.id}&includeTrashed=false`,
         );
 
         console.log("📡 API Response status:", response.status);
@@ -179,7 +179,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
   };
 
   const getPaddingClasses = () => {
-    const baseClasses = "px-8";
+    const baseClasses = "px-1";
 
     if (fontSize === "LARGE") {
       if (isMobile) {
