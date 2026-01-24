@@ -25,7 +25,7 @@ import { motion, AnimatePresence, Variants } from "framer-motion";
 
 export default function PricingPage() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
-    "monthly"
+    "monthly",
   );
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -49,7 +49,6 @@ export default function PricingPage() {
       },
       popular: false,
       features: [
-        "Up to 10 files",
         "Basic collaboration",
         "2GB storage",
         "Standard support",
@@ -74,14 +73,12 @@ export default function PricingPage() {
       },
       popular: true,
       features: [
-        "Unlimited files",
+        "10GB storage",
         "Advanced collaboration",
-        "100GB storage",
         "Priority support",
         "Private sharing",
         "Custom branding",
         "Advanced analytics",
-        "API access",
       ],
       buttonText: "Upgrade to Pro",
       highlighted: true,
@@ -103,13 +100,12 @@ export default function PricingPage() {
       popular: false,
       features: [
         "Everything in Pro",
-        "Unlimited storage",
+        "20GB storage",
         "Dedicated support",
         "SAML/SSO",
         "Custom contracts",
         "On-premise deployment",
         "Training & onboarding",
-        "99.9% SLA",
       ],
       buttonText: "Contact Sales",
       highlighted: false,
@@ -122,8 +118,8 @@ export default function PricingPage() {
   const features = [
     {
       icon: FileText,
-      title: "Unlimited Files",
-      description: "Create as many files as you need without restrictions",
+      title: "Flexible Storage Plans",
+      description: "Choose the storage limit that fits your needs",
     },
     {
       icon: Users,
@@ -161,7 +157,7 @@ export default function PricingPage() {
     {
       question: "Is there a free trial?",
       answer:
-        "Our Free plan is always free. For Pro features, we offer a 14-day free trial with no credit card required.",
+        "Currently, we do not offer a 14-day free trial for the Pro plan. Our Free plan is always available at no cost.",
     },
     {
       question: "What payment methods do you accept?",
@@ -189,7 +185,7 @@ export default function PricingPage() {
     if (plan === "Pro") {
       console.log("Upgrading to Pro plan");
     } else if (plan === "Enterprise") {
-      router.push("/contact");
+      router.push("/contact-sales");
     }
   };
 
@@ -343,7 +339,7 @@ export default function PricingPage() {
                       {stat.split(" ")[1]}
                     </div>
                   </motion.div>
-                )
+                ),
               )}
             </motion.div>
           </motion.div>
@@ -715,7 +711,19 @@ export default function PricingPage() {
         className="text-center py-8 border-t border-gray-200/50 dark:border-[#2a2a2d]"
       >
         <p className="text-gray-500 dark:text-gray-400 text-sm">
-          All plans include a 14-day free trial. No credit card required.
+          © {new Date().getFullYear()} Company. All rights reserved.
+          <a
+            href="/privacy"
+            className="ml-4 hover:text-blue-600 dark:from-blue-500"
+          >
+            Privacy Policy
+          </a>
+          <a
+            href="/terms"
+            className="ml-4 hover:text-blue-600 dark:from-blue-500"
+          >
+            Terms of Service
+          </a>
         </p>
       </motion.div>
     </div>
