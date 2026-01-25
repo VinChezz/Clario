@@ -12,12 +12,78 @@ export async function middleware(request: NextRequest) {
     passed2fa: passed2fa || "NO_COOKIE",
   });
 
+  if (pathname === "/" && token) {
+    console.log("🏠 Root access with token, redirecting to dashboard");
+
+    if (!passed2fa) {
+      console.log("⚠️ No 2FA cookie, checking 2FA status...");
+
+      try {
+        const checkUrl = new URL("/api/auth/2fa/status", request.url);
+        const headers = new Headers();
+        const cookie = request.headers.get("cookie");
+        if (cookie) headers.set("cookie", cookie);
+
+        console.log("📡 Calling 2FA status check API from root...");
+        const checkResponse = await fetch(checkUrl.toString(), {
+          headers,
+          cache: "no-store",
+        });
+
+        if (checkResponse.ok) {
+          const data = await checkResponse.json();
+          console.log("📊 2FA status response:", data);
+
+          if (data.requires2fa === true) {
+            console.log("🔐 2FA is ENABLED, redirecting to /auth/2fa");
+            return NextResponse.redirect(new URL("/auth/2fa", request.url));
+          } else {
+            console.log("✅ 2FA is NOT enabled, proceeding to dashboard");
+            const response = NextResponse.redirect(
+              new URL("/dashboard", request.url),
+            );
+            response.cookies.set({
+              name: "2fa_verified",
+              value: "true",
+              httpOnly: true,
+              secure: process.env.NODE_ENV === "production",
+              sameSite: "lax",
+              path: "/",
+              maxAge: 60 * 60 * 24 * 7,
+            });
+            return response;
+          }
+        }
+      } catch (error) {
+        console.error("❌ 2FA check failed:", error);
+      }
+    }
+
+    const response = NextResponse.redirect(new URL("/dashboard", request.url));
+
+    if (!passed2fa) {
+      response.cookies.set({
+        name: "2fa_verified",
+        value: "true",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+    }
+    return response;
+  }
+
   if (
     !token &&
-    (pathname.startsWith("/dashboard") || pathname === "/auth/2fa")
+    (pathname.startsWith("/dashboard") ||
+      pathname === "/auth/2fa" ||
+      pathname === "/")
   ) {
+    console.log("🔐 No token, redirecting to login");
     const loginUrl = `/api/auth/login?post_login_redirect_url=${encodeURIComponent(
-      pathname
+      pathname,
     )}`;
     return NextResponse.redirect(new URL(loginUrl, request.url));
   }
@@ -28,7 +94,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    if (pathname.startsWith("/dashboard") && !passed2fa) {
+    if ((pathname.startsWith("/dashboard") || pathname === "/") && !passed2fa) {
       console.log("⚠️ No 2FA cookie, checking if 2FA is required...");
 
       try {
@@ -53,7 +119,11 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL("/auth/2fa", request.url));
           } else {
             console.log("✅ 2FA is NOT enabled, setting 2fa_verified cookie");
-            const response = NextResponse.next();
+            const response =
+              pathname === "/"
+                ? NextResponse.redirect(new URL("/dashboard", request.url))
+                : NextResponse.next();
+
             response.cookies.set({
               name: "2fa_verified",
               value: "true",
@@ -68,7 +138,11 @@ export async function middleware(request: NextRequest) {
         } else {
           console.error("❌ Failed to check 2FA status:", checkResponse.status);
 
-          const response = NextResponse.next();
+          const response =
+            pathname === "/"
+              ? NextResponse.redirect(new URL("/dashboard", request.url))
+              : NextResponse.next();
+
           response.cookies.set({
             name: "2fa_verified",
             value: "true",
@@ -83,7 +157,11 @@ export async function middleware(request: NextRequest) {
       } catch (error) {
         console.error("❌ 2FA check failed:", error);
 
-        const response = NextResponse.next();
+        const response =
+          pathname === "/"
+            ? NextResponse.redirect(new URL("/dashboard", request.url))
+            : NextResponse.next();
+
         response.cookies.set({
           name: "2fa_verified",
           value: "true",
@@ -102,5 +180,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/auth/:path*"],
+  matcher: ["/", "/dashboard/:path*", "/auth/:path*"],
 };
