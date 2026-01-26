@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendEmail, emailTemplates } from "@/lib/email/sendEmail";
+import {
+  sendEmail,
+  emailTemplates,
+  createCalendarLink,
+} from "@/lib/email/sendEmail";
 import { adminEmails } from "@/lib/email/config";
 
 export async function POST(request: NextRequest) {
@@ -15,6 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     let emailContent;
+    let calendarLink: string | undefined;
 
     switch (type) {
       case "contact-sales":
@@ -38,7 +43,11 @@ export async function POST(request: NextRequest) {
                 ? "30 minutes"
                 : "60 minutes",
         };
-        emailContent = emailTemplates.bookDemo(demoData);
+
+        calendarLink = createCalendarLink(demoData);
+        console.log("📅 Generated Calendar Link:", calendarLink);
+
+        emailContent = emailTemplates.bookDemo(demoData, calendarLink);
         break;
       default:
         return NextResponse.json(
@@ -55,10 +64,14 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      const adminEmailContent = emailTemplates.adminNotification({
-        type,
-        formData,
-      });
+      const adminEmailContent = emailTemplates.adminNotification(
+        {
+          type,
+          formData,
+        },
+        calendarLink,
+      );
+
       await sendEmail({
         to: adminEmails,
         subject: adminEmailContent.subject,
@@ -73,6 +86,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Email sent successfully",
       messageId: userEmailResult.messageId,
+      calendarLink: calendarLink,
     });
   } catch (error) {
     console.error("Error in send-email API:", error);
