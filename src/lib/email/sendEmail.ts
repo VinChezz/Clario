@@ -25,29 +25,9 @@ export function createTransporter() {
 
 const transporter = createTransporter();
 
-export function generateGoogleMeetLink(): { link: string; meetingId: string } {
-  const chars = "abcdefghijklmnopqrstuvwxyz";
-  const parts = [3, 4, 3];
-
-  const meetingId = parts
-    .map((length) => {
-      let part = "";
-      for (let i = 0; i < length; i++) {
-        part += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return part;
-    })
-    .join("-");
-
-  return {
-    link: `https://meet.google.com/${meetingId}`,
-    meetingId: meetingId,
-  };
-}
-
-export function createCalendarLink(data: any, meetLink: string): string {
+export function createCalendarLink(data: any): string {
   const startTime = new Date(`${data.preferredDate}T${data.preferredTime}:00`);
-  const endTime = new Date(startTime.getTime() + 45 * 60000); // 45 минут
+  const endTime = new Date(startTime.getTime() + 45 * 60000);
 
   const formatDateForCalendar = (date: Date): string => {
     return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
@@ -64,12 +44,15 @@ export function createCalendarLink(data: any, meetLink: string): string {
       • Company: ${data.company}
       • Demo Type: ${getDemoTypeLabel(data.demoType)}
       • Timezone: ${data.timezone}
+      • Duration: ${getDemoDuration(data.demoType)}
+      • Attendees: ${data.attendees}
       • Goals: ${data.goals || "Not specified"}
 
-      Join Google Meet: ${meetLink}
-      Meeting ID: ${meetLink.split("/").pop()}
+      Meeting Host:
+      Alex Morgan — Senior Solutions Engineer
+      demo@clario.com
+      +1 (555) 987-6543
     `.trim(),
-    location: meetLink,
     add: data.email,
     sprop: "name:Clario Demo Scheduler",
   });
@@ -115,10 +98,10 @@ export async function sendEmail(options: EmailOptions) {
       console.log("HTML preview:", options.html.substring(0, 200) + "...");
 
       const match = options.html.match(
-        /https:\/\/meet\.google\.com\/[a-z0-9-]+/,
+        /https:\/\/calendar\.google\.com\/[^\s"]+/,
       );
       if (match) {
-        console.log("🎥 Generated Google Meet Link:", match[0]);
+        console.log("📅 Calendar Link:", match[0]);
       }
 
       return { success: true, messageId: "simulated-in-dev" };
@@ -235,45 +218,42 @@ export const emailTemplates = {
       </html>
     `,
     text: `
-Thank you for contacting our Sales Team!
+      Thank you for contacting our Sales Team!
 
-Dear ${data.firstName} ${data.lastName},
+      Dear ${data.firstName} ${data.lastName},
 
-Thank you for reaching out to our Sales Team at ${data.company}.
-We're excited to learn more about your needs and how we can help you succeed.
+      Thank you for reaching out to our Sales Team at ${data.company}.
+      We're excited to learn more about your needs and how we can help you succeed.
 
-What happens next?
-- Our sales representative will contact you within 24 hours
-- We'll schedule a personalized consultation at your convenience
-- You'll receive tailored solutions based on your requirements
+      What happens next?
+      - Our sales representative will contact you within 24 hours
+      - We'll schedule a personalized consultation at your convenience
+      - You'll receive tailored solutions based on your requirements
 
-Your Inquiry Details:
-Company: ${data.company}
-Company Size: ${data.companySize}
-Help Type: ${data.helpType}
-Message: ${data.message}
+      Your Inquiry Details:
+      Company: ${data.company}
+      Company Size: ${data.companySize}
+      Help Type: ${data.helpType}
+      Message: ${data.message}
 
-Our Contact Information:
-Email: clario-sales@clario.com
-Phone: +1 (888) 123-4567 (Mon-Fri, 9am-6pm EST)
-Address: 123 Innovation Drive, San Francisco, CA 94107
-Emergency Support: +1 (888) 999-0000 (24/7)
+      Our Contact Information:
+      Email: clario-sales@clario.com
+      Phone: +1 (888) 123-4567 (Mon-Fri, 9am-6pm EST)
+      Address: 123 Innovation Drive, San Francisco, CA 94107
+      Emergency Support: +1 (888) 999-0000 (24/7)
 
-Quick Links:
-- Book Another Demo: http://localhost:3000/book-demo
-- View Pricing: http://localhost:3000/pricing
+      Quick Links:
+      - Book Another Demo: http://localhost:3000/book-demo
+      - View Pricing: http://localhost:3000/pricing
 
-Best regards,
-The Sales Team
-Clario
+      Best regards,
+      The Sales Team
+      Clario
     `,
   }),
 
-  bookDemo: (data: any) => {
+  bookDemo: (data: any, calendarLink: string) => {
     const appUrl = process.env.APP_URL || "http://localhost:3000";
-
-    const meetInfo = generateGoogleMeetLink();
-    const calendarLink = createCalendarLink(data, meetInfo.link);
 
     return {
       subject: `Your Clario Demo Confirmation — ${getDemoTypeLabel(data.demoType)}`,
@@ -290,8 +270,9 @@ Clario
           .button { display: inline-block; background: #10b981; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; margin-top: 15px; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; }
           .info-box { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 12px; margin: 15px 0; }
-          .meeting-badge { display: inline-block; background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-size: 14px; margin-bottom: 10px; border: 1px solid #86efac; }
+          .calendar-badge { display: inline-block; background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-size: 14px; margin-bottom: 10px; border: 1px solid #86efac; }
           .details-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin: 15px 0; }
+          .meet-note { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 15px; margin: 15px 0; color: #92400e; }
         </style>
       </head>
       <body>
@@ -323,41 +304,41 @@ Clario
           </div>
 
           <div class="card">
-            <div class="meeting-badge">🎥 Live Google Meet Meeting</div>
-            <h3>Join the Demo Now</h3>
+            <div class="calendar-badge">📅 Add to Google Calendar</div>
+            <h3>Save Your Demo Appointment</h3>
 
             <div class="details-box">
-              <p><strong>Meeting Link:</strong> <a href="${meetInfo.link}" style="color: #059669; font-weight: bold;">${meetInfo.link}</a></p>
+              <p><strong>Calendar Link:</strong> <a href="${calendarLink}" style="color: #059669; font-weight: bold;">${calendarLink}</a></p>
               <p style="margin-top: 8px; color: #3b82f6;">
-                📅 <a href="${calendarLink}" style="color: #3b82f6;">Add to Google Calendar</a>
+                ✅ Click to add this event to your Google Calendar
               </p>
             </div>
 
-            <a href="${meetInfo.link}" class="button" style="background: #059669; font-size: 16px;">
-              🚀 Join Demo Meeting
+            <a href="${calendarLink}" class="button" style="background: #059669; font-size: 16px;">
+              📅 Add to Google Calendar
             </a>
 
-            <div style="background:#fef3c7; border:1px solid #fbbf24; border-radius:8px; padding:12px; margin:12px 0;">
-              <p style="color:#92400e; margin:0; font-weight:600;">💡 Important Information</p>
-              <p style="color:#92400e; margin:4px 0 0 0; font-size:14px;">
-                • Meeting ID: <code>${meetInfo.meetingId}</code>
+            <div class="meet-note">
+              <p style="color:#92400e; margin:0; font-weight:600;">💡 Google Meet Information</p>
+              <p style="color:#92400e; margin:8px 0 0 0; font-size:14px;">
+                • Google will automatically generate a Meet link when you save this event
               </p>
               <p style="color:#92400e; margin:4px 0 0 0; font-size:14px;">
-                • Click "Add to Google Calendar" above to save the event
+                • The Meet link will appear in the calendar event details
               </p>
               <p style="color:#92400e; margin:4px 0 0 0; font-size:14px;">
-                • Host will join 5 minutes before scheduled time
+                • Simply click the event in your calendar to join the meeting
               </p>
             </div>
 
             <div class="info-box">
-              <p><strong>💡 How to join:</strong></p>
-              <ul style="margin: 8px 0; padding-left: 20px;">
-                <li>Click the button above or the meeting link</li>
-                <li>Join 5 minutes before the scheduled time</li>
-                <li>Test your microphone and camera beforehand</li>
-                <li>Save this email with meeting details</li>
-              </ul>
+              <p><strong>💡 How to join the demo:</strong></p>
+              <ol style="margin: 8px 0; padding-left: 20px;">
+                <li>Click "Add to Google Calendar" above</li>
+                <li>Save the event to your calendar</li>
+                <li>Google will automatically add a Meet link</li>
+                <li>Join the meeting from your calendar at the scheduled time</li>
+              </ol>
             </div>
           </div>
 
@@ -368,7 +349,7 @@ Clario
               <li>✅ Have a stable internet connection</li>
               <li>✅ Prepare questions about your workflow</li>
               <li>✅ Invite your team members if needed</li>
-              <li>✅ Save this email with meeting details</li>
+              <li>✅ Add this event to your calendar</li>
             </ul>
           </div>
 
@@ -446,22 +427,26 @@ Clario
         Attendees: ${data.attendees}
         Host: Alex Morgan — Senior Solutions Engineer
 
-        🎥 JOIN THE DEMO
-        Meeting Link: ${meetInfo.link}
-        Meeting ID: ${meetInfo.meetingId}
-        Add to Calendar: ${calendarLink}
+        📅 ADD TO CALENDAR
+        Calendar Link: ${calendarLink}
 
-        💡 IMPORTANT
-        • Click the calendar link above to save the event
-        • Host will join 5 minutes before scheduled time
-        • Test your microphone and camera beforehand
+        💡 GOOGLE MEET INFORMATION
+        • Google will automatically generate a Meet link when you save this event
+        • The Meet link will appear in the calendar event details
+        • Simply click the event in your calendar to join the meeting
+
+        📋 HOW TO JOIN:
+        1. Click the calendar link above
+        2. Save the event to your Google Calendar
+        3. Google will automatically add a Meet link
+        4. Join the meeting from your calendar at the scheduled time
 
         📋 PREPARATION CHECKLIST
         • Test your microphone and camera
         • Have a stable internet connection
         • Prepare questions about your workflow
         • Invite your team members if needed
-        • Save this email with meeting details
+        • Add this event to your calendar
 
         📞 NEED TO RESCHEDULE?
         • Reply to this email at least 24 hours in advance
@@ -480,12 +465,11 @@ Clario
 
         This email was sent to ${data.email}
       `,
+      calendarLink: calendarLink,
     };
   },
 
-  adminNotification: (data: any) => {
-    const meetInfo = generateGoogleMeetLink();
-
+  adminNotification: (data: any, calendarLink?: string) => {
     return {
       subject: `New ${data.type} Submission - ${data.formData.company}`,
       html: `
@@ -498,7 +482,8 @@ Clario
           .content { background: white; padding: 30px; border: 1px solid #ddd; border-radius: 0 0 10px 10px; }
           .highlight { background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0; }
           .button { display: inline-block; background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px; }
-          .meeting-info { background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 15px; margin: 15px 0; }
+          .calendar-info { background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 15px; margin: 15px 0; }
+          .meet-note { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 10px; margin: 10px 0; color: #856404; }
         </style>
       </head>
       <body>
@@ -518,19 +503,34 @@ Clario
           ${
             data.type === "book-demo"
               ? `
-            <div class="meeting-info">
-              <h4>🎥 Google Meet Generated</h4>
-              <p><strong>Meeting Link:</strong> <a href="${meetInfo.link}">${meetInfo.link}</a></p>
-              <p><strong>Meeting ID:</strong> ${meetInfo.meetingId}</p>
-              <p><strong>Action Required:</strong> Please join the meeting as host 5 minutes before scheduled time</p>
+            <div class="calendar-info">
+              <h4>📅 Google Calendar Event</h4>
+              <p><strong>Calendar Link:</strong> <a href="${calendarLink}">${calendarLink}</a></p>
+              <p><strong>Action Required:</strong> You need to create the Google Meet manually</p>
+
+              <div class="meet-note">
+                <p><strong>💡 Important Note:</strong></p>
+                <p>Client was instructed to:</p>
+                <ol style="margin: 5px 0; padding-left: 20px;">
+                  <li>Add the event to their Google Calendar</li>
+                  <li>Google will automatically generate a Meet link</li>
+                  <li>They will join from their calendar</li>
+                </ol>
+                <p><strong>You should:</strong></p>
+                <ol style="margin: 5px 0; padding-left: 20px;">
+                  <li>Create your own Google Meet for this demo</li>
+                  <li>Or wait for client to share their calendar event</li>
+                </ol>
+              </div>
             </div>
 
             <h3>📅 Demo Details:</h3>
             <div class="highlight">
-              <p><strong>Demo Type:</strong> ${data.formData.demoType}</p>
+              <p><strong>Demo Type:</strong> ${getDemoTypeLabel(data.formData.demoType)}</p>
               <p><strong>Scheduled Date:</strong> ${data.formData.preferredDate}</p>
               <p><strong>Scheduled Time:</strong> ${data.formData.preferredTime}</p>
               <p><strong>Timezone:</strong> ${data.formData.timezone}</p>
+              <p><strong>Duration:</strong> ${getDemoDuration(data.formData.demoType)}</p>
               <p><strong>Attendees:</strong> ${data.formData.attendees}</p>
               <p><strong>Goals:</strong> ${data.formData.goals || "Not specified"}</p>
             </div>
@@ -552,8 +552,8 @@ Clario
           <div>
             <a href="mailto:${data.formData.email}" class="button">✉️ Reply via Email</a>
             ${
-              data.type === "book-demo"
-                ? `<a href="${meetInfo.link}" class="button" style="background: #10b981;">✅ Join Meeting</a>`
+              data.type === "book-demo" && calendarLink
+                ? `<a href="${calendarLink}" class="button" style="background: #10b981;">📅 View Calendar</a>`
                 : ""
             }
             <a href="tel:${data.formData.phone || ""}" class="button" style="background: #8b5cf6;">📞 Call Customer</a>
@@ -562,6 +562,7 @@ Clario
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
             <p><strong>Submission ID:</strong> ${Date.now()}</p>
             <p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+            <p><strong>Meet Status:</strong> Client will get Meet from Google Calendar</p>
           </div>
         </div>
       </body>
@@ -579,18 +580,27 @@ Clario
       ${
         data.type === "book-demo"
           ? `
-      Meeting Details:
-      Google Meet Link: ${meetInfo.link}
-      Meeting ID: ${meetInfo.meetingId}
-      Action: Host needs to join 5 minutes before scheduled time
-
       Demo Details:
-      Demo Type: ${data.formData.demoType}
+      Demo Type: ${getDemoTypeLabel(data.formData.demoType)}
       Scheduled Date: ${data.formData.preferredDate}
       Scheduled Time: ${data.formData.preferredTime}
       Timezone: ${data.formData.timezone}
+      Duration: ${getDemoDuration(data.formData.demoType)}
       Attendees: ${data.formData.attendees}
       Goals: ${data.formData.goals || "Not specified"}
+
+      Calendar Information:
+      Calendar Link: ${calendarLink}
+
+      IMPORTANT NOTE:
+      Client was instructed to:
+      1. Add the event to their Google Calendar
+      2. Google will automatically generate a Meet link
+      3. They will join from their calendar
+
+      You should:
+      1. Create your own Google Meet for this demo
+      2. Or wait for client to share their calendar event
       `
           : data.type === "contact-sales"
             ? `
@@ -605,6 +615,7 @@ Clario
 
       Submission ID: ${Date.now()}
       Timestamp: ${new Date().toLocaleString()}
+      Meet Status: Client will get Meet from Google Calendar
 
       ---
       Clario Admin System
