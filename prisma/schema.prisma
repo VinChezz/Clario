@@ -23,6 +23,7 @@ model User {
   availabilityStatus  AvailabilityStatus @default(AVAILABLE)
 
   plan              Plan   @default(FREE)
+  permanentDeletionsUsed Int @default(0)
   totalCreatedFiles Int    @default(0)
   maxFiles          Int    @default(10)
   maxTeams          Int    @default(1)
