@@ -164,7 +164,7 @@ const TableControls: React.FC<{ editor: any; isDark?: boolean }> = ({
 
       const target = mouseEvent.target as HTMLElement;
       const isTableCell = target.closest(
-        'td, th, [data-type="tableCell"], [data-type="tableHeader"]'
+        'td, th, [data-type="tableCell"], [data-type="tableHeader"]',
       );
 
       if (!isTableCell) {
@@ -202,7 +202,7 @@ const TableControls: React.FC<{ editor: any; isDark?: boolean }> = ({
       const mouseEvent = e as MouseEvent;
       const target = mouseEvent.target as HTMLElement;
       const isTableCell = target.closest(
-        'td, th, [data-type="tableCell"], [data-type="tableHeader"'
+        'td, th, [data-type="tableCell"], [data-type="tableHeader"',
       );
 
       if (!isTableCell || !isTableActive()) {
@@ -222,7 +222,7 @@ const TableControls: React.FC<{ editor: any; isDark?: boolean }> = ({
       const touchEvent = e as TouchEvent;
       const target = touchEvent.target as HTMLElement;
       const isTableCell = target.closest(
-        'td, th, [data-type="tableCell"], [data-type="tableHeader"]'
+        'td, th, [data-type="tableCell"], [data-type="tableHeader"]',
       );
 
       if (!isTableCell || !isTableActive()) return;
@@ -261,15 +261,15 @@ const TableControls: React.FC<{ editor: any; isDark?: boolean }> = ({
     if (editorElement) {
       editorElement.addEventListener(
         "contextmenu",
-        handleContextMenu as EventListener
+        handleContextMenu as EventListener,
       );
       editorElement.addEventListener(
         "mousedown",
-        handleCellClick as EventListener
+        handleCellClick as EventListener,
       );
       editorElement.addEventListener(
         "touchstart",
-        handleTouchStart as EventListener
+        handleTouchStart as EventListener,
       );
       editorElement.addEventListener("touchend", handleTouchEnd);
       editorElement.addEventListener("touchcancel", handleTouchCancel);
@@ -295,15 +295,15 @@ const TableControls: React.FC<{ editor: any; isDark?: boolean }> = ({
       if (editorElement) {
         editorElement.removeEventListener(
           "contextmenu",
-          handleContextMenu as EventListener
+          handleContextMenu as EventListener,
         );
         editorElement.removeEventListener(
           "mousedown",
-          handleCellClick as EventListener
+          handleCellClick as EventListener,
         );
         editorElement.removeEventListener(
           "touchstart",
-          handleTouchStart as EventListener
+          handleTouchStart as EventListener,
         );
         editorElement.removeEventListener("touchend", handleTouchEnd);
         editorElement.removeEventListener("touchcancel", handleTouchCancel);
@@ -534,16 +534,16 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   const getContainerClass = () => {
-    const baseClass = `sticky z-10 mx-auto my-0.5 flex justify-center items-center py-1.5 px-4 sm:px-6 rounded-md ${
+    const baseClass = `z-10 mx-auto flex justify-center items-center py-1.5 px-4 sm:px-6 rounded-md ${
       isDark
         ? "bg-[#232329] shadow-[0_4px_20px_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.02)]"
         : "bg-white shadow-[0_0.5px_1px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)] border border-black/5 backdrop-blur-sm"
     }`;
 
-    let maxWidthClass = "max-w-[95vw]";
+    let maxWidthClass = "max-w-[800vw]";
 
     if (!isMobile) {
-      maxWidthClass = isHeadingActive() ? "max-w-[720px]" : "max-w-[700px]";
+      maxWidthClass = isHeadingActive() ? "max-w-[725px]" : "max-w-[780px]";
     } else if (isTablet) {
       maxWidthClass = "max-w-[90vw]";
     }
@@ -827,7 +827,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <button
             onClick={() => editor.chain().focus().setTextAlign("justify").run()}
             className={getButtonClass(
-              editor.isActive({ textAlign: "justify" })
+              editor.isActive({ textAlign: "justify" }),
             )}
             title="Justify"
           >
@@ -944,8 +944,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     ? "max-w-10"
                     : "max-w-[70px]"
                   : isMobile
-                  ? "max-w-[30px]"
-                  : "max-w-[60px]"
+                    ? "max-w-[30px]"
+                    : "max-w-[60px]"
               }`}
             >
               {getCurrentHeadingLabel()}
@@ -1634,7 +1634,7 @@ export default function Editor({
         }
       }
     },
-    [mounted, editor]
+    [mounted, editor],
   );
 
   useEffect(() => {
@@ -1706,7 +1706,7 @@ export default function Editor({
           initialData = parsedData;
           console.log(
             "✅ Using saved document data with content:",
-            parsedData.content.length
+            parsedData.content.length,
           );
         } else {
           console.warn("⚠️ No content in saved data, using default");
@@ -1890,7 +1890,7 @@ export default function Editor({
         sendContentUpdate(content);
       }
     }, 50),
-    [isConnected, currentUser, permissions, sendContentUpdate]
+    [isConnected, currentUser, permissions, sendContentUpdate],
   );
 
   const updateEditingPresence = useCallback(() => {
@@ -2089,7 +2089,7 @@ export default function Editor({
         if (error instanceof Error) {
           if (error.message.includes("Type mismatch")) {
             toast.error(
-              "This version can only be restored in the Whiteboard panel"
+              "This version can only be restored in the Whiteboard panel",
             );
           } else if (error.message.includes("404")) {
             toast.error("Version or file not found");
@@ -2108,7 +2108,7 @@ export default function Editor({
         }
       }
     },
-    [restoreVersion, onSaveSuccess, fileId]
+    [restoreVersion, onSaveSuccess, fileId],
   );
 
   const handleTextSelection = useCallback(() => {
@@ -2197,7 +2197,7 @@ export default function Editor({
         }
       }
     },
-    [currentUser, permissions, sendSelectionUpdate]
+    [currentUser, permissions, sendSelectionUpdate],
   );
 
   const handleAddComment = useCallback(
@@ -2210,14 +2210,14 @@ export default function Editor({
         setSelection(null);
       });
     },
-    [createComment, selection]
+    [createComment, selection],
   );
 
   const handleReplyComment = useCallback(
     (commentId: string, content: string) => {
       createReply(commentId, content);
     },
-    [createReply]
+    [createReply],
   );
 
   const handleUpdateComment = useCallback(
@@ -2231,7 +2231,7 @@ export default function Editor({
           console.error("❌ Failed to update comment:", error);
         });
     },
-    [updateComment]
+    [updateComment],
   );
 
   const handleResolveComment = useCallback(
@@ -2255,21 +2255,21 @@ export default function Editor({
         console.error("❌ Comment not found:", commentId);
       }
     },
-    [comments, updateComment]
+    [comments, updateComment],
   );
 
   const handleDeleteComment = useCallback(
     (commentId: string) => {
       deleteComment(commentId);
     },
-    [deleteComment]
+    [deleteComment],
   );
 
   const handleDeleteReply = useCallback(
     (commentId: string, replyId: string) => {
       deleteReply(commentId, replyId);
     },
-    [deleteReply]
+    [deleteReply],
   );
 
   const handleEditorMouseMove = useCallback(
@@ -2327,7 +2327,7 @@ export default function Editor({
       updatePresence,
       updateLightPresence,
       canEdit,
-    ]
+    ],
   );
 
   const handleEditorMouseLeave = useCallback(() => {
@@ -2384,7 +2384,7 @@ export default function Editor({
         });
       }, 2000);
     },
-    [currentUser, permissions, sendTypingUpdate, updateEditingPresence]
+    [currentUser, permissions, sendTypingUpdate, updateEditingPresence],
   );
 
   useEffect(() => {
@@ -2408,7 +2408,7 @@ export default function Editor({
     return (
       <div
         className={`flex h-full w-full${
-          isDark ? "bg-[#121212]" : "bg-gray-100"
+          isDark ? "bg-[#171717]" : "bg-gray-100"
         }`}
       >
         <div className="flex-1 flex items-center justify-center">
@@ -2421,7 +2421,7 @@ export default function Editor({
   return (
     <div
       className={`flex h-full w-full ${
-        isDark ? "bg-[#121212]" : "bg-gray-100"
+        isDark ? "bg-[#171717]" : "bg-gray-100"
       }`}
     >
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -2461,7 +2461,7 @@ export default function Editor({
             }`}
           >
             {canEdit && (
-              <div className="sticky top-0 z-10 pt-4 bg-inherit">
+              <div className="sticky top-0 z-10 pt-3.5 bg-inherit">
                 <EditorToolbar
                   editor={editor}
                   isDark={isDark}
