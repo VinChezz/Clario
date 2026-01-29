@@ -149,7 +149,7 @@ export default function WorkspacePage() {
       setVersionsLoading(true);
       try {
         const response = await fetch(
-          `/api/files/${fileId}/versions?t=${Date.now()}`
+          `/api/files/${fileId}/versions?t=${Date.now()}`,
         );
 
         if (!response.ok) {
@@ -169,7 +169,7 @@ export default function WorkspacePage() {
         setVersionsLoading(false);
       }
     },
-    [fileId]
+    [fileId],
   );
 
   useEffect(() => {
@@ -210,7 +210,7 @@ export default function WorkspacePage() {
       percent = Math.max(25, Math.min(75, percent));
       setDividerPercent(percent);
     },
-    [deviceType]
+    [deviceType],
   );
 
   useEffect(() => {
@@ -264,7 +264,7 @@ export default function WorkspacePage() {
                 whiteboard:
                   contentType === "whiteboard" ? content : prev.whiteboard,
               }
-            : null
+            : null,
         );
 
         await refreshFileData();
@@ -274,7 +274,7 @@ export default function WorkspacePage() {
         toast.error("Failed to restore version");
       }
     },
-    [fileId, refreshFileData]
+    [fileId, refreshFileData],
   );
 
   const handleSaveSuccess = useCallback(async () => {
@@ -291,7 +291,7 @@ export default function WorkspacePage() {
       setWindowMode(mode);
       if (mode === "split") setActiveComponent("both");
     },
-    [deviceType]
+    [deviceType],
   );
 
   const handleActiveComponentChange = useCallback(
@@ -312,7 +312,7 @@ export default function WorkspacePage() {
         setActiveComponent(component);
       }
     },
-    [deviceType]
+    [deviceType],
   );
 
   useEffect(() => {
@@ -400,14 +400,14 @@ export default function WorkspacePage() {
     (handler: () => Promise<void>) => {
       setEditorSaveHandler(() => handler);
     },
-    []
+    [],
   );
 
   const handleCanvasSaveHandlerChange = useCallback(
     (handler: () => Promise<void>) => {
       setCanvasSaveHandler(() => handler);
     },
-    []
+    [],
   );
 
   if (!fileId || isLoading || teamLoading) {
