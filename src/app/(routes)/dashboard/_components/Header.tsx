@@ -535,7 +535,7 @@ export default function Header({ onTeamUpdate, onMenuToggle }: HeaderProps) {
       <div
         className={cn(
           "flex items-center justify-between py-4 mx-auto max-w-7xl",
-          isMobile ? "px-4" : "px-4",
+          isMobile ? "px-2" : "px-4",
         )}
       >
         <div className="flex items-center flex-1 min-w-0">
