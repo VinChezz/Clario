@@ -7,9 +7,12 @@ import { Plan } from "@prisma/client";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ teamId: string }> }
+  { params }: { params: Promise<{ teamId: string }> },
 ) {
   try {
+    const { searchParams } = new URL(request.url);
+    const includeTrash = searchParams.get("includeTrash") === "true";
+
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
@@ -24,7 +27,7 @@ export async function GET(
       include: {
         createdBy: true,
         files: {
-          where: { deletedAt: null },
+          where: includeTrash ? undefined : { deletedAt: null },
           include: {
             versions: {
               select: {
@@ -55,26 +58,36 @@ export async function GET(
     }
 
     const isMember = team.members.some(
-      (member) => member.user.email === user.email
+      (member) => member.user.email === user.email,
     );
 
     if (!isMember) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    console.log("📊 Team storage calculation for:", team.name);
+    console.log(
+      "📊 Team storage calculation for:",
+      team.name,
+      "includeTrash:",
+      includeTrash,
+    );
     console.log("📁 Files count:", team.files.length);
 
     let totalCalculatedSize = BigInt(0);
     let realUsedBytes = BigInt(0);
+    let trashFilesCount = 0;
 
     team.files.forEach((file) => {
       const fileSize = calculateFileSize(
         file.document || undefined,
-        file.whiteboard || undefined
+        file.whiteboard || undefined,
       );
       totalCalculatedSize += fileSize;
       realUsedBytes += file.sizeBytes || BigInt(0);
+
+      if (file.deletedAt) {
+        trashFilesCount++;
+      }
     });
 
     let totalVersions = 0;
@@ -100,7 +113,9 @@ export async function GET(
       });
     });
 
-    console.log(`📋 Total versions: ${totalVersions}`);
+    console.log(
+      `📋 Total versions: ${totalVersions}, Trash files: ${trashFilesCount}`,
+    );
 
     const planLimits = getPlanLimit(team.createdBy.plan as Plan);
     const limitBytes = BigInt(planLimits.maxStorage);
@@ -132,11 +147,13 @@ export async function GET(
         ? `${user.given_name} ${user.family_name}`
         : user.given_name || user.email?.split("@")[0] || "User";
 
+    const activeFiles = team.files.filter((f) => !f.deletedAt);
     const statsByType = {
-      documents: team.files.filter((f) => f.document && !f.whiteboard).length,
-      whiteboards: team.files.filter((f) => f.whiteboard && !f.document).length,
-      mixed: team.files.filter((f) => f.document && f.whiteboard).length,
-      totalFiles: team.files.length,
+      documents: activeFiles.filter((f) => f.document && !f.whiteboard).length,
+      whiteboards: activeFiles.filter((f) => f.whiteboard && !f.document)
+        .length,
+      mixed: activeFiles.filter((f) => f.document && f.whiteboard).length,
+      totalFiles: activeFiles.length,
       totalVersions,
     };
 
@@ -170,13 +187,15 @@ export async function GET(
         weightMultiplier: weightMultiplier.toFixed(2),
       },
       files: {
-        activeCount: team.files.length,
+        activeCount: activeFiles.length,
         totalCount: team.files.length,
         versionsCount: totalVersions,
         calculatedSizeBytes: totalCalculatedSize.toString(),
         calculatedSizeFormatted: formatBytes(totalCalculatedSize),
         calculatedSizeFormattedGB: formatGB(totalCalculatedSize),
         statsByType,
+        inTrash: trashFilesCount,
+        includeTrash,
       },
       teamStorage: {
         teamId: team.id,
@@ -198,6 +217,7 @@ export async function GET(
         realUsedFormatted: formatBytes(realUsedBytes),
         realUsedFormattedGB: formatGB(realUsedBytes),
         weightMultiplier: weightMultiplier.toFixed(2),
+        includeTrash,
       },
       requiresUpgrade: percentage > 90,
     });
@@ -205,7 +225,7 @@ export async function GET(
     console.error("Error fetching team storage:", error);
     return NextResponse.json(
       { error: "Failed to fetch team storage" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
