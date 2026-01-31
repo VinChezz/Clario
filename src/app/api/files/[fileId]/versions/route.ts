@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { calculateVersionSize, formatBytes } from "@/lib/fileSizeCalculator";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ fileId: string }> }
+  { params }: { params: Promise<{ fileId: string }> },
 ) {
   try {
     const { getUser } = getKindeServerSession();
@@ -24,7 +25,6 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Проверяем доступ к файлу
     const file = await prisma.file.findFirst({
       where: {
         id: fileId,
@@ -45,7 +45,6 @@ export async function GET(
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    // Получаем версии
     const versions = await prisma.documentVersion.findMany({
       where: {
         fileId: fileId,
@@ -70,14 +69,14 @@ export async function GET(
     console.error("Error fetching versions:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ fileId: string }> }
+  { params }: { params: Promise<{ fileId: string }> },
 ) {
   try {
     const { getUser } = getKindeServerSession();
@@ -103,7 +102,7 @@ export async function POST(
     if (!content) {
       return NextResponse.json(
         { error: "Content is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -115,7 +114,6 @@ export async function POST(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Проверяем доступ к файлу
     const file = await prisma.file.findFirst({
       where: {
         id: fileId,
@@ -130,15 +128,41 @@ export async function POST(
           },
         ],
       },
+      include: {
+        team: true,
+      },
     });
 
     if (!file) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    // Используем транзакцию для атомарного получения последней версии и создания новой
+    const storageResponse = await fetch(
+      `${process.env.APP_URL || "http://localhost:3000"}/api/users/storage?teamId=${file.teamId}`,
+    );
+
+    if (storageResponse.ok) {
+      const storageData = await storageResponse.json();
+      const usedBytes = BigInt(storageData.storage.usedBytes);
+      const limitBytes = BigInt(storageData.storage.limitBytes);
+
+      const versionSize = calculateVersionSize(content, type);
+
+      if (usedBytes + versionSize > limitBytes) {
+        return NextResponse.json(
+          {
+            error: "Storage limit exceeded",
+            details: "Cannot save version due to storage limits",
+            usedBytes: storageData.storage.usedFormatted,
+            limitBytes: storageData.storage.limitFormatted,
+            requiredBytes: formatBytes(versionSize),
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
-      // Получаем последнюю версию с блокировкой для предотвращения race condition
       const lastVersion = await tx.documentVersion.findFirst({
         where: {
           fileId,
@@ -151,10 +175,9 @@ export async function POST(
       const newVersionNumber = (lastVersion?.version || 0) + 1;
 
       console.log(
-        `📝 Creating ${type} version ${newVersionNumber} for file ${fileId}`
+        `📝 Creating ${type} version ${newVersionNumber} for file ${fileId}`,
       );
 
-      // Проверяем, не существует ли уже такая версия (на случай race condition)
       const existingVersion = await tx.documentVersion.findUnique({
         where: {
           fileId_type_version: {
@@ -167,14 +190,13 @@ export async function POST(
 
       if (existingVersion) {
         console.error(
-          `❌ Version ${newVersionNumber} already exists for ${type} in file ${fileId}`
+          `❌ Version ${newVersionNumber} already exists for ${type} in file ${fileId}`,
         );
         throw new Error(
-          `Version ${newVersionNumber} already exists for ${type}`
+          `Version ${newVersionNumber} already exists for ${type}`,
         );
       }
 
-      // Создаем новую версию
       const newVersion = await tx.documentVersion.create({
         data: {
           version: newVersionNumber,
@@ -202,7 +224,7 @@ export async function POST(
       });
 
       console.log(
-        `✅ Successfully created ${type} version ${newVersionNumber}`
+        `✅ Successfully created ${type} version ${newVersionNumber}`,
       );
       return newVersion;
     });
@@ -215,7 +237,7 @@ export async function POST(
       if ("code" in error && error.code === "P2002") {
         return NextResponse.json(
           { error: "Version already exists. Please try again." },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -226,7 +248,7 @@ export async function POST(
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

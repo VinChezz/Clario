@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { serializeBigInt } from "@/lib/serializeBigInt";
 
 export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { fileId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ fileId: string }> },
 ) {
   try {
     const { fileId } = await params;
@@ -23,15 +24,26 @@ export async function PATCH(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const file = await prisma.file.findUnique({
-      where: { id: fileId },
+    const file = await prisma.file.findFirst({
+      where: {
+        id: fileId,
+        deletedAt: { not: null },
+        OR: [
+          { createdById: dbUser.id },
+          {
+            team: {
+              members: {
+                some: { userId: dbUser.id },
+              },
+            },
+          },
+        ],
+      },
       include: {
         team: {
           include: {
             members: {
-              where: {
-                userId: dbUser.id,
-              },
+              where: { userId: dbUser.id },
             },
           },
         },
@@ -39,7 +51,10 @@ export async function PATCH(
     });
 
     if (!file) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "File not found in trash" },
+        { status: 404 },
+      );
     }
 
     const userMembership = file.team.members[0];
@@ -52,23 +67,28 @@ export async function PATCH(
 
     if (!canRestore) {
       return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
+        { error: "Insufficient permissions to restore file" },
+        { status: 403 },
       );
     }
 
-    await prisma.file.update({
+    const restoredFile = await prisma.file.update({
       where: { id: fileId },
       data: { deletedAt: null },
     });
 
     console.log("✅ File restored:", fileId);
-    return NextResponse.json({ message: "File restored" }, { status: 200 });
+
+    return NextResponse.json({
+      success: true,
+      message: "File restored successfully",
+      file: serializeBigInt(restoredFile),
+    });
   } catch (error) {
     console.error("❌ Error restoring file:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }
