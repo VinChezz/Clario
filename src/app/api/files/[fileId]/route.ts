@@ -10,7 +10,7 @@ interface UpdateBody {
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: { fileId: string } },
 ) {
   try {
     const { fileId } = await params;
@@ -22,7 +22,7 @@ export async function PATCH(
     if (!fileId) {
       return NextResponse.json(
         { error: "File ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -74,7 +74,7 @@ export async function PATCH(
           error:
             "Insufficient permissions. Only EDIT and ADMIN roles can edit files.",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -93,14 +93,14 @@ export async function PATCH(
     console.error("❌ Error updating file:", err);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: { fileId: string } },
 ) {
   try {
     const { fileId } = await params;
@@ -112,7 +112,7 @@ export async function GET(
     if (!fileId) {
       return NextResponse.json(
         { error: "File ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -176,7 +176,7 @@ export async function GET(
     if (!hasAccess) {
       return NextResponse.json(
         { error: "Access denied to this file" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -186,14 +186,14 @@ export async function GET(
     console.error("❌ Error fetching file:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: { fileId: string } },
 ) {
   try {
     const { fileId } = await params;
@@ -205,7 +205,7 @@ export async function DELETE(
     if (!fileId) {
       return NextResponse.json(
         { error: "File ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -254,7 +254,7 @@ export async function DELETE(
           error:
             "Insufficient permissions. Only EDIT and ADMIN roles can delete files.",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -267,14 +267,14 @@ export async function DELETE(
 
     console.log("✅ File moved to trash:", fileId);
     return NextResponse.json(
-      { message: "File moved to trash", file: deletedFile },
-      { status: 200 }
+      { message: "File moved to trash", file: serializeBigInt(deletedFile) },
+      { status: 200 },
     );
   } catch (err) {
     console.error("❌ Error moving file to trash:", err);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
