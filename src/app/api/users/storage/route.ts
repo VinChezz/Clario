@@ -7,6 +7,10 @@ import { calculateFileSize } from "@/lib/fileSizeCalculator";
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const teamId = searchParams.get("teamId");
+    const includeTrash = searchParams.get("includeTrash") === "true";
+
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
@@ -34,10 +38,13 @@ export async function GET(request: NextRequest) {
 
     const planLimits = getPlanLimit(dbUser.plan as Plan);
 
+    // Получаем ВСЕ файлы (включая корзину если нужно)
+    const whereCondition = teamId ? { teamId } : { createdById: dbUser.id };
+
     const userFiles = await prisma.file.findMany({
-      where: {
-        createdById: dbUser.id,
-      },
+      where: includeTrash
+        ? whereCondition // Все файлы
+        : { ...whereCondition, deletedAt: null }, // Только активные
       select: {
         id: true,
         document: true,
@@ -63,7 +70,7 @@ export async function GET(request: NextRequest) {
     userFiles.forEach((file) => {
       const fileSize = calculateFileSize(
         file.document || undefined,
-        file.whiteboard || undefined
+        file.whiteboard || undefined,
       );
       totalCalculatedSize += fileSize;
     });
@@ -88,6 +95,7 @@ export async function GET(request: NextRequest) {
     });
 
     const activeFiles = userFiles.filter((file) => !file.deletedAt);
+    const trashFiles = userFiles.filter((file) => file.deletedAt);
     const activeFilesCount = activeFiles.length;
 
     const statsByType = {
@@ -105,6 +113,20 @@ export async function GET(request: NextRequest) {
       storageLimit > BigInt(0)
         ? Number((storageUsed * BigInt(100)) / storageLimit)
         : 0;
+
+    // ДЕБАГ информация
+    console.log("📊 Storage calculation (API):", {
+      plan: dbUser.plan,
+      includeTrash,
+      filesTotal: userFiles.length,
+      activeFiles: activeFilesCount,
+      trashFiles: trashFiles.length,
+      calculatedSize: formatBytes(storageUsed),
+      calculatedSizeGB: Number(storageUsed) / 1024 ** 3,
+      limitSize: formatBytes(storageLimit),
+      limitSizeGB: Number(storageLimit) / 1024 ** 3,
+      percentage: percentage.toFixed(1) + "%",
+    });
 
     const response = {
       user: {
@@ -136,6 +158,8 @@ export async function GET(request: NextRequest) {
         calculatedSizeBytes: storageUsed.toString(),
         calculatedSizeFormatted: formatBytes(storageUsed),
         statsByType,
+        inTrash: trashFiles.length,
+        includeTrash,
       },
       teams: dbUser.teams.map((team) => ({
         id: team.id,
@@ -150,22 +174,12 @@ export async function GET(request: NextRequest) {
       requiresUpgrade: storageUsed >= (storageLimit * BigInt(90)) / BigInt(100),
     };
 
-    console.log("📊 Storage calculation:", {
-      files: userFiles.length,
-      versions: userVersions.length,
-      calculatedSize: formatBytes(storageUsed),
-      dbSize: formatBytes(dbUser.storageUsedBytes || BigInt(0)),
-      difference: formatBytes(
-        Number(storageUsed) - Number(dbUser.storageUsedBytes || 0)
-      ),
-    });
-
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
     console.error("❌ Error calculating storage data:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
