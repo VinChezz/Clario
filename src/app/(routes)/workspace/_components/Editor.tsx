@@ -1581,12 +1581,6 @@ export default function Editor({
 
   useEffect(() => {
     if (editor && !permissionsLoading) {
-      console.log("✅ Editor ready with permissions:", {
-        permissions,
-        canEdit,
-        isLoading: permissionsLoading,
-      });
-
       if (editor.isEditable !== canEdit) {
         editor.setEditable(canEdit);
       }
@@ -1605,7 +1599,6 @@ export default function Editor({
     if (editor && editorData) {
       try {
         editor.commands.setContent(editorData);
-        console.log("✅ Editor content set successfully");
       } catch (error) {
         console.error("❌ Error setting editor content:", error);
       }
@@ -1683,7 +1676,6 @@ export default function Editor({
 
   useEffect(() => {
     if (!fileData) {
-      console.log("📄 No file data, using default");
       setEditorData(defaultContent);
       editorDataRef.current = defaultContent;
       return;
@@ -1694,7 +1686,6 @@ export default function Editor({
     if (fileData.document && fileData.document !== '""') {
       try {
         const parsedData = JSON.parse(fileData.document);
-        console.log("📖 Parsed document data:", parsedData);
 
         if (
           parsedData &&
@@ -1704,10 +1695,6 @@ export default function Editor({
           parsedData.content.length > 0
         ) {
           initialData = parsedData;
-          console.log(
-            "✅ Using saved document data with content:",
-            parsedData.content.length,
-          );
         } else {
           console.warn("⚠️ No content in saved data, using default");
           initialData = defaultContent;
@@ -1717,7 +1704,6 @@ export default function Editor({
         initialData = defaultContent;
       }
     } else {
-      console.log("📝 No document data, using default");
       initialData = defaultContent;
     }
 
@@ -1725,7 +1711,6 @@ export default function Editor({
     const newDataString = JSON.stringify(initialData);
 
     if (currentDataString !== newDataString) {
-      console.log("🔄 Editor data changed, updating state");
       setEditorData(initialData);
       editorDataRef.current = initialData;
       resetLastSentContent();
@@ -1733,13 +1718,12 @@ export default function Editor({
       setHasUnsavedChanges(false);
       lastSavedContent.current = fileData?.document || "";
     } else {
-      console.log("🔄 Editor data unchanged, skipping update");
+      return;
     }
   }, [fileData, resetLastSentContent]);
 
   useEffect(() => {
     if (!currentUser) return;
-    console.log("🔌 Starting realtime services for Editor...");
 
     fetchComments();
     const cleanup = startPresenceUpdates();
@@ -1747,8 +1731,6 @@ export default function Editor({
     if (!canEdit) return;
 
     const unsubscribeContent = subscribeToContentUpdates((content, user) => {
-      console.log("🎯 EDITOR: Processing content update from:", user?.name);
-
       if (
         editor &&
         content &&
@@ -1759,11 +1741,9 @@ export default function Editor({
         const currentContentString = JSON.stringify(editorDataRef.current);
 
         if (contentString === currentContentString) {
-          console.log("🔄 EDITOR: Ignoring duplicate content update");
           return;
         }
 
-        console.log("🎯 EDITOR: Rendering remote content");
         isApplyingRemoteContent.current = true;
 
         try {
@@ -1791,7 +1771,6 @@ export default function Editor({
           } else {
             setHasUnsavedChanges(false);
           }
-          console.log("✅ EDITOR: Successfully rendered remote content");
         } catch (error) {
           console.error("❌ EDITOR: Error rendering remote content:", error);
         } finally {
@@ -1801,15 +1780,10 @@ export default function Editor({
     });
 
     const unsubscribeSync = subscribeToContentSync((content) => {
-      console.log("🔄 EDITOR: Received initial content sync", {
-        blocks: content?.content?.length,
-      });
-
       if (editor && content && isInitialized.current) {
         const contentString = JSON.stringify(content);
 
         if (contentString === lastSentContent.current) {
-          console.log("🔄 Ignoring own content (already sent)");
           return;
         }
 
@@ -1840,7 +1814,6 @@ export default function Editor({
           } else {
             setHasUnsavedChanges(false);
           }
-          console.log("✅ EDITOR: Successfully applied sync content");
         } catch (error) {
           console.error("❌ EDITOR: Error applying sync content:", error);
         } finally {
@@ -1853,7 +1826,6 @@ export default function Editor({
     const unsubscribeTyping = subscribeToTypingUpdates();
 
     return () => {
-      console.log("🧹 Cleaning up Editor realtime services");
       cleanup();
       unsubscribeContent();
       unsubscribeSync();
@@ -1899,7 +1871,6 @@ export default function Editor({
     const now = Date.now();
 
     if (now - lastPresenceUpdate.current > 2000) {
-      console.log("✏️ Updating presence to EDITING");
       updateLightPresence("EDITING");
 
       updatePresence({
@@ -1914,7 +1885,6 @@ export default function Editor({
     }
 
     editingTimeoutRef.current = setTimeout(() => {
-      console.log("👀 Updating presence to VIEWING (idle)");
       updateLightPresence("VIEWING");
       updatePresence({
         status: "VIEWING",
@@ -1924,19 +1894,15 @@ export default function Editor({
 
   const handleEditorSave = useCallback(async () => {
     if (!editor || isSaving.current || !canEdit) {
-      console.log("❌ Editor not ready or already saving, skipping save");
       return;
     }
 
     isSaving.current = true;
-    console.log("💾 Editor manual save triggered...");
 
     try {
       const outputData = editor.getJSON();
-      console.log("📦 Data to save:", outputData);
 
       if (!outputData.content || outputData.content.length === 0) {
-        console.log("⚠️ No content to save");
         return;
       }
 
@@ -1982,20 +1948,12 @@ export default function Editor({
         normalizedNew = "{}";
       }
 
-      console.log("🔍 Content comparison:", {
-        currentLength: normalizedCurrent.length,
-        newLength: normalizedNew.length,
-        hasChanges: normalizedNew !== normalizedCurrent,
-      });
-
       if (normalizedNew === normalizedCurrent) {
-        console.log("✅ No changes detected, skipping save");
         toast.info("No changes to save");
         setHasUnsavedChanges(false);
         return;
       }
 
-      console.log("🔄 Saving document to API...");
       const res = await fetch(`/api/files/${fileId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -2004,8 +1962,6 @@ export default function Editor({
         }),
       });
 
-      console.log("📨 Response status:", res.status);
-
       if (!res.ok) {
         const errorText = await res.text();
         console.error("❌ Save error response:", errorText);
@@ -2013,7 +1969,6 @@ export default function Editor({
       }
 
       const updatedFile = await res.json();
-      console.log("✅ Document saved successfully! Updated file:", updatedFile);
 
       lastSavedContent.current = contentString;
       setHasUnsavedChanges(false);
@@ -2026,7 +1981,6 @@ export default function Editor({
             content: contentString,
             type: "document",
           });
-          console.log("📝 Version created for document changes");
         } catch (versionError) {
           console.error("⚠️ Version creation failed:", versionError);
         }
@@ -2042,7 +1996,6 @@ export default function Editor({
       }
     } finally {
       isSaving.current = false;
-      console.log("🏁 Save process finished");
     }
   }, [
     editor,
@@ -2063,18 +2016,7 @@ export default function Editor({
   const handleRestoreVersion = useCallback(
     async (version: any) => {
       try {
-        console.log("🎯 EDITOR: Starting document version restore", {
-          versionId: version.id,
-          versionNumber: version.version,
-          versionType: version.type,
-          windowMode,
-          activeComponent,
-          currentComponent: "editor",
-        });
-
         await restoreVersion(version.id, "document");
-
-        console.log("✅ EDITOR: Document version restore completed");
 
         setShowVersionHistory(false);
 
@@ -2222,10 +2164,9 @@ export default function Editor({
 
   const handleUpdateComment = useCallback(
     (commentId: string, content: string) => {
-      console.log("✏️ Updating comment:", commentId, content);
       updateComment(commentId, { content })
         .then((updatedComment) => {
-          console.log("✅ Comment updated successfully:", updatedComment);
+          updatedComment;
         })
         .catch((error) => {
           console.error("❌ Failed to update comment:", error);
@@ -2236,17 +2177,12 @@ export default function Editor({
 
   const handleResolveComment = useCallback(
     (commentId: string) => {
-      console.log("🔄 Resolving comment:", commentId);
       const comment = comments.find((c) => c.id === commentId);
       if (comment) {
         const newStatus = comment.status === "OPEN" ? "RESOLVED" : "OPEN";
-        console.log("📝 Updating status:", {
-          from: comment.status,
-          to: newStatus,
-        });
         updateComment(commentId, { status: newStatus })
           .then((updatedComment) => {
-            console.log("✅ Comment updated:", updatedComment);
+            updatedComment;
           })
           .catch((error) => {
             console.error("❌ Failed to update comment:", error);

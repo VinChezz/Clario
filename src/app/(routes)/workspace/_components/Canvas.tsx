@@ -36,7 +36,7 @@ const Excalidraw = dynamic(
         </div>
       </div>
     ),
-  }
+  },
 );
 
 interface CanvasProps {
@@ -112,7 +112,7 @@ export default function Canvas({
   const allActiveUsers = [...httpActiveUsers, ...wsActiveUsers].reduce(
     (acc, user) => {
       const existingIndex = acc.findIndex(
-        (u: any) => u.user?.id === user.user?.id
+        (u: any) => u.user?.id === user.user?.id,
       );
       if (existingIndex === -1) {
         acc.push(user);
@@ -127,7 +127,7 @@ export default function Canvas({
       }
       return acc;
     },
-    [] as any[]
+    [] as any[],
   );
 
   const { cursors, sendCursorUpdate, subscribeToCursorUpdates } =
@@ -188,29 +188,20 @@ export default function Canvas({
   }, []);
 
   useEffect(() => {
-    console.log("🔄 Canvas: fileData changed", {
-      hasWhiteboard: !!fileData?.whiteboard,
-      hasAppliedInitialData: hasAppliedInitialData.current,
-      whiteboardLength: fileData?.whiteboard?.length || 0,
-    });
-
     if (fileData?.whiteboard) {
       try {
         const data = JSON.parse(fileData.whiteboard);
-        console.log("📁 Loaded whiteboard data:", data.length, "elements");
 
         setWhiteBoardData(data);
         lastSavedContent.current = fileData.whiteboard;
 
         if (excalidrawRef.current && isInitialized) {
-          console.log("🔄 Applying whiteboard data to initialized Excalidraw");
           excalidrawRef.current.updateScene({
             elements: data,
             commitToHistory: false,
           });
           hasAppliedInitialData.current = true;
         } else if (!hasAppliedInitialData.current) {
-          console.log("📝 Whiteboard data ready for Excalidraw initialization");
           hasAppliedInitialData.current = false;
         }
 
@@ -220,9 +211,6 @@ export default function Canvas({
             const currentContent = JSON.stringify(currentElements);
 
             if (currentContent !== fileData.whiteboard) {
-              console.log(
-                "⚠️ Content mismatch detected, setting unsaved changes"
-              );
               setHasUnsavedChanges(true);
             } else {
               setHasUnsavedChanges(false);
@@ -233,7 +221,6 @@ export default function Canvas({
         console.error("Failed to parse whiteboard data:", e);
       }
     } else if (fileData && !fileData.whiteboard) {
-      console.log("📝 No whiteboard data, initializing empty");
       setWhiteBoardData([]);
       lastSavedContent.current = "[]";
       hasAppliedInitialData.current = false;
@@ -243,25 +230,17 @@ export default function Canvas({
   useEffect(() => {
     if (!currentUser) return;
 
-    console.log("🔌 Starting realtime services...");
-
     fetchComments();
 
     if (!canEdit) return;
 
     const unsubscribeContent = subscribeToContentUpdates((content, user) => {
-      console.log("🎉 RECEIVED content update from:", user?.name, {
-        elements: content?.length || 0,
-      });
-
       if (excalidrawRef.current && content) {
         const contentString = JSON.stringify(content);
         if (contentString === lastSentContent.current) {
-          console.log("🔄 Ignoring own content (already sent)");
           return;
         }
 
-        console.log("🔄 Applying remote content to canvas");
         isApplyingRemoteUpdate.current = true;
 
         excalidrawRef.current.updateScene({
@@ -282,14 +261,7 @@ export default function Canvas({
     });
 
     const unsubscribeSync = subscribeToContentSync((content) => {
-      console.log(
-        "🔄 RECEIVED canvas_content_sync:",
-        content?.length || 0,
-        "elements"
-      );
-
       if (excalidrawRef.current && content && content.length > 0) {
-        console.log("🔄 Applying sync content to canvas");
         isApplyingRemoteUpdate.current = true;
 
         excalidrawRef.current.updateScene({
@@ -313,7 +285,6 @@ export default function Canvas({
     const unsubscribeCursors = subscribeToCursorUpdates();
 
     return () => {
-      console.log("🧹 Cleaning up realtime services");
       unsubscribeContent();
       unsubscribeSync();
       unsubscribeCursors();
@@ -364,7 +335,7 @@ export default function Canvas({
         sendContentUpdate(elements);
       }
     }, 50),
-    [isConnected, currentUser, canEdit, sendContentUpdate]
+    [isConnected, currentUser, canEdit, sendContentUpdate],
   );
 
   const handleSignificantChange = useCallback(
@@ -387,8 +358,6 @@ export default function Canvas({
       const normalizedNew = normalizeContent(contentString);
 
       if (normalizedNew !== normalizedCurrent) {
-        console.log("🔄 Auto-saving whiteboard due to significant changes");
-
         fetch(`/api/files/${fileId}`, {
           method: "PATCH",
           headers: {
@@ -400,7 +369,6 @@ export default function Canvas({
         })
           .then((res) => {
             if (res.ok) {
-              console.log("✅ Whiteboard auto-saved");
               lastSavedContent.current = contentString;
               setHasUnsavedChanges(false);
             }
@@ -410,7 +378,7 @@ export default function Canvas({
           });
       }
     }, 5000),
-    [fileId, canEdit, hasUnsavedChanges, fileData]
+    [fileId, canEdit, hasUnsavedChanges, fileData],
   );
 
   const sendImmediateUpdate = useCallback(
@@ -420,11 +388,6 @@ export default function Canvas({
         if (contentString === lastSentContent.current) {
           return;
         }
-
-        console.log("⚡📤 SENDING CONTENT immediately:", {
-          elements: elements.length,
-          user: currentUser.name,
-        });
 
         lastSentContent.current = contentString;
         sendContentUpdate(elements);
@@ -438,12 +401,11 @@ export default function Canvas({
       canEdit,
       sendContentUpdate,
       handleSignificantChange,
-    ]
+    ],
   );
 
   const handleCanvasSave = useCallback(async () => {
     if (!canEdit) {
-      console.log("❌ No permission to save whiteboard");
       if (windowMode === "split") {
         toast.error("No permission to save");
       }
@@ -451,8 +413,6 @@ export default function Canvas({
     }
 
     try {
-      console.log("💾 Canvas manual save triggered...");
-
       const elements = excalidrawRef.current?.getSceneElements() || [];
       const contentString = JSON.stringify(elements);
 
@@ -470,19 +430,10 @@ export default function Canvas({
       const normalizedCurrent = normalizeContent(currentContent);
       const normalizedNew = normalizeContent(contentString);
 
-      console.log("🔍 Content comparison:", {
-        current: normalizedCurrent.length,
-        new: normalizedNew.length,
-        hasChanges: normalizedNew !== normalizedCurrent,
-      });
-
       if (normalizedNew === normalizedCurrent) {
-        console.log("✅ No changes detected, skipping save");
-        toast.info("No changes to save");
         return;
       }
 
-      console.log("💾 Saving whiteboard to database...");
       const res = await fetch(`/api/files/${fileId}`, {
         method: "PATCH",
         headers: {
@@ -494,8 +445,6 @@ export default function Canvas({
       });
 
       if (!res.ok) throw new Error("Failed to save whiteboard");
-
-      console.log("✅ Whiteboard saved successfully!");
 
       lastSavedContent.current = contentString;
       setHasUnsavedChanges(false);
@@ -510,13 +459,11 @@ export default function Canvas({
             content: contentString,
             type: "whiteboard",
           });
-          console.log("📝 Version created for whiteboard changes");
         } catch (versionError) {
           console.error("⚠️ Version creation failed:", versionError);
         }
       } else if (hasRealChanges && elements.length === 0) {
         try {
-          console.log("🆕 Creating empty whiteboard version...");
           await createManualVersion({
             name: `Whiteboard cleared - ${new Date().toLocaleString()}`,
             description: "Whiteboard cleared",
@@ -527,7 +474,7 @@ export default function Canvas({
           console.error("⚠️ Version creation failed:", versionError);
         }
       } else {
-        console.log("🔄 No version created - no significant changes");
+        return;
       }
 
       if (onSaveSuccess) {
@@ -547,24 +494,6 @@ export default function Canvas({
     onSaveSuccess,
     windowMode,
   ]);
-
-  const handleClearCanvas = useCallback(() => {
-    if (excalidrawRef.current && canEdit) {
-      excalidrawRef.current.updateScene({
-        elements: [],
-        commitToHistory: true,
-      });
-
-      setTimeout(() => {
-        if (excalidrawRef.current) {
-          const elements = excalidrawRef.current.getSceneElements();
-          sendImmediateUpdate(elements);
-          setHasUnsavedChanges(true);
-          toast.info("Canvas cleared");
-        }
-      }, 100);
-    }
-  }, [canEdit, sendImmediateUpdate]);
 
   const handlePointerUp = useCallback(() => {
     setTimeout(() => {
@@ -596,22 +525,14 @@ export default function Canvas({
 
   useEffect(() => {
     if (showVersionHistory) {
-      console.log("🔄 Fetching versions for VersionHistory...");
+      return;
     }
   }, [showVersionHistory]);
 
   const handleRestoreVersion = useCallback(
     async (version: any) => {
       try {
-        console.log("🎯 CANVAS: Starting whiteboard version restore", {
-          versionId: version.id,
-          versionType: version.type,
-          componentType: "canvas",
-        });
-
         await restoreVersion(version.id, "whiteboard");
-
-        toast.success(`Version ${version.version} restored successfully!`);
 
         setShowVersionHistory(false);
       } catch (error) {
@@ -620,7 +541,7 @@ export default function Canvas({
         if (error instanceof Error) {
           if (error.message.includes("Type mismatch")) {
             toast.error(
-              "This version can only be restored in the Document panel"
+              "This version can only be restored in the Document panel",
             );
           } else {
             toast.error(`Restore failed: ${error.message}`);
@@ -630,7 +551,7 @@ export default function Canvas({
         }
       }
     },
-    [restoreVersion]
+    [restoreVersion],
   );
 
   const onChange = useCallback(
@@ -651,17 +572,15 @@ export default function Canvas({
         }
       }
     },
-    [canEdit, sendContentUpdateThrottled, updateLightPresence, fileData]
+    [canEdit, sendContentUpdateThrottled, updateLightPresence, fileData],
   );
 
   const handleExcalidrawReady = useCallback(
     (api: any) => {
-      console.log("🎉 Excalidraw ready");
       excalidrawRef.current = api;
       setIsInitialized(true);
 
       if (whiteBoardData && whiteBoardData.length > 0) {
-        console.log("🔄 Applying whiteboard data to ready Excalidraw");
         api.updateScene({
           elements: whiteBoardData,
           commitToHistory: false,
@@ -671,7 +590,7 @@ export default function Canvas({
       } else if (fileData?.whiteboard && !hasAppliedInitialData.current) {
         try {
           const data = JSON.parse(fileData.whiteboard);
-          console.log("🔄 Loading data from fileData to Excalidraw");
+
           api.updateScene({
             elements: data,
             commitToHistory: false,
@@ -684,7 +603,7 @@ export default function Canvas({
         }
       }
     },
-    [whiteBoardData, fileData]
+    [whiteBoardData, fileData],
   );
 
   const handleCanvasMouseMove = useCallback(
@@ -751,7 +670,7 @@ export default function Canvas({
       currentTool,
       updatePresence,
       updateLightPresence,
-    ]
+    ],
   );
 
   const handleCanvasMouseLeave = useCallback(() => {
@@ -785,7 +704,7 @@ export default function Canvas({
         setSelection(null);
       });
     },
-    [createComment, selection, canEdit]
+    [createComment, selection, canEdit],
   );
 
   const handleReplyComment = useCallback(
@@ -797,7 +716,7 @@ export default function Canvas({
 
       createReply(commentId, content);
     },
-    [createReply, canEdit]
+    [createReply, canEdit],
   );
 
   const handleUpdateComment = useCallback(
@@ -807,16 +726,15 @@ export default function Canvas({
         return;
       }
 
-      console.log("✏️ Updating comment:", commentId, content);
       updateComment(commentId, { content })
         .then((updatedComment) => {
-          console.log("✅ Comment updated successfully:", updatedComment);
+          updatedComment;
         })
         .catch((error) => {
           console.error("❌ Failed to update comment:", error);
         });
     },
-    [updateComment, canEdit]
+    [updateComment, canEdit],
   );
 
   const handleResolveComment = useCallback(
@@ -826,17 +744,12 @@ export default function Canvas({
         return;
       }
 
-      console.log("🔄 Resolving comment:", commentId);
       const comment = comments.find((c) => c.id === commentId);
       if (comment) {
         const newStatus = comment.status === "OPEN" ? "RESOLVED" : "OPEN";
-        console.log("📝 Updating status:", {
-          from: comment.status,
-          to: newStatus,
-        });
         updateComment(commentId, { status: newStatus })
           .then((updatedComment) => {
-            console.log("✅ Comment updated:", updatedComment);
+            updatedComment;
           })
           .catch((error) => {
             console.error("❌ Failed to update comment:", error);
@@ -845,7 +758,7 @@ export default function Canvas({
         console.error("❌ Comment not found:", commentId);
       }
     },
-    [comments, updateComment, canEdit]
+    [comments, updateComment, canEdit],
   );
 
   const handleDeleteComment = useCallback(
@@ -857,7 +770,7 @@ export default function Canvas({
 
       deleteComment(commentId);
     },
-    [deleteComment, canEdit]
+    [deleteComment, canEdit],
   );
 
   const handleDeleteReply = useCallback(
@@ -869,7 +782,7 @@ export default function Canvas({
 
       deleteReply(commentId, replyId);
     },
-    [deleteReply, canEdit]
+    [deleteReply, canEdit],
   );
 
   const handleToggleComments = useCallback(() => {
