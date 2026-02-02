@@ -11,7 +11,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
 
   const connectSocket = useCallback(() => {
     if (!fileId || !currentUser?.id) {
-      console.log("❌ Cannot connect: missing fileId or user");
       return;
     }
 
@@ -19,8 +18,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-
-    console.log("🔌 Connecting to Socket.IO...");
 
     try {
       const socketUrl =
@@ -41,7 +38,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
       });
 
       newSocket.on("connect", () => {
-        console.log("✅ Socket.IO connected successfully");
         setIsConnected(true);
         setIsError(false);
         reconnectAttempts.current = 0;
@@ -50,7 +46,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
       });
 
       newSocket.on("disconnect", (reason) => {
-        console.log("❌ Socket.IO disconnected:", reason);
         setIsConnected(false);
 
         if (reason === "io server disconnect") {
@@ -59,15 +54,11 @@ export const useSocket = (fileId: string, currentUser: any) => {
       });
 
       newSocket.on("connect_error", (error) => {
-        console.error("💥 Socket.IO connection error:", error.message);
         setIsConnected(false);
         setIsError(true);
 
         reconnectAttempts.current += 1;
         if (reconnectAttempts.current <= maxReconnectAttempts) {
-          console.log(
-            `🔄 Reconnection attempt ${reconnectAttempts.current}/${maxReconnectAttempts}`
-          );
           setTimeout(() => {
             connectSocket();
           }, 2000 * reconnectAttempts.current);
@@ -77,7 +68,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
       });
 
       newSocket.on("reconnect", (attemptNumber) => {
-        console.log(`✅ Socket.IO reconnected after ${attemptNumber} attempts`);
         setIsConnected(true);
         setIsError(false);
       });
@@ -107,11 +97,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
     connectSocket();
 
     return () => {
-      console.log("🧹 Cleaning up Socket.IO connection");
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
       setIsConnected(false);
     };
   }, [connectSocket]);
@@ -120,10 +105,9 @@ export const useSocket = (fileId: string, currentUser: any) => {
     (event: string, data: any) => {
       if (socketRef.current && isConnected) {
         try {
-          console.log(`📤 Emitting ${event}:`, data);
           socketRef.current.emit(event, {
             ...data,
-            fileId, // Всегда добавляем fileId
+            fileId,
           });
         } catch (error) {
           console.error(`💥 Error emitting ${event}:`, error);
@@ -132,7 +116,7 @@ export const useSocket = (fileId: string, currentUser: any) => {
         console.warn(`⚠️ Cannot emit ${event}: socket not connected`);
       }
     },
-    [fileId, isConnected]
+    [fileId, isConnected],
   );
 
   const subscribe = useCallback(
@@ -142,20 +126,17 @@ export const useSocket = (fileId: string, currentUser: any) => {
         return () => {};
       }
 
-      console.log(`📡 Subscribing to ${event}`);
       socketRef.current.on(event, callback);
 
       return () => {
-        console.log(`🧹 Unsubscribing from ${event}`);
         socketRef.current?.off(event, callback);
       };
     },
-    []
+    [],
   );
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
-      console.log("🔌 Manually disconnecting Socket.IO");
       socketRef.current.disconnect();
       socketRef.current = null;
       setIsConnected(false);
@@ -163,7 +144,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
   }, []);
 
   const reconnect = useCallback(() => {
-    console.log("🔄 Manually reconnecting Socket.IO");
     reconnectAttempts.current = 0;
     connectSocket();
   }, [connectSocket]);

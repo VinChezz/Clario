@@ -54,57 +54,52 @@ export function useComments(fileId: string, currentUser: any) {
   const sortComments = (comments: Comment[]): Comment[] => {
     return [...comments].sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   };
 
   const handleCommentCreate = useCallback(
     (newComment: any) => {
-      console.log("🔄 Realtime: New comment received", newComment);
       setComments((prev) => {
         const filtered = prev.filter(
           (comment) =>
-            !optimisticIds.has(comment.id) || comment.id !== newComment.id
+            !optimisticIds.has(comment.id) || comment.id !== newComment.id,
         );
         const exists = filtered.find((c) => c.id === newComment.id);
         if (exists) {
           return sortComments(
             filtered.map((comment) =>
-              comment.id === newComment.id ? newComment : comment
-            )
+              comment.id === newComment.id ? newComment : comment,
+            ),
           );
         }
         return sortComments([...filtered, newComment]);
       });
     },
-    [optimisticIds]
+    [optimisticIds],
   );
 
   const handleCommentUpdate = useCallback((updatedComment: any) => {
-    console.log("🔄 Realtime: Comment updated", updatedComment);
     setComments((prev) =>
       sortComments(
         prev.map((comment) =>
-          comment.id === updatedComment.id ? updatedComment : comment
-        )
-      )
+          comment.id === updatedComment.id ? updatedComment : comment,
+        ),
+      ),
     );
   }, []);
 
   const handleCommentDelete = useCallback(
     (data: { commentId: string; fileId: string }) => {
-      console.log("🔄 Realtime: Comment deleted", data.commentId);
       setComments((prev) =>
-        sortComments(prev.filter((comment) => comment.id !== data.commentId))
+        sortComments(prev.filter((comment) => comment.id !== data.commentId)),
       );
     },
-    []
+    [],
   );
 
   const handleReplyCreate = useCallback(
     (data: { commentId: string; reply: any }) => {
-      console.log("🔄 Received reply from socket:", data.reply.id);
-
       setComments((prev) =>
         prev.map((comment) => {
           if (comment.id === data.commentId) {
@@ -112,45 +107,42 @@ export function useComments(fileId: string, currentUser: any) {
             const exists = currentReplies.find((r) => r.id === data.reply.id);
 
             if (exists) {
-              console.log("⚠️ Reply already exists, replacing:", data.reply.id);
               return {
                 ...comment,
                 replies: currentReplies.map((reply) =>
-                  reply.id === data.reply.id ? data.reply : reply
+                  reply.id === data.reply.id ? data.reply : reply,
                 ),
               };
             }
 
-            console.log("➕ Adding new reply from socket");
             return {
               ...comment,
               replies: [...currentReplies, data.reply],
             };
           }
           return comment;
-        })
+        }),
       );
     },
-    []
+    [],
   );
 
   const handleReplyDelete = useCallback(
     (data: { commentId: string; replyId: string }) => {
-      console.log("🔄 Realtime: Reply deleted", data);
       setComments((prev) =>
         prev.map((comment) =>
           comment.id === data.commentId
             ? {
                 ...comment,
                 replies: (comment.replies || []).filter(
-                  (reply) => reply.id !== data.replyId
+                  (reply) => reply.id !== data.replyId,
                 ),
               }
-            : comment
-        )
+            : comment,
+        ),
       );
     },
-    []
+    [],
   );
 
   const realtimeComments = useRealtimeComments({
@@ -171,7 +163,6 @@ export function useComments(fileId: string, currentUser: any) {
       if (!response.ok) throw new Error("Failed to fetch comments");
       const data = await response.json();
       setComments(sortComments(data));
-      console.log("✅ Comments fetched:", data.length);
     } catch (error) {
       console.error("Error fetching comments:", error);
       toast.error("Failed to load comments");
@@ -202,7 +193,6 @@ export function useComments(fileId: string, currentUser: any) {
         updatedAt: new Date().toISOString(),
       };
 
-      console.log("📝 Adding optimistic comment");
       setComments((prev) => [...prev, optimisticComment]);
 
       try {
@@ -215,10 +205,9 @@ export function useComments(fileId: string, currentUser: any) {
         if (!response.ok) throw new Error("Failed to create comment");
 
         const newComment = await response.json();
-        console.log("✅ Comment created:", newComment.id);
 
         setComments((prev) =>
-          prev.map((comment) => (comment.id === tempId ? newComment : comment))
+          prev.map((comment) => (comment.id === tempId ? newComment : comment)),
         );
 
         realtimeComments.emitCommentCreate(newComment);
@@ -232,7 +221,7 @@ export function useComments(fileId: string, currentUser: any) {
         throw error;
       }
     },
-    [fileId, realtimeComments, currentUser]
+    [fileId, realtimeComments, currentUser],
   );
 
   const createReply = useCallback(
@@ -246,7 +235,6 @@ export function useComments(fileId: string, currentUser: any) {
         createdAt: new Date().toISOString(),
       };
 
-      console.log("📝 Adding optimistic reply");
       setComments((prev) =>
         prev.map((comment) =>
           comment.id === commentId
@@ -254,8 +242,8 @@ export function useComments(fileId: string, currentUser: any) {
                 ...comment,
                 replies: [...(comment.replies || []), optimisticReply],
               }
-            : comment
-        )
+            : comment,
+        ),
       );
 
       try {
@@ -268,7 +256,6 @@ export function useComments(fileId: string, currentUser: any) {
         if (!response.ok) throw new Error("Failed to create reply");
 
         const newReply = await response.json();
-        console.log("✅ Reply created:", newReply.id);
 
         setComments((prev) =>
           prev.map((comment) =>
@@ -276,11 +263,11 @@ export function useComments(fileId: string, currentUser: any) {
               ? {
                   ...comment,
                   replies: (comment.replies || []).map((reply) =>
-                    reply.id === tempId ? newReply : reply
+                    reply.id === tempId ? newReply : reply,
                   ),
                 }
-              : comment
-          )
+              : comment,
+          ),
         );
 
         const replyWithFileId = {
@@ -299,18 +286,18 @@ export function useComments(fileId: string, currentUser: any) {
               ? {
                   ...comment,
                   replies: (comment.replies || []).filter(
-                    (reply) => reply.id !== tempId
+                    (reply) => reply.id !== tempId,
                   ),
                 }
-              : comment
-          )
+              : comment,
+          ),
         );
         console.error("Error creating reply:", error);
         toast.error("Failed to add reply");
         throw error;
       }
     },
-    [realtimeComments, currentUser, fileId]
+    [realtimeComments, currentUser, fileId],
   );
 
   const updateComment = useCallback(
@@ -326,8 +313,8 @@ export function useComments(fileId: string, currentUser: any) {
               };
             }
             return comment;
-          })
-        )
+          }),
+        ),
       );
 
       try {
@@ -343,7 +330,6 @@ export function useComments(fileId: string, currentUser: any) {
         }
 
         const updatedComment = await response.json();
-        console.log("✅ Comment updated:", updatedComment);
 
         realtimeComments.emitCommentUpdate(updatedComment);
 
@@ -357,7 +343,7 @@ export function useComments(fileId: string, currentUser: any) {
         throw error;
       }
     },
-    [realtimeComments, fetchComments]
+    [realtimeComments, fetchComments],
   );
 
   const deleteComment = useCallback(
@@ -382,7 +368,7 @@ export function useComments(fileId: string, currentUser: any) {
         throw error;
       }
     },
-    [realtimeComments, fetchComments]
+    [realtimeComments, fetchComments],
   );
 
   const deleteReply = useCallback(
@@ -392,7 +378,7 @@ export function useComments(fileId: string, currentUser: any) {
           `/api/comments/${commentId}/replies/${replyId}`,
           {
             method: "DELETE",
-          }
+          },
         );
 
         if (!response.ok) throw new Error("Failed to delete reply");
@@ -406,7 +392,7 @@ export function useComments(fileId: string, currentUser: any) {
         throw error;
       }
     },
-    [realtimeComments]
+    [realtimeComments],
   );
 
   return {

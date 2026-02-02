@@ -23,27 +23,15 @@ export const useRealtimeSelection = (fileId: string, currentUser: any) => {
 
   const sendSelectionUpdate = useCallback(
     (selectionData: Omit<SelectionData, "user">) => {
-      console.log("📤 Sending selection update:", {
-        text: selectionData.selection.text,
-        length: selectionData.selection.text.length,
-      });
       emitEvent("selection_update", {
         selection: selectionData,
       });
     },
-    [emitEvent]
+    [emitEvent],
   );
 
   const subscribeToSelectionUpdates = useCallback(() => {
-    console.log("📡 Subscribing to selection updates");
-
     return subscribe("selection_update", (data: SelectionData) => {
-      console.log("📨 Received selection update:", {
-        from: data.user?.name,
-        text: data.selection.text,
-        length: data.selection.text.length,
-      });
-
       setSelections((prev) => {
         const existing = prev.find((s) => s.userId === data.userId);
         if (existing) {

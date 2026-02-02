@@ -27,7 +27,6 @@ export function useVersions(fileId: string) {
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Refs для відстеження стану
   const lastVersionTime = useRef<number>(0);
   const pendingAutoVersion = useRef<NodeJS.Timeout | null>(null);
 
@@ -36,20 +35,19 @@ export function useVersions(fileId: string) {
 
     setIsLoading(true);
     try {
-      console.log(`📋 Fetching versions for file: ${fileId}`);
       const response = await fetch(`/api/files/${fileId}/versions`);
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error(
           `❌ Failed to fetch versions: ${response.status}`,
-          errorText
+          errorText,
         );
         throw new Error(`Failed to fetch versions: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log(`✅ Versions fetched:`, data.length);
+
       setVersions(data);
     } catch (error) {
       console.error("Error fetching versions:", error);
@@ -64,17 +62,10 @@ export function useVersions(fileId: string) {
       const { name, description, content } = options;
 
       try {
-        console.log(`🆕 Creating version for file: ${fileId}`, {
-          name,
-          contentLength: content.length,
-        });
-
-        // Перевіряємо валідність контенту
         if (!content || content.length === 0) {
           throw new Error("Content cannot be empty");
         }
 
-        // Перевіряємо, чи це валідний JSON
         try {
           JSON.parse(content);
         } catch (parseError) {
@@ -95,7 +86,7 @@ export function useVersions(fileId: string) {
         if (!response.ok) {
           console.error(
             `❌ Failed to create version: ${response.status}`,
-            responseText
+            responseText,
           );
 
           let errorMessage = `Failed to create version: ${response.status}`;
@@ -109,11 +100,8 @@ export function useVersions(fileId: string) {
           throw new Error(errorMessage);
         }
 
-        // Парсимо успішну відповідь
         const newVersion = JSON.parse(responseText);
-        console.log(`✅ Version created:`, newVersion.id);
 
-        // Оновлюємо стан
         setVersions((prev) => [newVersion, ...prev]);
         lastVersionTime.current = Date.now();
 
@@ -123,42 +111,34 @@ export function useVersions(fileId: string) {
         throw error;
       }
     },
-    [fileId]
+    [fileId],
   );
 
-  // Автоматичне створення версії з дебаунсом та перевірками
   const createAutoVersion = useCallback(
     (options: CreateVersionOptions) => {
       const now = Date.now();
       const timeSinceLastVersion = now - lastVersionTime.current;
-      const minTimeBetweenAutoVersions = 2 * 60 * 1000; // 2 хвилини
+      const minTimeBetweenAutoVersions = 2 * 60 * 1000;
 
-      // Якщо минуло менше 2 хвилин з останньої версії - пропускаємо
       if (timeSinceLastVersion < minTimeBetweenAutoVersions) {
-        console.log("⏰ Too soon since last version, skipping auto-version");
         return;
       }
 
-      // Очищаємо попередній таймер
       if (pendingAutoVersion.current) {
         clearTimeout(pendingAutoVersion.current);
       }
 
-      // Встановлюємо новий таймер (30 секунд дебаунс для авто-версій)
       pendingAutoVersion.current = setTimeout(() => {
         createVersion(options).catch((error) => {
           console.error("❌ Auto-version creation failed:", error);
-          // Не показуємо toast для автоматичних помилок
         });
-      }, 30000); // 30 секунд
+      }, 30000);
     },
-    [createVersion]
+    [createVersion],
   );
 
-  // Примусове створення версії (для кнопки save)
   const createManualVersion = useCallback(
     async (options: CreateVersionOptions) => {
-      // Очищаємо авто-таймер
       if (pendingAutoVersion.current) {
         clearTimeout(pendingAutoVersion.current);
         pendingAutoVersion.current = null;
@@ -166,17 +146,14 @@ export function useVersions(fileId: string) {
 
       return await createVersion(options);
     },
-    [createVersion]
+    [createVersion],
   );
 
   const restoreVersion = useCallback(
     async (versionId: string) => {
       try {
-        console.log(`🔄 Restoring version via query params: ${versionId}`);
-
-        // Використовуємо endpoint з query параметрами
         const response = await fetch(
-          `/api/versions/restore?fileId=${fileId}&versionId=${versionId}`
+          `/api/versions/restore?fileId=${fileId}&versionId=${versionId}`,
         );
 
         const responseText = await response.text();
@@ -184,7 +161,7 @@ export function useVersions(fileId: string) {
         if (!response.ok) {
           console.error(
             `❌ Failed to restore: ${response.status}`,
-            responseText
+            responseText,
           );
 
           let errorMessage = `Failed to restore version: ${response.status}`;
@@ -199,14 +176,13 @@ export function useVersions(fileId: string) {
         }
 
         const restoreData = JSON.parse(responseText);
-        console.log(`✅ Version data retrieved:`, restoreData.version.id);
         return restoreData;
       } catch (error) {
         console.error("❌ Error restoring version:", error);
         throw error;
       }
     },
-    [fileId]
+    [fileId],
   );
 
   return {

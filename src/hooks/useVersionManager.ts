@@ -30,7 +30,7 @@ interface UseVersionManagerProps {
   fileData: any;
   onVersionRestore?: (
     content: string,
-    type: "document" | "whiteboard"
+    type: "document" | "whiteboard",
   ) => void | Promise<void>;
 }
 
@@ -51,15 +51,11 @@ export function useVersionManager({
 
       const now = Date.now();
       if (!forceRefresh && now - lastFetchRef.current < 2000) {
-        console.log("🔄 Using cached versions (request too recent)");
         return;
       }
 
       setIsLoading(true);
       try {
-        console.log(`📋 Fetching versions for file: ${fileId}`, {
-          forceRefresh,
-        });
         const response = await fetch(`/api/files/${fileId}/versions?t=${now}`);
 
         if (!response.ok) {
@@ -72,7 +68,6 @@ export function useVersionManager({
         }
 
         const data = await response.json();
-        console.log(`✅ Versions fetched:`, data.length);
 
         setVersions(data);
         lastFetchRef.current = now;
@@ -86,7 +81,7 @@ export function useVersionManager({
         setIsLoading(false);
       }
     },
-    [fileId]
+    [fileId],
   );
 
   const createManualVersion = useCallback(
@@ -94,12 +89,6 @@ export function useVersionManager({
       const { name, description, content, type } = options;
 
       try {
-        console.log(`🆕 Creating ${type} version for file: ${fileId}`, {
-          name,
-          contentLength: content.length,
-          type,
-        });
-
         if (!content || content.length === 0) {
           console.error("❌ Empty content for version");
           throw new Error("Content cannot be empty");
@@ -111,7 +100,7 @@ export function useVersionManager({
           } catch (parseError) {
             console.error(
               "❌ Invalid JSON content for whiteboard:",
-              parseError
+              parseError,
             );
             throw new Error("Whiteboard content must be valid JSON");
           }
@@ -146,7 +135,7 @@ export function useVersionManager({
             };
 
             setVersions((prev) => [localVersion, ...prev]);
-            console.log(`✅ Local ${type} version created:`, localVersion.id);
+
             return localVersion;
           }
 
@@ -154,7 +143,6 @@ export function useVersionManager({
         }
 
         const newVersion = await response.json();
-        console.log(`✅ ${type} version created successfully:`, newVersion.id);
 
         setVersions((prev) => [newVersion, ...prev]);
 
@@ -181,23 +169,16 @@ export function useVersionManager({
         };
 
         setVersions((prev) => [fallbackVersion, ...prev]);
-        console.log(`✅ Fallback ${type} version created:`, fallbackVersion.id);
+
         return fallbackVersion;
       }
     },
-    [fileId, versions.length]
+    [fileId, versions.length],
   );
 
   const restoreVersion = useCallback(
     async (versionId: string, expectedType?: "document" | "whiteboard") => {
       try {
-        console.log("🎯 VERSION MANAGER: Restore called", {
-          versionId,
-          expectedType,
-          fileId,
-          hasOnVersionRestore: !!onVersionRestore,
-        });
-
         if (!versions.length) {
           console.warn("⚠️ Versions list empty — fetching...");
           await fetchVersions(true);
@@ -219,11 +200,10 @@ export function useVersionManager({
         throw error;
       }
     },
-    [fileId, onVersionRestore, versions, fetchVersions]
+    [fileId, onVersionRestore, versions, fetchVersions],
   );
 
   const refreshVersions = useCallback(async () => {
-    console.log("🔄 Manual refresh of versions requested");
     return await fetchVersions(true);
   }, [fetchVersions]);
 

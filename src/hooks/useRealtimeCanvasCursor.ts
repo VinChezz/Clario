@@ -56,7 +56,7 @@ export const useRealtimeCanvasCursor = (fileId: string, currentUser: any) => {
         cursor: fullCursorData,
       });
     },
-    [emitEvent, isConnected, currentUser]
+    [emitEvent, isConnected, currentUser],
   );
 
   const subscribeToCursorUpdates = useCallback(() => {
@@ -74,15 +74,14 @@ export const useRealtimeCanvasCursor = (fileId: string, currentUser: any) => {
             return [...prev, data];
           }
         });
-      }
+      },
     );
 
     const unsubscribeUserLeft = subscribe(
       "user_left",
       (data: { userId: string }) => {
-        console.log("🗑️ User left, removing cursor:", data.userId);
         setCursors((prev) => prev.filter((c) => c.userId !== data.userId));
-      }
+      },
     );
 
     return () => {
@@ -92,7 +91,6 @@ export const useRealtimeCanvasCursor = (fileId: string, currentUser: any) => {
   }, [subscribe]);
 
   const removeCursor = useCallback((userId: string) => {
-    console.log("🗑️ Removing canvas cursor:", userId);
     setCursors((prev) => prev.filter((c) => c.userId !== userId));
   }, []);
 

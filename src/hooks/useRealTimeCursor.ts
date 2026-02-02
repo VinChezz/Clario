@@ -47,7 +47,7 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
 
       emitEvent("editor_cursor_update", { cursor: fullCursorData });
     },
-    [emitEvent, isConnected, currentUser]
+    [emitEvent, isConnected, currentUser],
   );
 
   const subscribeToCursorUpdates = useCallback(() => {
@@ -70,15 +70,14 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
             return [...prev, newCursor];
           }
         });
-      }
+      },
     );
 
     const unsubscribeUserLeft = subscribe(
       "user_left",
       (data: { userId: string }) => {
-        console.log("🗑️ User left, removing cursor:", data.userId);
         setCursors((prev) => prev.filter((c) => c.userId !== data.userId));
-      }
+      },
     );
 
     return () => {
@@ -94,14 +93,8 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
 
       setCursors((prev) => {
         const activeCursors = prev.filter(
-          (cursor) => now - (cursor.lastActive || 0) < INACTIVE_THRESHOLD
+          (cursor) => now - (cursor.lastActive || 0) < INACTIVE_THRESHOLD,
         );
-
-        if (activeCursors.length !== prev.length) {
-          console.log(
-            `🕒 Cleaned ${prev.length - activeCursors.length} inactive cursors`
-          );
-        }
 
         return activeCursors;
       });
@@ -111,7 +104,6 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
   }, []);
 
   const removeCursor = useCallback((userId: string) => {
-    console.log("🗑️ Removing cursor:", userId);
     setCursors((prev) => prev.filter((c) => c.userId !== userId));
   }, []);
 

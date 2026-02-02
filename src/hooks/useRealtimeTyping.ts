@@ -26,32 +26,23 @@ export const useRealtimeTyping = (fileId: string, currentUser: any) => {
               typingData.userColor || generateUserColor(currentUser.id),
             position: typingData.position || { x: 0, y: 0 },
             isTyping: Boolean(typingData.isTyping),
-            lastActive: Date.now(), // Добавляем временную метку
+            lastActive: Date.now(),
           },
         });
       }
     },
-    [emitEvent, isConnected, currentUser]
+    [emitEvent, isConnected, currentUser],
   );
 
   const subscribeToTypingUpdates = useCallback(() => {
-    console.log("📡 SUBSCRIBING to typing_update");
-
     return subscribe("typing_update", (data: any) => {
-      console.log("⌨️ RECEIVED typing_update:", {
-        from: data.user?.name,
-        position: data.position,
-        isTyping: data.isTyping,
-      });
-
       if (data.user?.id === currentUser?.id) {
-        console.log("🔄 Ignoring own typing update");
         return;
       }
 
       setTypingCursors((prev) => {
         const filtered = prev.filter(
-          (cursor) => cursor.user?.id !== data.user?.id
+          (cursor) => cursor.user?.id !== data.user?.id,
         );
 
         if (!data.isTyping) {
@@ -70,8 +61,8 @@ export const useRealtimeTyping = (fileId: string, currentUser: any) => {
 
       setTypingCursors((prev) =>
         prev.filter(
-          (cursor) => now - (cursor.lastActive || 0) < INACTIVE_THRESHOLD
-        )
+          (cursor) => now - (cursor.lastActive || 0) < INACTIVE_THRESHOLD,
+        ),
       );
     }, 100);
 

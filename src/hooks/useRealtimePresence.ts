@@ -8,8 +8,6 @@ export function useRealtimePresence(fileId: string, currentUser: any) {
   const updateRealtimePresence = useCallback(
     (status: string, cursor?: any) => {
       if (isConnected && currentUser && fileId) {
-        console.log("🔄 Sending realtime presence:", { status, cursor });
-
         emitEvent("presence_update", {
           fileId,
           status,
@@ -18,27 +16,18 @@ export function useRealtimePresence(fileId: string, currentUser: any) {
         });
       }
     },
-    [emitEvent, isConnected, currentUser, fileId]
+    [emitEvent, isConnected, currentUser, fileId],
   );
 
   const subscribeToPresenceUpdates = useCallback(() => {
-    console.log("📡 Subscribing to realtime presence updates");
-
     const unsubscribeRoomState = subscribe(
       "room_presence_state",
       (users: any[]) => {
-        console.log("🏠 Received room presence state:", users.length, "users");
         setActiveUsers(users);
-      }
+      },
     );
 
     const unsubscribeJoined = subscribe("user_joined_presence", (data: any) => {
-      console.log(
-        "👋 User joined via WebSocket:",
-        data.user?.name,
-        data.status
-      );
-
       setActiveUsers((prev) => {
         const exists = prev.find((u) => u.user?.id === data.user?.id);
         if (exists) {
@@ -49,7 +38,7 @@ export function useRealtimePresence(fileId: string, currentUser: any) {
                   id: data.user?.id,
                   lastActive: data.lastActive || new Date().toISOString(),
                 }
-              : u
+              : u,
           );
         }
         return [
@@ -66,20 +55,13 @@ export function useRealtimePresence(fileId: string, currentUser: any) {
     const unsubscribeLeft = subscribe(
       "user_left_presence",
       (data: { userId: string }) => {
-        console.log("👋 User left via WebSocket:", data.userId);
         setActiveUsers((prev) =>
-          prev.filter((u) => u.user?.id !== data.userId)
+          prev.filter((u) => u.user?.id !== data.userId),
         );
-      }
+      },
     );
 
     const unsubscribePresence = subscribe("presence_updated", (data: any) => {
-      console.log(
-        "🔄 Presence updated via WebSocket:",
-        data.user?.name,
-        data.status
-      );
-
       setActiveUsers((prev) => {
         const exists = prev.find((u) => u.user?.id === data.user?.id);
         if (exists) {
@@ -90,7 +72,7 @@ export function useRealtimePresence(fileId: string, currentUser: any) {
                   id: data.user?.id,
                   lastActive: data.lastActive || new Date().toISOString(),
                 }
-              : u
+              : u,
           );
         }
         return [
