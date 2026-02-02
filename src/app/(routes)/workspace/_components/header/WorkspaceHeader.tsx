@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Save, MoreHorizontal, RefreshCw } from "lucide-react";
+import { Save, MoreHorizontal, RefreshCw, HardDrive, Lock } from "lucide-react";
 import Image from "next/image";
 import React, { useState, useEffect } from "react";
 import { FILE } from "@/shared/types/file.interface";
@@ -15,6 +15,7 @@ import { useFilePermissions } from "@/hooks/useFilePermissions";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { useStorage } from "@/hooks/useStorage";
 import { calculateVersionSize } from "@/lib/fileSizeCalculator";
+import { cn } from "@/lib/utils";
 
 interface WorkspaceHeaderProps {
   file?: FILE;
@@ -44,6 +45,10 @@ export default function WorkspaceHeader({
   const isMobile = useIsMobile();
   const { activeTeam } = useActiveTeam();
   const storageHook = useStorage(activeTeam?.id);
+  const [storageCheck, setStorageCheck] = useState<{
+    canSave: boolean;
+    message?: string;
+  }>({ canSave: true });
 
   const {
     permissions,
@@ -60,14 +65,8 @@ export default function WorkspaceHeader({
     const limitBytes = BigInt(storageHook.data.storage.limitBytes);
     const currentPercentage = storageHook.percentage;
 
-    if (currentPercentage >= 100) {
-      return {
-        canSave: false,
-        message: "Storage is full! Delete files or upgrade plan",
-      };
-    }
-
-    let estimatedVersionSize = BigInt(75 * 1024 * 1024);
+    // Проверяем, достаточно ли места для сохранения новой версии
+    let estimatedVersionSize = BigInt(75 * 1024 * 1024); // Базовый размер версии
 
     if (currentContent) {
       if (currentContent.editor) {
@@ -85,16 +84,45 @@ export default function WorkspaceHeader({
     }
 
     const newUsedBytes = usedBytes + estimatedVersionSize;
+
+    // Проверяем, превысит ли сохранение лимит
     if (newUsedBytes > limitBytes) {
       const overLimitMB = Number(newUsedBytes - limitBytes) / (1024 * 1024);
       return {
         canSave: false,
-        message: `Not enough storage. Need ${Math.ceil(overLimitMB)}MB more`,
+        message: `Storage full. Need ${Math.ceil(overLimitMB)}MB more space`,
+      };
+    }
+
+    // Проверяем общее заполнение хранилища
+    if (currentPercentage >= 100) {
+      return {
+        canSave: false,
+        message: "Storage completely full! Delete files or upgrade plan.",
+      };
+    }
+
+    if (currentPercentage >= 95) {
+      return {
+        canSave: false,
+        message: "Storage almost full (>95%). Cannot save.",
+      };
+    }
+
+    if (currentPercentage >= 90) {
+      return {
+        canSave: false,
+        message: "Storage almost full (>90%). Save may fail.",
       };
     }
 
     return { canSave: true };
   };
+
+  useEffect(() => {
+    const check = checkStorageBeforeSave();
+    setStorageCheck(check);
+  }, [storageHook.data, storageHook.percentage, currentContent]);
 
   const handleSave = async () => {
     if (!canEdit) {
@@ -102,7 +130,6 @@ export default function WorkspaceHeader({
       return;
     }
 
-    const storageCheck = checkStorageBeforeSave();
     if (!storageCheck.canSave) {
       toast.error(storageCheck.message || "Cannot save due to storage limits");
       return;
@@ -113,7 +140,6 @@ export default function WorkspaceHeader({
       const results = await onSave();
 
       if (results.editor || results.canvas) {
-        toast.success("Changes saved");
         storageHook.refresh();
       }
     } catch (error: any) {
@@ -155,21 +181,43 @@ export default function WorkspaceHeader({
 
   const getSaveButtonState = () => {
     if (!canEdit) {
+      if (!storageCheck.canSave) {
+        return {
+          disabled: true,
+          title: storageCheck.message || "Storage is full",
+          className:
+            "text-red-400 dark:text-red-400 cursor-not-allowed opacity-70 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50",
+          icon: <Lock className="h-4 w-4" />,
+          text: "Storage Full",
+        };
+      }
       return {
         disabled: true,
         title: "View-only mode. No permission to save.",
         className:
           "text-gray-400 dark:text-[#707070] cursor-not-allowed opacity-50",
+        icon: <Save className="h-4 w-4" />,
+        text: "View Only",
       };
     }
 
-    const storageCheck = checkStorageBeforeSave();
     if (!storageCheck.canSave) {
+      const isCritical = storageHook.percentage >= 95;
       return {
         disabled: true,
         title: storageCheck.message || "Storage limit reached",
-        className:
-          "text-red-400 dark:text-red-400 cursor-not-allowed opacity-70",
+        className: cn(
+          "cursor-not-allowed font-medium",
+          isCritical
+            ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-800/50"
+            : "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-800/50",
+        ),
+        icon: isCritical ? (
+          <Lock className="h-4 w-4" />
+        ) : (
+          <HardDrive className="h-4 w-4" />
+        ),
+        text: isCritical ? "Storage Full" : "Low Storage",
       };
     }
 
@@ -178,11 +226,15 @@ export default function WorkspaceHeader({
       title: "Save changes",
       className:
         "text-gray-700 dark:text-[#f0f0f0] hover:bg-gray-100 dark:hover:bg-[#252528] hover:text-gray-900 dark:hover:text-[#f0f0f0]",
+      icon: <Save className={`h-4 w-4 ${isSaving ? "animate-spin" : ""}`} />,
+      text: isSaving ? "Saving..." : "Save",
     };
   };
 
   const saveButtonState = getSaveButtonState();
   const hasWindowControls = onWindowModeChange && onActiveComponentChange;
+
+  const showStorageWarning = storageHook.percentage >= 85;
 
   if (permissionsLoading) {
     return (
@@ -225,8 +277,17 @@ export default function WorkspaceHeader({
               >
                 {permissions}
               </span>
-              {storageHook.percentage >= 90 && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 animate-pulse">
+              {showStorageWarning && (
+                <span
+                  className={cn(
+                    "text-xs px-2 py-0.5 rounded-full font-medium",
+                    storageHook.percentage >= 95
+                      ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 animate-pulse"
+                      : storageHook.percentage >= 90
+                        ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300"
+                        : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
+                  )}
+                >
                   {Math.round(storageHook.percentage)}% full
                 </span>
               )}
@@ -237,19 +298,18 @@ export default function WorkspaceHeader({
 
       <div className="flex items-center gap-2">
         <Button
-          variant="ghost"
+          variant={!storageCheck.canSave ? "outline" : "ghost"}
           size="sm"
           onClick={handleSave}
           disabled={saveButtonState.disabled}
-          className={`h-9 px-3 gap-2 font-medium transition-all duration-200 ${saveButtonState.className} ${
-            isSaving ? "animate-pulse" : ""
-          }`}
+          className={cn(
+            "h-9 px-3 gap-2 font-medium transition-all duration-200",
+            saveButtonState.className,
+          )}
           title={saveButtonState.title}
         >
-          <Save className={`h-4 w-4 ${isSaving ? "animate-spin" : ""}`} />
-          <span className="hidden sm:inline">
-            {isSaving ? "Saving..." : "Save"}
-          </span>
+          {saveButtonState.icon}
+          <span className="hidden sm:inline">{saveButtonState.text}</span>
         </Button>
 
         <ShareButton
@@ -257,26 +317,6 @@ export default function WorkspaceHeader({
           fileName={file?.fileName || "Untitled"}
           permissions={permissions}
         />
-
-        {storageHook.data && (
-          <div className="flex items-center gap-1 text-xs">
-            <div className="w-16 h-1.5 bg-gray-200 dark:bg-[#2a2a2d] rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full ${
-                  storageHook.percentage >= 90
-                    ? "bg-red-500"
-                    : storageHook.percentage >= 80
-                      ? "bg-amber-500"
-                      : "bg-green-500"
-                }`}
-                style={{ width: `${Math.min(storageHook.percentage, 100)}%` }}
-              />
-            </div>
-            <span className="text-gray-500 dark:text-[#a0a0a0]">
-              {Math.round(storageHook.percentage)}%
-            </span>
-          </div>
-        )}
 
         {hasWindowControls && (
           <div className="flex items-center gap-1 border-l border-gray-200 dark:border-[#2a2a2d] pl-2 ml-1">
