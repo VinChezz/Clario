@@ -85,7 +85,6 @@ export default function SideNav({
         return;
       }
 
-      toast.success("File created successfully!");
       getFiles();
       onCloseSidebar?.();
     } catch (err) {
@@ -125,7 +124,7 @@ export default function SideNav({
           getSidebarWidth(),
           getSidebarHeight(),
           getSidebarVisibility(),
-          isDesktop && "fixed lg:relative"
+          isDesktop && "fixed lg:relative",
         )}
         style={{
           height: isMobile ? "100dvh" : "100vh",
@@ -136,7 +135,7 @@ export default function SideNav({
           className={cn(
             "flex items-center justify-between border-gray-100 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c]/95 backdrop-blur-sm shrink-0",
             "p-4",
-            isMobile && "pt-[env(safe-area-inset-top,20px)]"
+            isMobile && "pt-[env(safe-area-inset-top,20px)]",
           )}
         >
           <div className="flex items-center gap-3 pt-3">
