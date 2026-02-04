@@ -161,17 +161,18 @@ export function AccountInfo() {
     },
   });
 
-  const { data: storageStats, isLoading: isLoadingStorage } =
-    useQuery<StorageStats>({
-      queryKey: ["storage-stats", settings?.teamId],
-      queryFn: async () => {
-        if (!settings?.teamId) return null;
-        const res = await fetch(`/api/teams/${settings.teamId}/storage`);
-        if (!res.ok) throw new Error("Failed to fetch storage stats");
-        return res.json();
-      },
-      enabled: !!settings?.teamId,
-    });
+  const { data: storageData, isLoading: isLoadingStorage } = useQuery({
+    queryKey: ["storage-stats", settings?.teamId],
+    queryFn: async () => {
+      if (!settings?.teamId) return null;
+      const res = await fetch(
+        `/api/users/storage?teamId=${settings.teamId}&includeTrash=true`,
+      );
+      if (!res.ok) throw new Error("Failed to fetch storage stats");
+      return res.json();
+    },
+    enabled: !!settings?.teamId,
+  });
 
   const { data: twoFactorStatus, isLoading: isLoading2FA } =
     useQuery<TwoFactorStatus>({
@@ -267,67 +268,69 @@ export function AccountInfo() {
   const planType = (user?.plan || "FREE") as PlanType;
   const currentPlan = PLANS[planType];
 
-  const storageUsed = storageStats?.storage?.usedFormattedGB || "0 GB";
-  const storageUsedFormatted = storageStats?.storage?.usedFormatted || "0 MB";
-  const storageLimit = currentPlan.storage;
-  const storagePercentage = storageStats?.storage?.percentage || 0;
-  const filesCount = storageStats?.teamStorage?.filesCount || 0;
+  // Форматирование байтов в читаемый формат
+  const formatStorage = (bytes: number): { value: string; unit: string } => {
+    if (!bytes || bytes === 0) return { value: "0", unit: "MB" };
 
-  const getStorageProgressValue = () => {
-    if (storageStats?.storage?.percentage) {
-      return Math.min(storageStats.storage.percentage, 100);
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let unitIndex = 0;
+    let value = bytes;
+
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024;
+      unitIndex++;
     }
 
-    if (storageStats?.storage) {
-      const usedBytes = parseFloat(storageStats.storage.usedBytes);
-      const limitBytes = parseFloat(storageStats.storage.limitBytes);
+    // Для GB и TB показываем 1 decimal, для MB и ниже - целые числа
+    const decimals = unitIndex >= 3 ? 1 : 0;
 
-      if (limitBytes > 0) {
-        const percentage = (usedBytes / limitBytes) * 100;
-        return Math.min(percentage, 100);
-      }
-    }
-
-    try {
-      const usedMatch = storageUsed.match(/([\d.]+)\s*(\w+)/);
-      if (!usedMatch) return 0;
-
-      const usedValue = parseFloat(usedMatch[1]);
-      const usedUnit = usedMatch[2].toUpperCase();
-
-      let usedMB = usedValue;
-      if (usedUnit === "GB") usedMB = usedValue * 1024;
-      if (usedUnit === "TB") usedMB = usedValue * 1024 * 1024;
-
-      const limitGB = planType === "FREE" ? 2 : planType === "PRO" ? 10 : 20;
-      const limitMB = limitGB * 1024;
-
-      const percentage = (usedMB / limitMB) * 100;
-      return Math.min(percentage, 100);
-    } catch {
-      return 0;
-    }
+    return {
+      value: value.toFixed(decimals),
+      unit: units[unitIndex],
+    };
   };
 
-  const getAvailableSpaceMessage = () => {
-    const progressValue = getStorageProgressValue();
+  // Получаем реальные данные из API
+  const usedBytes = storageData?.storage?.usedBytes
+    ? Number(storageData.storage.usedBytes)
+    : 0;
 
-    if (storageStats?.storage?.remainingFormattedGB) {
-      return `${storageStats.storage.remainingFormattedGB} available`;
+  const limitBytes = currentPlan.limitBytes;
+  const percentage = storageData?.storage?.percentage
+    ? Math.min(storageData.storage.percentage, 100)
+    : usedBytes > 0
+      ? Math.min((usedBytes / limitBytes) * 100, 100)
+      : 0;
+
+  // Форматируем для отображения
+  const usedFormatted = formatStorage(usedBytes);
+  const limitFormatted = formatStorage(limitBytes);
+
+  // Для отображения в GB
+  const usedGB = (usedBytes / 1024 ** 3).toFixed(1);
+  const limitGB = (limitBytes / 1024 ** 3).toFixed(0);
+
+  const filesCount = storageData?.files?.inTrash
+    ? `${storageData.teamStorage?.filesCount || 0} files (${storageData.files.inTrash} in trash)`
+    : `${storageData?.teamStorage?.filesCount || 0} files`;
+
+  const getAvailableSpaceMessage = () => {
+    if (storageData?.storage?.remainingFormattedGB) {
+      return `${storageData.storage.remainingFormattedGB} available`;
     }
 
-    if (progressValue < 50) {
+    if (percentage < 50) {
       return "Plenty of storage space available";
-    } else if (progressValue < 80) {
+    } else if (percentage < 80) {
       return "Storage usage is moderate";
-    } else if (progressValue < 90) {
+    } else if (percentage < 90) {
       return "Storage usage is high";
     } else {
       return "Storage almost full! Consider managing your files.";
     }
   };
 
-  const shouldShowWarning = getStorageProgressValue() >= 80;
+  const shouldShowWarning = percentage >= 80;
 
   const handleUpgrade = () => {
     router.push("/pricing");
@@ -429,10 +432,11 @@ export function AccountInfo() {
                       <span className="font-medium">Storage Usage</span>
                     </div>
                     <span className="text-sm font-medium">
-                      {storageUsedFormatted} / {storageLimit} used
+                      {usedFormatted.value} {usedFormatted.unit} / {limitGB} GB
+                      used
                     </span>
                   </div>
-                  <Progress value={getStorageProgressValue()} className="h-2" />
+                  <Progress value={percentage} className="h-2" />
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {shouldShowWarning ? (
                       <span className="text-amber-600 font-medium">
@@ -450,9 +454,11 @@ export function AccountInfo() {
                       <Database className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                       <span className="text-sm font-medium">Storage Used</span>
                     </div>
-                    <p className="text-2xl font-bold">{storageUsedFormatted}</p>
+                    <p className="text-2xl font-bold">
+                      {usedFormatted.value} {usedFormatted.unit}
+                    </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {filesCount} files
+                      {filesCount}
                     </p>
                   </div>
                   <div className="space-y-1">
@@ -460,7 +466,7 @@ export function AccountInfo() {
                       <FileText className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                       <span className="text-sm font-medium">Storage Limit</span>
                     </div>
-                    <p className="text-2xl font-bold">{storageLimit}</p>
+                    <p className="text-2xl font-bold">{limitGB} GB</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {planType === "ENTERPRISE"
                         ? "20GB Enterprise plan"
@@ -914,23 +920,26 @@ export function AccountInfo() {
                   </span>
                 </div>
                 <p className="text-3xl font-bold text-foreground">
-                  {storageUsedFormatted}
+                  {usedFormatted.value} {usedFormatted.unit}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {filesCount} files in your workspace
+                  {storageData?.teamStorage?.filesCount || 0} files in your
+                  workspace
+                  {storageData?.files?.inTrash > 0 && (
+                    <span className="text-amber-500 ml-1">
+                      • {storageData.files.inTrash} in trash
+                    </span>
+                  )}
                 </p>
                 <div className="pt-2">
-                  <Progress
-                    value={getStorageProgressValue()}
-                    className="h-1.5"
-                  />
+                  <Progress value={percentage} className="h-1.5" />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {Math.round(getStorageProgressValue())}% of {storageLimit}{" "}
-                    used
+                    {Math.round(percentage)}% of {limitGB} GB used
                   </p>
                 </div>
               </div>
 
+              {/* Остальные секции остаются без изменений */}
               <div className="space-y-2 p-4 rounded-lg bg-linear-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 border dark:border-gray-700">
                 <div className="flex items-center gap-2">
                   <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -965,25 +974,22 @@ export function AccountInfo() {
                   </span>
                 </div>
                 <p className="text-3xl font-bold text-foreground">
-                  {storageLimit}
+                  {limitGB} GB
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {planType === "ENTERPRISE"
                     ? "20GB Enterprise plan"
                     : "Total storage available"}
                 </p>
-                {storageStats?.storage && (
+                {storageData?.storage && (
                   <div className="pt-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">Available</span>
                       <span className="font-medium text-foreground">
-                        {storageStats.storage.remainingFormattedGB}
+                        {storageData.storage.remainingFormattedGB}
                       </span>
                     </div>
-                    <Progress
-                      value={getStorageProgressValue()}
-                      className="h-1.5 mt-1"
-                    />
+                    <Progress value={percentage} className="h-1.5 mt-1" />
                   </div>
                 )}
               </div>
