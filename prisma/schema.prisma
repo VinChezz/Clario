@@ -166,6 +166,7 @@ model DocumentVersion {
   description String?
   content     String
   type        String   @default("document")
+  sizeBytes   BigInt   @default(0)
   fileId      String
   authorId    String
   createdAt   DateTime @default(now())
