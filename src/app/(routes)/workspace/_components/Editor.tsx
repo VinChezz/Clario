@@ -495,9 +495,6 @@ interface EditorToolbarProps {
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
   isDark = false,
-  isSplitMode = false,
-  handleEditorSave,
-  fileId,
 }) => {
   const [showHeadingMenu, setShowHeadingMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -524,6 +521,13 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  const getToolbarMaxWidth = () => {
+    if (isMobile) return "max-w-[95vw]";
+    if (isTablet) return "max-w-[90vw]";
+
+    return "max-w-[780px]";
+  };
+
   const isHeadingActive = () => {
     return (
       editor?.isActive("heading", { level: 1 }) ||
@@ -540,15 +544,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         : "bg-white shadow-[0_0.5px_1px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)] border border-black/5 backdrop-blur-sm"
     }`;
 
-    let maxWidthClass = "max-w-[800vw]";
-
-    if (!isMobile) {
-      maxWidthClass = isHeadingActive() ? "max-w-[725px]" : "max-w-[780px]";
-    } else if (isTablet) {
-      maxWidthClass = "max-w-[90vw]";
-    }
-
-    return `${baseClass} ${maxWidthClass} transition-all duration-300`;
+    return `
+    ${baseClass}
+    ${getToolbarMaxWidth()}
+    transition-[max-width] duration-300 ease-in-out
+  `;
   };
 
   useEffect(() => {
