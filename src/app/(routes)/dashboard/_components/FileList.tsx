@@ -25,7 +25,7 @@ import {
   Star,
   StarOff,
   Heart,
-  Menu,
+  Lock,
 } from "lucide-react";
 import moment from "moment";
 import Image from "next/image";
@@ -64,6 +64,10 @@ import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFavorites } from "@/app/_context/FavoritesContext";
+import { useStorage } from "@/hooks/useStorage";
+import { cn } from "@/lib/utils";
+import { useStorageStatus } from "@/hooks/useStorageStatus";
+import { getButtonStyles, getButtonText } from "@/lib/storageButtonUtils";
 
 type ViewMode = "grid" | "list" | "table";
 type SortOrder = "asc" | "desc";
@@ -103,10 +107,15 @@ export default function FileList({
   const { fileList_, setFileList_ } = useContext(FileListContext);
   const { isFavorite, toggleFavorite, favoritesCount } = useFavorites();
   const { updateFromFileList } = useFileData();
+  const storageHook = useStorage(activeTeam?.id);
+  const storageStatus = useStorageStatus(activeTeam?.id);
+  const [canCreateNewFile, setCanCreateNewFile] = useState(true);
+  const [storageErrorMessage, setStorageErrorMessage] = useState<string | null>(
+    null,
+  );
 
   const fetchUserRole = async () => {
     if (!user || !activeTeam?.id) {
-      console.log("No user or active team");
       setUserRole("VIEW");
       setLoadingRole(false);
       return;
@@ -114,20 +123,15 @@ export default function FileList({
 
     try {
       setLoadingRole(true);
-      console.log(`Fetching role for user ${user.id} in team ${activeTeam.id}`);
 
       const response = await fetch(
         `/api/teams/${activeTeam.id}/members/${user.id}/role`,
       );
 
-      console.log("Role API response status:", response.status);
-
       if (response.ok) {
         const data = await response.json();
-        console.log("Role API response data:", data);
         setUserRole(data.role || "VIEW");
       } else {
-        console.log("Role API failed, setting VIEW as default");
         setUserRole("VIEW");
       }
     } catch (error) {
@@ -169,17 +173,101 @@ export default function FileList({
 
   const fetchDeletedFiles = async () => {
     try {
-      const response = await fetch("/api/files/trash");
+      const url = activeTeam?.id
+        ? `/api/files/trash?teamId=${activeTeam.id}`
+        : "/api/files/trash";
+
+      const response = await fetch(url);
+
       if (response.ok) {
-        const files = await response.json();
-        setDeletedFiles(files);
+        const data = await response.json();
+        setDeletedFiles(data.files || data || []);
+      } else {
+        console.error("Failed to fetch deleted files:", response.status);
+        setDeletedFiles([]);
       }
     } catch (error) {
       console.error("Failed to fetch deleted files:", error);
+      setDeletedFiles([]);
     }
   };
 
+  const checkStorageBeforeCreate = async (): Promise<{
+    canCreate: boolean;
+    message?: string;
+  }> => {
+    if (!activeTeam?.id) {
+      return { canCreate: false, message: "No active team selected" };
+    }
+
+    if (!storageHook.data) {
+      return { canCreate: true };
+    }
+
+    const fileSizeBytes = 75 * 1024 * 1024;
+
+    const usedBytes = BigInt(storageHook.data.storage.usedBytes);
+    const limitBytes = BigInt(storageHook.data.storage.limitBytes);
+
+    if (usedBytes + BigInt(fileSizeBytes) > limitBytes) {
+      const usedGB = storageHook.getUsedGB();
+      const limitGB = storageHook.getLimitGB();
+      const remainingGB = limitGB - usedGB;
+
+      return {
+        canCreate: false,
+        message: `Not enough storage. Need ${(fileSizeBytes / 1024 ** 3).toFixed(2)}GB, but only ${remainingGB.toFixed(2)}GB available (includes files in trash).`,
+      };
+    }
+
+    if (storageHook.percentage >= 100) {
+      return {
+        canCreate: false,
+        message:
+          "Storage is completely full! Delete files permanently or upgrade plan.",
+      };
+    } else if (storageHook.percentage >= 90) {
+      return {
+        canCreate: false,
+        message:
+          "Storage almost full (>90%). Delete files permanently to create new ones or upgrade plan.",
+      };
+    }
+
+    return { canCreate: true };
+  };
+
+  useEffect(() => {
+    const updateStorageCheck = async () => {
+      const check = await checkStorageBeforeCreate();
+      setCanCreateNewFile(check.canCreate);
+      setStorageErrorMessage(check.message || null);
+    };
+
+    updateStorageCheck();
+  }, [activeTeam?.id, storageHook.data, storageHook.percentage]);
+
   const handleCreateFile = async (shouldOpenFile = false) => {
+    const storageCheck = await checkStorageBeforeCreate();
+    if (!storageCheck.canCreate) {
+      toast.error(
+        storageCheck.message || "Cannot create file due to storage limits",
+        {
+          duration: 6000,
+          action:
+            storageHook.percentage >= 80
+              ? {
+                  label: "View Storage",
+                  onClick: () => {
+                    toast.info("Storage management coming soon");
+                  },
+                }
+              : undefined,
+        },
+      );
+      return;
+    }
+
     if (!newFileName.trim() || isCreatingFile || !activeTeam?.id) return;
 
     setIsCreatingFile(true);
@@ -235,10 +323,7 @@ export default function FileList({
       if (shouldOpenFile) {
         router.push(`/workspace/${data.id}`);
       } else {
-        toast.success(`File "${newFileName.trim()}" created successfully!`);
       }
-
-      console.log("✅ File created successfully:", data.id);
     } catch (error: any) {
       console.error("❌ Failed to create file:", error);
       toast.error("Error creating file");
@@ -283,8 +368,6 @@ export default function FileList({
       }
 
       fetchDeletedFiles();
-
-      toast.success("File moved to trash");
     } catch (error: any) {
       console.error("❌ Failed to delete file:", error);
 
@@ -333,6 +416,7 @@ export default function FileList({
           onFileUpdate(updatedFiles);
         }
       }
+      fetchDeletedFiles();
 
       toast.success("File restored successfully");
     } catch (error: any) {
@@ -427,16 +511,6 @@ export default function FileList({
     }
   };
 
-  const handleToggleFavorite = (fileId: string, e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-
-    console.log("Toggling favorite for file:", fileId);
-    toggleFavorite(fileId);
-  };
-
   const formatDate = (dateString: string) => {
     const date = moment(dateString);
     const now = moment();
@@ -515,49 +589,165 @@ export default function FileList({
     }
   };
 
-  const EmptyState = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="h-full flex flex-col items-center justify-center p-8"
-    >
-      <div className="relative mb-8">
-        <div className="absolute inset-0 bg-linear-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/5 dark:to-purple-500/5 blur-3xl rounded-full" />
-        <div className="relative w-32 h-32 rounded-2xl bg-linear-to-br from-white to-gray-50 dark:from-[#1a1a1c] dark:to-[#252528] flex items-center justify-center shadow-lg border border-gray-200 dark:border-[#2a2a2d]">
-          <FileText className="h-16 w-16 text-gray-300 dark:text-gray-600" />
-        </div>
-      </div>
-      <h3 className="text-2xl font-bold text-gray-800 dark:text-[#f0f0f0] mb-3">
-        No documents yet
-      </h3>
-      <p className="text-gray-500 dark:text-[#a0a0a0] text-center max-w-md mb-6">
-        Create your first document to start collaborating with your team
-      </p>
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => canCreate && setCreateFileModalOpen(true)}
-        disabled={!canCreate}
-        className={`group relative px-6 py-3 rounded-xl text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 ${
-          canCreate
-            ? "bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/25 hover:shadow-blue-500/40"
-            : "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-        }`}
+  const CreateFileButton = ({
+    variant = "default",
+    size = "default",
+  }: {
+    variant?: "default" | "outline";
+    size?: "default" | "sm" | "icon";
+  }) => {
+    const { status, canCreate, message, plan, loading } = storageStatus;
+
+    const getButtonState = () => {
+      return {
+        disabled: !canCreate || loading,
+        title: message,
+        className: getButtonStyles(status, variant, size),
+        status,
+      };
+    };
+
+    const buttonState = getButtonState();
+    const isDisabled = buttonState.disabled;
+    const buttonText = getButtonText(status, plan);
+
+    const shouldShowLock = status === "full";
+
+    return (
+      <Button
+        onClick={() => !isDisabled && setCreateFileModalOpen(true)}
+        disabled={!storageStatus.canCreate}
+        title={buttonState.title}
+        className={buttonState.className}
       >
-        <div
-          className={`absolute inset-0 rounded-xl transition-colors ${
-            canCreate ? "bg-white/10 group-hover:bg-white/20" : ""
-          }`}
-          id="create-file-button-filelist"
-        />
-        <div className="relative flex items-center gap-2">
+        {shouldShowLock ? (
+          <Lock className="h-4 w-4" />
+        ) : (
           <Plus className="h-4 w-4" />
-          <span>Create new document</span>
+        )}
+        {size !== "icon" && (
+          <span className="hidden sm:inline">{buttonText}</span>
+        )}
+      </Button>
+    );
+  };
+
+  const EmptyState = () => {
+    const { activeTeam } = useActiveTeam();
+    const storageHook = useStorage(activeTeam?.id);
+    const [canCreate, setCanCreate] = useState(true);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+      const checkStorage = async () => {
+        if (!activeTeam?.id) {
+          setCanCreate(false);
+          setErrorMessage("Please select a team first");
+          return;
+        }
+
+        if (!storageHook.data) return;
+
+        const fileSizeBytes = 75 * 1024 * 1024;
+
+        if (
+          storageHook.canCreateFile &&
+          !storageHook.canCreateFile(fileSizeBytes)
+        ) {
+          setCanCreate(false);
+          const usedGB = storageHook.getUsedGB();
+          const limitGB = storageHook.getLimitGB();
+          const remainingGB = limitGB - usedGB;
+          setErrorMessage(
+            `Not enough storage. Need ${(fileSizeBytes / 1024 ** 3).toFixed(2)}GB, but only ${remainingGB.toFixed(2)}GB available.`,
+          );
+        } else if (storageHook.percentage >= 100) {
+          setCanCreate(false);
+          setErrorMessage(
+            "Storage is completely full! Delete files or upgrade plan.",
+          );
+        } else if (storageHook.percentage >= 90) {
+          setCanCreate(false);
+          setErrorMessage(
+            "Storage almost full (>90%). Delete files to create new ones.",
+          );
+        } else {
+          setCanCreate(true);
+          setErrorMessage(null);
+        }
+      };
+
+      checkStorage();
+    }, [activeTeam?.id, storageHook.data, storageHook.percentage]);
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="h-full flex flex-col items-center justify-center p-8"
+      >
+        <div className="relative mb-8">
+          <div className="absolute inset-0 bg-linear-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/5 dark:to-purple-500/5 blur-3xl rounded-full" />
+          <div className="relative w-32 h-32 rounded-2xl bg-linear-to-br from-white to-gray-50 dark:from-[#1a1a1c] dark:to-[#252528] flex items-center justify-center shadow-lg border border-gray-200 dark:border-[#2a2a2d]">
+            <FileText className="h-16 w-16 text-gray-300 dark:text-gray-600" />
+          </div>
         </div>
-      </motion.button>
-    </motion.div>
-  );
+
+        {!canCreate ? (
+          <>
+            <h3 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-3">
+              Cannot Create File
+            </h3>
+            <p className="text-gray-700 dark:text-[#f0f0f0] text-center max-w-md mb-6 font-medium">
+              {errorMessage}
+            </p>
+            <div className="space-y-3">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 rounded-xl text-white font-medium shadow-lg bg-gray-600 hover:bg-gray-700"
+              >
+                Refresh Storage Status
+              </motion.button>
+              {storageHook.percentage >= 80 && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => toast.info("Storage management coming soon")}
+                  className="px-6 py-3 rounded-xl text-white font-medium shadow-lg bg-red-600 hover:bg-red-700"
+                >
+                  Manage Storage
+                </motion.button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-[#f0f0f0] mb-3">
+              No documents yet
+            </h3>
+            <p className="text-gray-500 dark:text-[#a0a0a0] text-center max-w-md mb-6">
+              Create your first document to start collaborating with your team
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setCreateFileModalOpen(true)}
+              className="group relative px-6 py-3 rounded-xl text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/25 hover:shadow-blue-500/40"
+            >
+              <div className="absolute inset-0 rounded-xl transition-colors bg-white/10 group-hover:bg-white/20" />
+              <div className="relative flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                <span>Create new document</span>
+              </div>
+            </motion.button>
+          </>
+        )}
+      </motion.div>
+    );
+  };
 
   const hasFavorites = favoritesCount > 0;
 
@@ -608,20 +798,7 @@ export default function FileList({
               </div>
 
               <div className="flex items-center gap-3">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => canCreate && setCreateFileModalOpen(true)}
-                  disabled={!canCreate}
-                  className={`px-4 py-2 rounded-xl text-white font-medium shadow-lg transition-all duration-300 flex items-center gap-2 ${
-                    canCreate
-                      ? "bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/25"
-                      : "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                  }`}
-                >
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">New</span>
-                </motion.button>
+                <CreateFileButton />
               </div>
             </div>
 
@@ -1080,6 +1257,7 @@ export default function FileList({
         onOpenChange={setTrashModalOpen}
         deletedFiles={deletedFiles}
         onRestore={handleRestoreFile}
+        onRefresh={fetchDeletedFiles}
       />
     </div>
   );
@@ -1103,167 +1281,254 @@ const CreateFileDialog = ({
   isCreating: boolean;
   activeTeam: any;
   canCreate: boolean;
-}) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="sm:max-w-md bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
-      <DialogHeader>
-        <DialogTitle className="text-xl font-bold text-gray-900 dark:text-[#f0f0f0]">
-          New Document
-        </DialogTitle>
-        <DialogDescription className="text-gray-500 dark:text-[#a0a0a0]">
-          {canCreate
-            ? "Give your document a name to get started"
-            : "You don't have permission to create documents"}
-        </DialogDescription>
-      </DialogHeader>
+}) => {
+  const storageHook = useStorage(activeTeam?.id);
+  const [canCreateFile, setCanCreateFile] = useState(true);
+  const [storageInfo, setStorageInfo] = useState<string>("");
 
-      {canCreate ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="space-y-4"
-        >
-          <Input
-            placeholder="Document name..."
-            value={fileName}
-            onChange={(e) => setFileName(e.target.value)}
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter" &&
-                fileName.trim() &&
-                !isCreating &&
-                activeTeam?.id
-              ) {
-                onSubmit(false);
-              }
-            }}
-            disabled={isCreating}
-            autoFocus
-            className="h-11 rounded-xl border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] text-gray-900 dark:text-[#f0f0f0]"
-          />
+  useEffect(() => {
+    if (open && storageHook.data) {
+      const fileSizeBytes = 75 * 1024 * 1024;
+      const hasSpace = storageHook.canCreateFile
+        ? storageHook.canCreateFile(fileSizeBytes)
+        : true;
 
-          {!activeTeam?.id && (
-            <p className="text-sm text-red-500 font-medium">
-              Please select a team first
+      setCanCreateFile(hasSpace);
+
+      const usedGB = storageHook.getUsedGB();
+      const limitGB = storageHook.getLimitGB();
+      const percentage = storageHook.percentage;
+
+      setStorageInfo(
+        `Storage: ${usedGB.toFixed(1)}GB of ${limitGB.toFixed(1)}GB used (${Math.round(percentage)}%)`,
+      );
+    }
+  }, [open, storageHook.data, storageHook.percentage]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-gray-900 dark:text-[#f0f0f0]">
+            New Document
+          </DialogTitle>
+          <DialogDescription className="text-gray-500 dark:text-[#a0a0a0]">
+            {canCreate
+              ? canCreateFile
+                ? "Give your document a name to get started"
+                : "Storage limit reached"
+              : "You don't have permission to create documents"}
+          </DialogDescription>
+        </DialogHeader>
+
+        {canCreate ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-4"
+          >
+            <Input
+              placeholder="Document name..."
+              value={fileName}
+              onChange={(e) => setFileName(e.target.value)}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  fileName.trim() &&
+                  !isCreating &&
+                  activeTeam?.id &&
+                  canCreateFile
+                ) {
+                  onSubmit(false);
+                }
+              }}
+              disabled={isCreating || !canCreateFile}
+              autoFocus
+              className={`h-11 rounded-xl border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] text-gray-900 dark:text-[#f0f0f0] ${
+                !canCreateFile ? "border-red-300 dark:border-red-700" : ""
+              }`}
+            />
+
+            {!canCreateFile && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                  ❌ Cannot create file - storage is full!
+                </p>
+                <p className="text-xs text-red-500 dark:text-red-300 mt-1">
+                  Delete files or upgrade plan to create new documents. (75MB
+                  required per file)
+                </p>
+              </div>
+            )}
+
+            {!activeTeam?.id && (
+              <p className="text-sm text-red-500 font-medium">
+                Please select a team first
+              </p>
+            )}
+          </motion.div>
+        ) : (
+          <div className="text-center py-6">
+            <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+            <p className="text-gray-700 dark:text-[#a0a0a0]">
+              Your role doesn't allow creating new documents.
             </p>
-          )}
-        </motion.div>
-      ) : (
-        <div className="text-center py-6">
-          <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-          <p className="text-gray-700 dark:text-[#a0a0a0]">
-            Your role doesn't allow creating new documents.
-          </p>
-        </div>
-      )}
-
-      <DialogFooter className="gap-2">
-        <Button
-          variant="outline"
-          onClick={() => onOpenChange(false)}
-          disabled={isCreating}
-          className="border-gray-200 dark:border-[#2a2a2d] hover:bg-gray-50 dark:hover:bg-[#252528]"
-        >
-          Cancel
-        </Button>
-        {canCreate && (
-          <div className="flex gap-2">
-            <Button
-              onClick={() => onSubmit(false)}
-              disabled={!fileName.trim() || isCreating || !activeTeam?.id}
-              className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-            >
-              {isCreating ? (
-                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                "Create"
-              )}
-            </Button>
-            <Button
-              onClick={() => onSubmit(true)}
-              disabled={!fileName.trim() || isCreating || !activeTeam?.id}
-              className="bg-linear-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
-            >
-              {isCreating ? (
-                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                "Create & Open"
-              )}
-            </Button>
           </div>
         )}
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-);
+
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isCreating}
+            className="border-gray-200 dark:border-[#2a2a2d] hover:bg-gray-50 dark:hover:bg-[#252528]"
+          >
+            Cancel
+          </Button>
+          {canCreate && (
+            <div className="flex gap-2">
+              <Button
+                onClick={() => onSubmit(false)}
+                disabled={
+                  !fileName.trim() ||
+                  isCreating ||
+                  !activeTeam?.id ||
+                  !canCreateFile
+                }
+                className={`${
+                  !canCreateFile
+                    ? "bg-red-500 hover:bg-red-600 cursor-not-allowed"
+                    : "bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                }`}
+              >
+                {isCreating ? (
+                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : !canCreateFile ? (
+                  "Storage Full"
+                ) : (
+                  "Create"
+                )}
+              </Button>
+              <Button
+                onClick={() => onSubmit(true)}
+                disabled={
+                  !fileName.trim() ||
+                  isCreating ||
+                  !activeTeam?.id ||
+                  !canCreateFile
+                }
+                className={`${
+                  !canCreateFile
+                    ? "bg-red-500 hover:bg-red-600 cursor-not-allowed"
+                    : "bg-linear-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+                }`}
+              >
+                {isCreating ? (
+                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : !canCreateFile ? (
+                  "Storage Full"
+                ) : (
+                  "Create & Open"
+                )}
+              </Button>
+            </div>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const TrashDialog = ({
   open,
   onOpenChange,
   deletedFiles,
   onRestore,
+  onRefresh,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   deletedFiles: any[];
   onRestore: (fileId: string) => void;
-}) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-w-2xl bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
-      <DialogHeader>
-        <DialogTitle className="text-lg font-bold text-gray-900 dark:text-[#f0f0f0]">
-          Trash
-        </DialogTitle>
-        <DialogDescription className="text-gray-500 dark:text-[#a0a0a0]">
-          Restore files or permanently delete them
-        </DialogDescription>
-      </DialogHeader>
+  onRefresh?: () => void;
+}) => {
+  const [isRestoring, setIsRestoring] = useState<string | null>(null);
 
-      <div className="space-y-3 max-h-[400px] overflow-y-auto">
-        {deletedFiles.length > 0 ? (
-          deletedFiles.map((file) => (
-            <motion.div
-              key={file.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center justify-between p-4 rounded-xl border bg-gray-50 dark:bg-[#252528] border-gray-200 dark:border-[#2a2a2d]"
-            >
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-gray-400 dark:text-[#707070]" />
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-[#f0f0f0] text-sm">
-                    {file.fileName}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
-                    Deleted {new Date(file.deletedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onRestore(file.id)}
-                className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50"
+  const handleRestore = async (fileId: string) => {
+    setIsRestoring(fileId);
+    try {
+      await onRestore(fileId);
+      if (onRefresh) {
+        onRefresh();
+      }
+    } finally {
+      setIsRestoring(null);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl bg-white dark:bg-[#1a1a1c] border-gray-200 dark:border-[#2a2a2d]">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-bold text-gray-900 dark:text-[#f0f0f0]">
+            Trash
+          </DialogTitle>
+          <DialogDescription className="text-gray-500 dark:text-[#a0a0a0]">
+            Restore files or permanently delete them
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          {deletedFiles.length > 0 ? (
+            deletedFiles.map((file) => (
+              <motion.div
+                key={file.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center justify-between p-4 rounded-xl border bg-gray-50 dark:bg-[#252528] border-gray-200 dark:border-[#2a2a2d]"
               >
-                Restore
-              </Button>
-            </motion.div>
-          ))
-        ) : (
-          <div className="text-center py-12 text-gray-400 dark:text-[#707070]">
-            <Trash2 className="h-12 w-12 mx-auto mb-3 opacity-40" />
-            <p className="font-medium text-gray-900 dark:text-[#f0f0f0] mb-1">
-              Trash is empty
-            </p>
-            <p className="text-sm text-gray-500 dark:text-[#a0a0a0]">
-              Deleted files will appear here
-            </p>
-          </div>
-        )}
-      </div>
-    </DialogContent>
-  </Dialog>
-);
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-gray-400 dark:text-[#707070]" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-[#f0f0f0] text-sm">
+                      {file.fileName}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                      Deleted {new Date(file.deletedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRestore(file.id)}
+                  disabled={isRestoring === file.id}
+                  className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50"
+                >
+                  {isRestoring === file.id ? (
+                    <div className="h-4 w-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    "Restore"
+                  )}
+                </Button>
+              </motion.div>
+            ))
+          ) : (
+            <div className="text-center py-12 text-gray-400 dark:text-[#707070]">
+              <Trash2 className="h-12 w-12 mx-auto mb-3 opacity-40" />
+              <p className="font-medium text-gray-900 dark:text-[#f0f0f0] mb-1">
+                Trash is empty
+              </p>
+              <p className="text-sm text-gray-500 dark:text-[#a0a0a0]">
+                Deleted files will appear here
+              </p>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const FileGridItem = ({
   file,
