@@ -57,6 +57,10 @@ import {
   Rows,
   MessageSquare,
   X,
+  Subscript,
+  Superscript,
+  Underline,
+  Link,
 } from "lucide-react";
 
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -508,23 +512,38 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
       const width = window.innerWidth;
+      const height = window.innerHeight;
+      const isTabletWidth = width >= 768 && width < 1024;
+
       setIsMobile(width < 768);
-      setIsTablet(width >= 768 && width < 1024);
+      setIsTablet(isTabletWidth);
+
+      if (isTabletWidth) {
+        setIsPortrait(height > width);
+      } else {
+        setIsPortrait(false);
+      }
     };
 
     checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
-    return () => window.removeEventListener("resize", checkScreenSize);
+    window.addEventListener("orientationchange", checkScreenSize);
+
+    return () => {
+      window.removeEventListener("resize", checkScreenSize);
+      window.removeEventListener("orientationchange", checkScreenSize);
+    };
   }, []);
 
   const getToolbarMaxWidth = () => {
-    if (isMobile) return "max-w-[95vw]";
+    if (isMobile) return "max-w-[96vw]";
+    if (isTablet && isPortrait) return "max-w-[85vw]";
     if (isTablet) return "max-w-[90vw]";
-
     return "max-w-[780px]";
   };
 
@@ -538,7 +557,9 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   const getContainerClass = () => {
-    const baseClass = `z-10 mx-auto flex justify-center items-center py-1.5 px-4 sm:px-6 rounded-md ${
+    const baseClass = `z-10 mx-auto flex justify-center items-center py-1.5 ${
+      isMobile ? "px-2" : "px-4 sm:px-6"
+    } rounded-md ${
       isDark
         ? "bg-[#232329] shadow-[0_4px_20px_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.02)]"
         : "bg-white shadow-[0_0.5px_1px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)] border border-black/5 backdrop-blur-sm"
@@ -576,7 +597,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   }
 
   const getButtonClass = (isActive = false) => {
-    const sizeClass = isMobile ? "w-8 h-8" : "w-8 h-8";
+    const sizeClass = isMobile ? "w-7 h-7" : "w-8 h-8";
     const baseClass = `
       group relative flex items-center justify-center
       ${sizeClass} rounded-md transition-all duration-150
@@ -596,7 +617,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   const getMoreButtonClass = () => {
-    const sizeClass = isMobile ? "w-8 h-8" : "w-8 h-8";
+    const sizeClass = isMobile ? "w-7 h-7" : "w-8 h-8";
     return `
       group relative flex items-center justify-center
       ${sizeClass} rounded-md transition-all duration-150 ml-1
@@ -609,9 +630,9 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   const getDropdownButtonClass = () => {
-    const widthClass = isMobile ? "min-w-[80px]" : "min-w-[100px]";
+    const widthClass = isMobile ? "min-w-[70px]" : "min-w-[100px]";
     const heightClass = isMobile ? "h-7" : "h-8";
-    const paddingClass = isMobile ? "px-2" : "px-3";
+    const paddingClass = isMobile ? "px-1.5" : "px-3";
 
     return `
       group relative flex items-center justify-center
@@ -626,7 +647,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   const dropdownClass = `
     absolute z-[9999] ${
-      isMobile ? "min-w-[140px]" : "min-w-[160px]"
+      isMobile ? "min-w-[150px]" : "min-w-[180px]"
     } rounded-lg border shadow-xl
     ${
       isDark
@@ -699,14 +720,14 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   const getCurrentHeadingIcon = () => {
     if (editor.isActive("heading", { level: 1 }))
-      return <Heading1 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
+      return <Heading1 className={isMobile ? "w-3 h-3" : "w-4 h-4"} />;
     if (editor.isActive("heading", { level: 2 }))
-      return <Heading2 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
+      return <Heading2 className={isMobile ? "w-3 h-3" : "w-4 h-4"} />;
     if (editor.isActive("heading", { level: 3 }))
-      return <Heading3 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
+      return <Heading3 className={isMobile ? "w-3 h-3" : "w-4 h-4"} />;
     if (editor.isActive("heading", { level: 4 }))
-      return <Heading4 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
-    return <Type className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />;
+      return <Heading4 className={isMobile ? "w-3 h-3" : "w-4 h-4"} />;
+    return <Type className={isMobile ? "w-3 h-3" : "w-4 h-4"} />;
   };
 
   const addTable = () => {
@@ -736,6 +757,22 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     }
   };
 
+  const insertLink = () => {
+    const url = window.prompt("Enter URL:");
+    if (url) {
+      editor.chain().focus().setLink({ href: url }).run();
+    }
+    setShowMoreMenu(false);
+  };
+
+  const insertImage = () => {
+    const url = window.prompt("Enter image URL:");
+    if (url) {
+      editor.chain().focus().setImage({ src: url }).run();
+    }
+    setShowMoreMenu(false);
+  };
+
   const IconWrapper = ({
     children,
     title,
@@ -743,10 +780,14 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     children: React.ReactNode;
     title: string;
   }) => (
-    <span className={isMobile ? "scale-90" : ""} title={title}>
+    <span className={isMobile ? "scale-85" : ""} title={title}>
+      {" "}
+      {/* Уменьшено */}
       {children}
     </span>
   );
+
+  const shouldHideButtons = isTablet && isPortrait;
 
   const renderFormattingButtons = () => (
     <div className="flex items-center gap-0.5 sm:gap-1">
@@ -756,7 +797,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         title="Bold"
       >
         <IconWrapper title="Bold">
-          <BoldIcon className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          <BoldIcon className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
         </IconWrapper>
       </button>
       <button
@@ -765,10 +806,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         title="Italic"
       >
         <IconWrapper title="Italic">
-          <ItalicIcon className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          <ItalicIcon className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
         </IconWrapper>
       </button>
-      {!isMobile && (
+
+      {!isMobile && !shouldHideButtons && (
         <>
           <button
             onClick={() => editor.chain().focus().toggleStrike().run()}
@@ -801,7 +843,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         title="Align Left"
       >
         <IconWrapper title="Align Left">
-          <AlignLeft className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          <AlignLeft className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
         </IconWrapper>
       </button>
       {!isMobile && (
@@ -848,7 +890,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         title="Bullet List"
       >
         <IconWrapper title="Bullet List">
-          <List className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          <List className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
         </IconWrapper>
       </button>
       <button
@@ -857,7 +899,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         title="Numbered List"
       >
         <IconWrapper title="Numbered List">
-          <ListOrdered className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          <ListOrdered className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
         </IconWrapper>
       </button>
     </div>
@@ -865,7 +907,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   const renderBlockButtons = () => (
     <div className="flex items-center gap-0.5 sm:gap-1">
-      {!isMobile && (
+      {!isMobile && !shouldHideButtons && (
         <button
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           className={getButtonClass(editor.isActive("codeBlock"))}
@@ -882,10 +924,10 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         title="Blockquote"
       >
         <IconWrapper title="Blockquote">
-          <Quote className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          <Quote className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
         </IconWrapper>
       </button>
-      {!isMobile && (
+      {!isMobile && !shouldHideButtons && (
         <button
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           className={getButtonClass()}
@@ -908,7 +950,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           className={`${getButtonClass()} disabled:opacity-30 disabled:cursor-not-allowed`}
           title="Undo"
         >
-          <Undo className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          <Undo className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
         </button>
         <button
           onClick={() => editor.chain().focus().redo().run()}
@@ -916,7 +958,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           className={`${getButtonClass()} disabled:opacity-30 disabled:cursor-not-allowed`}
           title="Redo"
         >
-          <Redo className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          <Redo className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
         </button>
       </div>
 
@@ -941,10 +983,10 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
               } font-medium truncate ${
                 isHeadingActive()
                   ? isMobile
-                    ? "max-w-10"
+                    ? "max-w-8"
                     : "max-w-[70px]"
                   : isMobile
-                    ? "max-w-[30px]"
+                    ? "max-w-[25px]"
                     : "max-w-[60px]"
               }`}
             >
@@ -969,11 +1011,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Type className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Type className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                   <span>Text</span>
                 </div>
                 {editor.isActive("paragraph") && (
-                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Check className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                 )}
               </button>
               <button
@@ -984,11 +1026,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Heading1 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Heading1 className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                   <span>Heading 1</span>
                 </div>
                 {editor.isActive("heading", { level: 1 }) && (
-                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Check className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                 )}
               </button>
               <button
@@ -999,11 +1041,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Heading2 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Heading2 className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                   <span>Heading 2</span>
                 </div>
                 {editor.isActive("heading", { level: 2 }) && (
-                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Check className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                 )}
               </button>
               <button
@@ -1014,11 +1056,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Heading3 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Heading3 className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                   <span>Heading 3</span>
                 </div>
                 {editor.isActive("heading", { level: 3 }) && (
-                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Check className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                 )}
               </button>
               <button
@@ -1029,11 +1071,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className={dropdownItemClass}
               >
                 <div className="flex items-center gap-2">
-                  <Heading4 className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Heading4 className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                   <span>Heading 4</span>
                 </div>
                 {editor.isActive("heading", { level: 4 }) && (
-                  <Check className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <Check className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                 )}
               </button>
             </div>
@@ -1202,7 +1244,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           className={getMoreButtonClass()}
           title="More"
         >
-          <MoreHorizontal className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          <MoreHorizontal className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
         </button>
 
         {showMoreMenu && (
@@ -1214,7 +1256,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <div className="py-1">
               <button onClick={addTable} className={dropdownItemClass}>
                 <div className="flex items-center gap-2">
-                  <TableIcon className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                  <TableIcon className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                   <span>Insert Table</span>
                 </div>
               </button>
@@ -1222,6 +1264,61 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
               {isMobile && (
                 <>
                   <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+
+                  {/* Кнопки выравнивания для телефонов */}
+                  <div className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Alignment
+                  </div>
+                  <button
+                    onClick={() =>
+                      editor.chain().focus().setTextAlign("left").run()
+                    }
+                    className={dropdownItemClass}
+                  >
+                    <div className="flex items-center gap-2">
+                      <AlignLeft className="w-3.5 h-3.5" />
+                      <span>Align Left</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() =>
+                      editor.chain().focus().setTextAlign("center").run()
+                    }
+                    className={dropdownItemClass}
+                  >
+                    <div className="flex items-center gap-2">
+                      <AlignCenter className="w-3.5 h-3.5" />
+                      <span>Align Center</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() =>
+                      editor.chain().focus().setTextAlign("right").run()
+                    }
+                    className={dropdownItemClass}
+                  >
+                    <div className="flex items-center gap-2">
+                      <AlignRight className="w-3.5 h-3.5" />
+                      <span>Align Right</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() =>
+                      editor.chain().focus().setTextAlign("justify").run()
+                    }
+                    className={dropdownItemClass}
+                  >
+                    <div className="flex items-center gap-2">
+                      <AlignJustify className="w-3.5 h-3.5" />
+                      <span>Justify</span>
+                    </div>
+                  </button>
+
+                  <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+
+                  <div className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Formatting
+                  </div>
                   <button
                     onClick={() => editor.chain().focus().toggleStrike().run()}
                     className={dropdownItemClass}
@@ -1242,6 +1339,23 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   </button>
                   <button
                     onClick={() =>
+                      editor.chain().focus().toggleUnderline().run()
+                    }
+                    className={dropdownItemClass}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Underline className="w-3.5 h-3.5" />
+                      <span>Underline</span>
+                    </div>
+                  </button>
+
+                  <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+
+                  <div className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Blocks
+                  </div>
+                  <button
+                    onClick={() =>
                       editor.chain().focus().toggleCodeBlock().run()
                     }
                     className={dropdownItemClass}
@@ -1260,6 +1374,18 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     <div className="flex items-center gap-2">
                       <Minus className="w-3.5 h-3.5" />
                       <span>Divider</span>
+                    </div>
+                  </button>
+
+                  <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+
+                  <div className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Media
+                  </div>
+                  <button onClick={insertLink} className={dropdownItemClass}>
+                    <div className="flex items-center gap-2">
+                      <Link className="w-3.5 h-3.5" />
+                      <span>Insert Link</span>
                     </div>
                   </button>
                 </>
