@@ -492,123 +492,33 @@ export default function WorkspacePage() {
     } else if (deviceType === "large-tablet") {
       return "p-4";
     }
-    return "p-4";
+    return "p-2";
   };
 
   return (
     <div
-      className={`h-screen flex flex-col bg-white dark:bg-[#0a0a0a] overflow-hidden ${getContainerClasses()}`}
+      className={`h-screen bg-white dark:bg-[#0a0a0a] overflow-hidden ${getContainerClasses()}`}
     >
-      <WorkspaceHeader
-        file={fileData}
-        onSave={handleSave}
-        windowMode={windowMode}
-        activeComponent={activeComponent}
-        onWindowModeChange={handleWindowModeChange}
-        onActiveComponentChange={handleActiveComponentChange}
-        currentComponent="both"
-      />
+      <div
+        className={`h-full bg-white dark:bg-[#1a1a1c] rounded-xl overflow-hidden flex flex-col shadow-lg`}
+      >
+        <WorkspaceHeader
+          file={fileData}
+          onSave={handleSave}
+          windowMode={windowMode}
+          activeComponent={activeComponent}
+          onWindowModeChange={handleWindowModeChange}
+          onActiveComponentChange={handleActiveComponentChange}
+          currentComponent="both"
+        />
 
-      {windowMode === "split" ? (
-        <div
-          ref={splitRef}
-          className="flex flex-1 relative overflow-hidden bg-gray-50 dark:bg-[#0a0a0a]"
-        >
-          <div
-            className="flex-1 min-w-0 overflow-visible bg-white dark:bg-[#1a1a1c] rounded-r-lg shadow-sm border-r border-gray-100 dark:border-[#2a2a2d]"
-            style={{ flexBasis: `${dividerPercent}%` }}
-          >
-            <Editor
-              fileId={fileId}
-              fileData={fileData}
-              onSaveSuccess={handleSaveSuccess}
-              onVersionRestore={handleVersionRestore}
-              windowMode={windowMode}
-              activeComponent={activeComponent}
-              onWindowModeChange={handleWindowModeChange}
-              onActiveComponentChange={handleActiveComponentChange}
-              currentComponent="editor"
-              isFullscreen={false}
-              onSaveHandlerChange={handleEditorSaveHandlerChange}
-              versions={versions}
-              versionsLoading={versionsLoading}
-              onRefreshVersions={fetchVersions}
-            />
-          </div>
-
-          <div
-            onMouseDown={startDrag}
-            className={`w-1 cursor-col-resize z-20 bg-gray-300 dark:bg-[#2a2a2d] hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors ${
-              isDragging ? "bg-blue-500 dark:bg-blue-600" : ""
-            }`}
-            aria-label="Resize panels"
-          />
-
-          <div
-            className="flex-1 min-w-0 overflow-hidden bg-white dark:bg-[#1a1a1c] rounded-l-lg shadow-sm border-l border-gray-100 dark:border-[#2a2a2d]"
-            style={{ flexBasis: `${100 - dividerPercent}%` }}
-          >
-            <Canvas
-              fileId={fileId}
-              fileData={fileData}
-              onVersionRestore={handleVersionRestore}
-              windowMode={windowMode}
-              activeComponent={activeComponent}
-              onWindowModeChange={handleWindowModeChange}
-              onActiveComponentChange={handleActiveComponentChange}
-              currentComponent="canvas"
-              isFullscreen={false}
-              onSaveHandlerChange={handleCanvasSaveHandlerChange}
-              onSaveSuccess={handleSaveSuccess}
-              versions={versions}
-              versionsLoading={versionsLoading}
-              onRefreshVersions={fetchVersions}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#0a0a0a]">
-          {activeComponent === "editor" ? (
-            <div className="h-full bg-white dark:bg-[#1a1a1c] rounded-lg shadow-sm border border-gray-100 dark:border-[#2a2a2d]">
-              <Editor
-                fileId={fileId}
-                fileData={fileData}
-                onSaveSuccess={handleSaveSuccess}
-                onVersionRestore={handleVersionRestore}
-                windowMode={windowMode}
-                activeComponent="editor"
-                onWindowModeChange={handleWindowModeChange}
-                onActiveComponentChange={handleActiveComponentChange}
-                currentComponent="editor"
-                isFullscreen={true}
-                onSaveHandlerChange={handleEditorSaveHandlerChange}
-                versions={versions}
-                versionsLoading={versionsLoading}
-                onRefreshVersions={fetchVersions}
-              />
-            </div>
-          ) : activeComponent === "canvas" ? (
-            <div className="h-full bg-white dark:bg-[#1a1a1c] rounded-lg shadow-sm border border-gray-100 dark:border-[#2a2a2d]">
-              <Canvas
-                fileId={fileId}
-                fileData={fileData}
-                onVersionRestore={handleVersionRestore}
-                windowMode={windowMode}
-                activeComponent="canvas"
-                onWindowModeChange={handleWindowModeChange}
-                onActiveComponentChange={handleActiveComponentChange}
-                currentComponent="canvas"
-                isFullscreen={true}
-                onSaveHandlerChange={handleCanvasSaveHandlerChange}
-                onSaveSuccess={handleSaveSuccess}
-                versions={versions}
-                versionsLoading={versionsLoading}
-                onRefreshVersions={fetchVersions}
-              />
-            </div>
-          ) : (
-            <div className="flex h-full gap-2">
-              <div className="flex-1 bg-white dark:bg-[#1a1a1c] rounded-lg shadow-sm border border-gray-100 dark:border-[#2a2a2d]">
+        {windowMode === "split" ? (
+          <div ref={splitRef} className="flex flex-1 relative overflow-hidden">
+            <div
+              className="flex-1 min-w-0 overflow-hidden"
+              style={{ flexBasis: `${dividerPercent}%` }}
+            >
+              <div className="h-full bg-white dark:bg-[#1a1a1c] rounded-r-lg overflow-hidden">
                 <Editor
                   fileId={fileId}
                   fileData={fileData}
@@ -619,6 +529,61 @@ export default function WorkspacePage() {
                   onWindowModeChange={handleWindowModeChange}
                   onActiveComponentChange={handleActiveComponentChange}
                   currentComponent="editor"
+                  isFullscreen={false}
+                  onSaveHandlerChange={handleEditorSaveHandlerChange}
+                  versions={versions}
+                  versionsLoading={versionsLoading}
+                  onRefreshVersions={fetchVersions}
+                />
+              </div>
+            </div>
+
+            <div
+              onMouseDown={startDrag}
+              className={`w-1 cursor-col-resize z-20 bg-gray-300 dark:bg-[#2a2a2d] hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors ${
+                isDragging ? "bg-blue-500 dark:bg-blue-600" : ""
+              }`}
+              aria-label="Resize panels"
+            />
+
+            <div
+              className="flex-1 min-w-0 overflow-hidden"
+              style={{ flexBasis: `${100 - dividerPercent}%` }}
+            >
+              <div className="h-full bg-white dark:bg-[#1a1a1c] rounded-l-lg overflow-hidden">
+                <Canvas
+                  fileId={fileId}
+                  fileData={fileData}
+                  onVersionRestore={handleVersionRestore}
+                  windowMode={windowMode}
+                  activeComponent={activeComponent}
+                  onWindowModeChange={handleWindowModeChange}
+                  onActiveComponentChange={handleActiveComponentChange}
+                  currentComponent="canvas"
+                  isFullscreen={false}
+                  onSaveHandlerChange={handleCanvasSaveHandlerChange}
+                  onSaveSuccess={handleSaveSuccess}
+                  versions={versions}
+                  versionsLoading={versionsLoading}
+                  onRefreshVersions={fetchVersions}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-hidden">
+            {activeComponent === "editor" ? (
+              <div className="h-full overflow-hidden">
+                <Editor
+                  fileId={fileId}
+                  fileData={fileData}
+                  onSaveSuccess={handleSaveSuccess}
+                  onVersionRestore={handleVersionRestore}
+                  windowMode={windowMode}
+                  activeComponent="editor"
+                  onWindowModeChange={handleWindowModeChange}
+                  onActiveComponentChange={handleActiveComponentChange}
+                  currentComponent="editor"
                   isFullscreen={true}
                   onSaveHandlerChange={handleEditorSaveHandlerChange}
                   versions={versions}
@@ -626,13 +591,14 @@ export default function WorkspacePage() {
                   onRefreshVersions={fetchVersions}
                 />
               </div>
-              <div className="flex-1 bg-white dark:bg-[#1a1a1c] rounded-lg shadow-sm border border-gray-100 dark:border-[#2a2a2d]">
+            ) : activeComponent === "canvas" ? (
+              <div className="h-full overflow-hidden">
                 <Canvas
                   fileId={fileId}
                   fileData={fileData}
                   onVersionRestore={handleVersionRestore}
                   windowMode={windowMode}
-                  activeComponent={activeComponent}
+                  activeComponent="canvas"
                   onWindowModeChange={handleWindowModeChange}
                   onActiveComponentChange={handleActiveComponentChange}
                   currentComponent="canvas"
@@ -644,10 +610,49 @@ export default function WorkspacePage() {
                   onRefreshVersions={fetchVersions}
                 />
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            ) : (
+              <div className="flex h-full gap-2 p-2">
+                <div className="flex-1 overflow-hidden rounded-lg">
+                  <Editor
+                    fileId={fileId}
+                    fileData={fileData}
+                    onSaveSuccess={handleSaveSuccess}
+                    onVersionRestore={handleVersionRestore}
+                    windowMode={windowMode}
+                    activeComponent={activeComponent}
+                    onWindowModeChange={handleWindowModeChange}
+                    onActiveComponentChange={handleActiveComponentChange}
+                    currentComponent="editor"
+                    isFullscreen={true}
+                    onSaveHandlerChange={handleEditorSaveHandlerChange}
+                    versions={versions}
+                    versionsLoading={versionsLoading}
+                    onRefreshVersions={fetchVersions}
+                  />
+                </div>
+                <div className="flex-1 overflow-hidden rounded-lg">
+                  <Canvas
+                    fileId={fileId}
+                    fileData={fileData}
+                    onVersionRestore={handleVersionRestore}
+                    windowMode={windowMode}
+                    activeComponent={activeComponent}
+                    onWindowModeChange={handleWindowModeChange}
+                    onActiveComponentChange={handleActiveComponentChange}
+                    currentComponent="canvas"
+                    isFullscreen={true}
+                    onSaveHandlerChange={handleCanvasSaveHandlerChange}
+                    onSaveSuccess={handleSaveSuccess}
+                    versions={versions}
+                    versionsLoading={versionsLoading}
+                    onRefreshVersions={fetchVersions}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
