@@ -3,13 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { getPlanLimit, formatBytes } from "@/lib/planUtils";
 import { Plan } from "@prisma/client";
-import { calculateFileSize } from "@/lib/fileSizeCalculator";
+import {
+  calculateFileSize,
+  calculateFullVersionSize,
+} from "@/lib/fileSizeCalculator";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const teamId = searchParams.get("teamId");
-    const includeTrash = searchParams.get("includeTrash") === "true";
 
     const { getUser } = getKindeServerSession();
     const user = await getUser();
@@ -38,36 +40,94 @@ export async function GET(request: NextRequest) {
 
     const planLimits = getPlanLimit(dbUser.plan as Plan);
 
-    // Получаем ВСЕ файлы (включая корзину если нужно)
-    const whereCondition = teamId ? { teamId } : { createdById: dbUser.id };
-
-    const userFiles = await prisma.file.findMany({
-      where: includeTrash
-        ? whereCondition // Все файлы
-        : { ...whereCondition, deletedAt: null }, // Только активные
-      select: {
-        id: true,
-        document: true,
-        whiteboard: true,
-        sizeBytes: true,
-        deletedAt: true,
-      },
-    });
-
-    const userVersions = await prisma.documentVersion.findMany({
-      where: {
-        authorId: dbUser.id,
-      },
-      select: {
-        id: true,
-        content: true,
-        type: true,
-      },
-    });
-
+    let storageLimit = BigInt(planLimits.maxStorage);
     let totalCalculatedSize = BigInt(0);
+    let teamFiles = [];
+    let teamVersions = [];
 
-    userFiles.forEach((file) => {
+    if (teamId) {
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+        include: {
+          members: {
+            where: { userId: dbUser.id },
+          },
+        },
+      });
+
+      if (!team) {
+        return NextResponse.json({ error: "Team not found" }, { status: 404 });
+      }
+
+      const isMember =
+        team.members.length > 0 || team.createdById === dbUser.id;
+      if (!isMember) {
+        return NextResponse.json(
+          { error: "Not a team member" },
+          { status: 403 },
+        );
+      }
+
+      teamFiles = await prisma.file.findMany({
+        where: { teamId },
+        select: {
+          id: true,
+          document: true,
+          whiteboard: true,
+          sizeBytes: true,
+          deletedAt: true,
+          teamId: true,
+          createdById: true,
+        },
+      });
+
+      teamVersions = await prisma.documentVersion.findMany({
+        where: {
+          file: {
+            teamId: teamId,
+          },
+        },
+        select: {
+          id: true,
+          content: true,
+          type: true,
+          sizeBytes: true,
+        },
+      });
+
+      if (team.storageLimitBytes) {
+        storageLimit = team.storageLimitBytes;
+      }
+    } else {
+      const userFiles = await prisma.file.findMany({
+        where: { createdById: dbUser.id },
+        select: {
+          id: true,
+          document: true,
+          whiteboard: true,
+          sizeBytes: true,
+          deletedAt: true,
+          teamId: true,
+          createdById: true,
+        },
+      });
+
+      teamVersions = await prisma.documentVersion.findMany({
+        where: {
+          authorId: dbUser.id,
+        },
+        select: {
+          id: true,
+          content: true,
+          type: true,
+          sizeBytes: true,
+        },
+      });
+
+      teamFiles = userFiles;
+    }
+
+    teamFiles.forEach((file) => {
       const fileSize = calculateFileSize(
         file.document || undefined,
         file.whiteboard || undefined,
@@ -75,58 +135,50 @@ export async function GET(request: NextRequest) {
       totalCalculatedSize += fileSize;
     });
 
-    userVersions.forEach((version) => {
-      let versionSize: bigint;
-
-      if (version.type === "document") {
-        versionSize = calculateFileSize(version.content, undefined);
-      } else if (version.type === "whiteboard") {
-        versionSize = calculateFileSize(undefined, version.content);
+    teamVersions.forEach((version) => {
+      if (version.sizeBytes && version.sizeBytes > 0) {
+        totalCalculatedSize += version.sizeBytes;
       } else {
-        try {
-          JSON.parse(version.content);
-          versionSize = calculateFileSize(undefined, version.content);
-        } catch {
-          versionSize = calculateFileSize(version.content, undefined);
-        }
-      }
+        let versionSize: bigint;
 
-      totalCalculatedSize += versionSize;
+        if (version.type === "document") {
+          versionSize = calculateFullVersionSize(version.content, "document");
+        } else if (version.type === "whiteboard") {
+          versionSize = calculateFullVersionSize(version.content, "whiteboard");
+        } else {
+          try {
+            JSON.parse(version.content);
+            versionSize = calculateFullVersionSize(
+              version.content,
+              "whiteboard",
+            );
+          } catch {
+            versionSize = calculateFullVersionSize(version.content, "document");
+          }
+        }
+
+        totalCalculatedSize += versionSize;
+      }
     });
 
-    const activeFiles = userFiles.filter((file) => !file.deletedAt);
-    const trashFiles = userFiles.filter((file) => file.deletedAt);
+    const activeFiles = teamFiles.filter((file) => !file.deletedAt);
+    const trashFiles = teamFiles.filter((file) => file.deletedAt);
     const activeFilesCount = activeFiles.length;
 
     const statsByType = {
-      documents: userFiles.filter((f) => f.document && !f.whiteboard).length,
-      whiteboards: userFiles.filter((f) => f.whiteboard && !f.document).length,
-      mixed: userFiles.filter((f) => f.document && f.whiteboard).length,
-      totalFiles: userFiles.length,
-      totalVersions: userVersions.length,
+      documents: teamFiles.filter((f) => f.document && !f.whiteboard).length,
+      whiteboards: teamFiles.filter((f) => f.whiteboard && !f.document).length,
+      mixed: teamFiles.filter((f) => f.document && f.whiteboard).length,
+      totalFiles: teamFiles.length,
+      totalVersions: teamVersions.length,
     };
 
     const storageUsed = totalCalculatedSize;
-    const storageLimit = BigInt(planLimits.maxStorage);
 
     const percentage =
       storageLimit > BigInt(0)
         ? Number((storageUsed * BigInt(100)) / storageLimit)
         : 0;
-
-    // ДЕБАГ информация
-    console.log("📊 Storage calculation (API):", {
-      plan: dbUser.plan,
-      includeTrash,
-      filesTotal: userFiles.length,
-      activeFiles: activeFilesCount,
-      trashFiles: trashFiles.length,
-      calculatedSize: formatBytes(storageUsed),
-      calculatedSizeGB: Number(storageUsed) / 1024 ** 3,
-      limitSize: formatBytes(storageLimit),
-      limitSizeGB: Number(storageLimit) / 1024 ** 3,
-      percentage: percentage.toFixed(1) + "%",
-    });
 
     const response = {
       user: {
@@ -144,33 +196,17 @@ export async function GET(request: NextRequest) {
         percentage: parseFloat(percentage.toFixed(1)),
         remainingBytes: (storageLimit - storageUsed).toString(),
         remainingFormatted: formatBytes(storageLimit - storageUsed),
-
-        dbUsedBytes: dbUser.storageUsedBytes?.toString() || "0",
-        dbUsedFormatted: formatBytes(dbUser.storageUsedBytes || BigInt(0)),
-        difference: (
-          Number(storageUsed) - Number(dbUser.storageUsedBytes || 0)
-        ).toString(),
+        includesTrash: true,
       },
       files: {
         activeCount: activeFilesCount,
-        totalCount: userFiles.length,
-        versionsCount: userVersions.length,
+        totalCount: teamFiles.length,
+        versionsCount: teamVersions.length,
         calculatedSizeBytes: storageUsed.toString(),
         calculatedSizeFormatted: formatBytes(storageUsed),
         statsByType,
         inTrash: trashFiles.length,
-        includeTrash,
       },
-      teams: dbUser.teams.map((team) => ({
-        id: team.id,
-        name: team.name,
-        storageUsedBytes: team.storageUsedBytes?.toString() || "0",
-        storageUsedFormatted: formatBytes(team.storageUsedBytes || BigInt(0)),
-        storageLimitBytes: team.storageLimitBytes?.toString() || null,
-        storageLimitFormatted: team.storageLimitBytes
-          ? formatBytes(team.storageLimitBytes)
-          : null,
-      })),
       requiresUpgrade: storageUsed >= (storageLimit * BigInt(90)) / BigInt(100),
     };
 
