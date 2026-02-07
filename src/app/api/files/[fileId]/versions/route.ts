@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { calculateVersionSize, formatBytes } from "@/lib/fileSizeCalculator";
+import { serializeBigInt } from "@/lib/serializeBigInt";
 
 export async function GET(
   request: NextRequest,
@@ -64,7 +65,7 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(versions);
+    return NextResponse.json(serializeBigInt(versions));
   } catch (error) {
     console.error("Error fetching versions:", error);
     return NextResponse.json(
@@ -93,11 +94,6 @@ export async function POST(
       content,
       type = "document",
     } = await request.json();
-
-    console.log(`🎯 Creating ${type} version for file ${fileId}`, {
-      contentLength: content?.length,
-      name,
-    });
 
     if (!content) {
       return NextResponse.json(
@@ -137,6 +133,22 @@ export async function POST(
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
+    const previousVersion = await prisma.documentVersion.findFirst({
+      where: {
+        fileId,
+        type,
+      },
+      orderBy: { version: "desc" },
+      select: {
+        content: true,
+        version: true,
+      },
+    });
+
+    const previousContent = previousVersion?.content || null;
+
+    const versionSize = calculateVersionSize(content, type, previousContent);
+
     const storageResponse = await fetch(
       `${process.env.APP_URL || "http://localhost:3000"}/api/users/storage?teamId=${file.teamId}`,
     );
@@ -146,8 +158,6 @@ export async function POST(
       const usedBytes = BigInt(storageData.storage.usedBytes);
       const limitBytes = BigInt(storageData.storage.limitBytes);
 
-      const versionSize = calculateVersionSize(content, type);
-
       if (usedBytes + versionSize > limitBytes) {
         return NextResponse.json(
           {
@@ -156,6 +166,7 @@ export async function POST(
             usedBytes: storageData.storage.usedFormatted,
             limitBytes: storageData.storage.limitFormatted,
             requiredBytes: formatBytes(versionSize),
+            previousContentAvailable: !!previousContent,
           },
           { status: 403 },
         );
@@ -173,10 +184,6 @@ export async function POST(
       });
 
       const newVersionNumber = (lastVersion?.version || 0) + 1;
-
-      console.log(
-        `📝 Creating ${type} version ${newVersionNumber} for file ${fileId}`,
-      );
 
       const existingVersion = await tx.documentVersion.findUnique({
         where: {
@@ -223,13 +230,10 @@ export async function POST(
         },
       });
 
-      console.log(
-        `✅ Successfully created ${type} version ${newVersionNumber}`,
-      );
       return newVersion;
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(serializeBigInt(result));
   } catch (error) {
     console.error("❌ Error creating version:", error);
 
