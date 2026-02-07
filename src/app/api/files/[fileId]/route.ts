@@ -152,8 +152,7 @@ export async function GET(
     }
 
     if (file.isPublic) {
-      console.log("✅ Public file accessed:", fileId);
-      return NextResponse.json(file, { status: 200 });
+      return NextResponse.json(serializeBigInt(file), { status: 200 });
     }
 
     if (!user || !user.id || !user.email) {
