@@ -65,14 +65,10 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
     const loadTeamData = async () => {
       try {
         if (!activeTeam?.id) {
-          console.log("❌ No active team found");
           setTeamMembersCount(0);
           setStoragePercentage(0);
-
           return;
         }
-
-        console.log("🔄 Loading team data for team:", activeTeam.id);
 
         const teamResponse = await fetch(
           `/api/teams/${activeTeam.id}/members`,
@@ -87,21 +83,20 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
         }
 
         const storageResponse = await fetch(
-          `/api/teams/${activeTeam.id}/storage`,
+          `/api/users/storage?teamId=${activeTeam.id}&includeTrash=true`,
         );
 
         if (storageResponse.ok) {
           const storageData = await storageResponse.json();
 
-          const usedBytes = Number(storageData.storage?.usedBytes || 0);
-          const limitBytes = Number(
-            storageData.storage?.limitBytes || 10 * 1024 * 1024 * 1024,
-          );
-
-          const percentage =
-            limitBytes > 0 ? (usedBytes / limitBytes) * 100 : 0;
+          const percentage = storageData.storage?.percentage || 0;
 
           setStoragePercentage(Math.min(percentage, 100));
+
+          const usedBytes = Number(storageData.storage?.usedBytes || 0);
+          const limitBytes = Number(storageData.storage?.limitBytes || 0);
+          const calculatedGB = usedBytes / (1024 * 1024 * 1024);
+          const limitGB = limitBytes / (1024 * 1024 * 1024);
         }
       } catch (error) {
         console.error("❌ Failed to load team data:", error);
@@ -122,26 +117,20 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
     const loadFiles = async () => {
       try {
         if (!activeTeam?.id) {
-          console.log("❌ No active team found");
           setFileList([]);
           updateFromFileList([]);
           return;
         }
 
-        console.log("🔄 Loading files for team:", activeTeam.id);
-
         const response = await fetch(
           `/api/files?teamId=${activeTeam.id}&includeTrashed=false`,
         );
-
-        console.log("📡 API Response status:", response.status);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const files = await response.json();
-        console.log("📁 Raw files response:", files);
 
         const filesArray = Array.isArray(files) ? files : [];
 
@@ -151,8 +140,6 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
 
         setFileList(activeFiles);
         updateFromFileList(activeFiles);
-
-        console.log("✅ Files loaded successfully:", filesArray.length);
       } catch (error) {
         console.error("❌ Failed to load files:", error);
 
@@ -175,7 +162,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
   };
 
   const handleTeamUpdate = () => {
-    console.log("Team updated");
+    return;
   };
 
   const getPaddingClasses = () => {
@@ -378,22 +365,6 @@ const Cloud = ({ className }: { className?: string }) => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4 4 0 003 15z"
-    />
-  </svg>
-);
-
-const Plus = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 4v16m8-8H4"
     />
   </svg>
 );
