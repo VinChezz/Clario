@@ -71,7 +71,7 @@ export interface StorageData {
   requiresUpgrade: boolean;
 }
 
-export function useStorage(teamId?: string) {
+export function useStorage(teamId?: string, includeTrash: boolean = true) {
   const [data, setData] = useState<StorageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,9 +79,10 @@ export function useStorage(teamId?: string) {
   const fetchStorageData = async () => {
     try {
       setLoading(true);
+
       const url = teamId
-        ? `/api/teams/${teamId}/storage`
-        : "/api/users/storage";
+        ? `/api/users/storage?teamId=${teamId}&includeTrash=true`
+        : `/api/users/storage?includeTrash=true`;
 
       const response = await fetch(url);
 
@@ -101,7 +102,7 @@ export function useStorage(teamId?: string) {
 
   useEffect(() => {
     fetchStorageData();
-  }, []);
+  }, [teamId, includeTrash]);
 
   const canUploadFile = (fileSizeBytes: number): boolean => {
     if (!data) return false;
@@ -131,6 +132,26 @@ export function useStorage(teamId?: string) {
     return Number(limitBytes) / 1024 ** 3;
   };
 
+  const canCreateVersion = (versionSizeBytes: number): boolean => {
+    if (!data) return false;
+
+    const usedBytes = BigInt(data.storage.usedBytes);
+    const limitBytes = BigInt(data.storage.limitBytes);
+    const versionSize = BigInt(versionSizeBytes);
+
+    return usedBytes + versionSize <= limitBytes;
+  };
+
+  const canCreateFile = (fileSizeBytes: number = 75 * 1024 * 1024): boolean => {
+    if (!data) return false;
+
+    const usedBytes = BigInt(data.storage.usedBytes);
+    const limitBytes = BigInt(data.storage.limitBytes);
+    const fileSize = BigInt(fileSizeBytes);
+
+    return usedBytes + fileSize <= limitBytes;
+  };
+
   return {
     data,
     loading,
@@ -145,5 +166,7 @@ export function useStorage(teamId?: string) {
       : data?.storage.percentage || 0,
     requiresUpgrade: data?.requiresUpgrade || false,
     teamStorage: data?.teamStorage,
+    canCreateVersion,
+    canCreateFile,
   };
 }
