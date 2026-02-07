@@ -14,8 +14,9 @@ import {
   AlertCircle,
   TrendingUp,
   Zap,
+  CheckCircle,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogClose,
@@ -61,6 +62,9 @@ import {
   calculateDaysUntilDeletion,
 } from "@/lib/formatUtils";
 import { useStorage } from "@/hooks/useStorage";
+import { toast } from "sonner";
+import { useStorageStatus } from "@/hooks/useStorageStatus";
+import { getButtonStyles, getButtonText } from "@/lib/storageButtonUtils";
 
 interface StorageIndicatorProps {
   currentUsageGB?: number;
@@ -102,7 +106,7 @@ export function StorageIndicator({
   const [isHovered, setIsHovered] = useState(false);
 
   const useStorageHook = teamId || useTeamStorage;
-  const storageHook = useStorageHook ? useStorage(teamId) : null;
+  const storageHook = useStorageHook ? useStorage(teamId, true) : null;
 
   let currentUsageGB = propCurrentUsageGB;
   let maxStorageGB = propMaxStorageGB;
@@ -155,9 +159,21 @@ export function StorageIndicator({
         bgColor:
           "from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20",
         textColor: "text-red-600 dark:text-red-400",
-        message: "Storage full",
+        message: "Storage full - upgrade needed",
         icon: AlertCircle,
         iconColor: "text-red-600 dark:text-red-400",
+        showUpgradeButton: true,
+      };
+    } else if (usagePercentage >= 90) {
+      return {
+        color:
+          "from-red-500 to-orange-500 dark:from-red-600 dark:to-orange-600",
+        bgColor:
+          "from-red-50 to-orange-100 dark:from-red-900/20 dark:to-orange-800/20",
+        textColor: "text-red-600 dark:text-red-400",
+        icon: AlertCircle,
+        iconColor: "text-red-600 dark:text-red-400",
+        showUpgradeButton: true,
       };
     } else if (usagePercentage >= 80 || showWarning) {
       return {
@@ -169,6 +185,7 @@ export function StorageIndicator({
         message: `${Math.round(remainingPercentage)}% available`,
         icon: TrendingUp,
         iconColor: "text-orange-600 dark:text-orange-400",
+        showUpgradeButton: showUpgradeButton,
       };
     } else {
       return {
@@ -180,6 +197,7 @@ export function StorageIndicator({
         message: `${Math.round(remainingPercentage)}% available`,
         icon: Zap,
         iconColor: "text-blue-600 dark:text-blue-400",
+        showUpgradeButton: false,
       };
     }
   };
@@ -360,24 +378,23 @@ export function StorageIndicator({
         </div>
       </motion.div>
 
-      {!isHovered && showUpgradeButton && onUpgradeClick && plan === "FREE" && (
-        <div className="pt-2">
-          <button
-            onClick={onUpgradeClick}
-            className={cn(
-              "w-full text-xs font-semibold text-center py-1.5 rounded-lg transition-colors",
-              status.textColor,
-              status.textColor.includes("red")
-                ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30"
-                : status.textColor.includes("orange")
-                  ? "bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-                  : "bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30",
-            )}
-          >
-            Upgrade for more storage
-          </button>
-        </div>
-      )}
+      {isHovered &&
+        usagePercentage >= 90 &&
+        onUpgradeClick &&
+        plan === "FREE" && (
+          <div className="pt-2">
+            <button
+              onClick={onUpgradeClick}
+              className={cn(
+                "w-full text-xs font-semibold text-center py-1.5 rounded-lg transition-colors",
+                "text-white",
+                "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600",
+              )}
+            >
+              Upgrade - storage {Math.round(usagePercentage)}% full
+            </button>
+          </div>
+        )}
     </motion.div>
   );
 }
@@ -470,6 +487,23 @@ export default function SideNavBottomSection({
   const [fileToDelete, setFileToDelete] = useState<string | null>(null);
   const [isLoadingStorage, setIsLoadingStorage] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [storageCheckResult, setStorageCheckResult] = useState<{
+    canCreate: boolean;
+    reason?: string;
+    timestamp?: number;
+  }>({ canCreate: true });
+
+  const [permanentlyDeletedCount, setPermanentlyDeletedCount] =
+    useState<number>(0);
+  const [hasDeletedOneFile, setHasDeletedOneFile] = useState<boolean>(false);
+
+  const prevStorageStateRef = useRef<{
+    usedBytes?: bigint;
+    limitBytes?: bigint;
+    percentage?: number;
+  }>({});
+
+  const prevTeamIdRef = useRef<string | undefined>(null);
 
   const router = useRouter();
 
@@ -477,7 +511,8 @@ export default function SideNavBottomSection({
   const { fileCount, hasFiles, updateFromFileList } = useFileData();
 
   const { activeTeam } = useActiveTeam();
-  const storageHook = useStorage(activeTeam?.id);
+  const storageHook = useStorage(activeTeam?.id, true);
+  const storageStatus = useStorageStatus(activeTeam?.id);
 
   const isMobileDevice = useIsMobile();
   const isTabletDevice = useIsTablet();
@@ -506,13 +541,93 @@ export default function SideNavBottomSection({
     canCreateFiles: true,
   });
 
+  const checkStorage = useCallback(() => {
+    if (!user?.email || !activeTeam?.id) {
+      setStorageCheckResult({ canCreate: false, reason: "No active team" });
+      return;
+    }
+
+    const currentUserMember = teamMembers.find(
+      (member) => member.userId === dbUser?.id,
+    );
+    const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
+
+    const hasPermission =
+      isCurrentUserCreator || currentUserMember?.role === "EDIT";
+
+    if (!hasPermission) {
+      setStorageCheckResult({
+        canCreate: false,
+        reason: "No permission to create files",
+      });
+      return;
+    }
+
+    if (!storageData.usedBytes || !storageData.limitBytes) {
+      setStorageCheckResult({ canCreate: true });
+      return;
+    }
+
+    const currentUsedBytes = storageData.usedBytes;
+    const currentLimitBytes = storageData.limitBytes;
+    const currentPercentage = storageData.percentage;
+
+    const fileSizeBytes = 75 * 1024 * 1024;
+    const fileSizeGB = fileSizeBytes / 1024 ** 3;
+
+    const remainingBytes = currentLimitBytes - currentUsedBytes;
+    const remainingGB = Number(remainingBytes) / 1024 ** 3;
+
+    const hasEnoughSpace = remainingBytes >= BigInt(fileSizeBytes);
+
+    if (!hasEnoughSpace) {
+      setStorageCheckResult({
+        canCreate: false,
+        reason: `Not enough storage. Need ${fileSizeGB.toFixed(2)}GB, but only ${remainingGB.toFixed(2)}GB available (including files in trash).`,
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
+    if (currentPercentage >= 100) {
+      setStorageCheckResult({
+        canCreate: false,
+        reason:
+          "Storage is completely full! Delete files permanently or upgrade plan.",
+        timestamp: Date.now(),
+      });
+      return;
+    } else if (currentPercentage >= 90) {
+      setStorageCheckResult({
+        canCreate: false,
+        reason:
+          "Storage almost full (>90%). Delete files permanently to create new ones or upgrade plan.",
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
+    setStorageCheckResult({
+      canCreate: true,
+      timestamp: Date.now(),
+    });
+  }, [
+    user,
+    activeTeam,
+    dbUser,
+    teamMembers,
+    storageData.usedBytes,
+    storageData.limitBytes,
+    storageData.percentage,
+  ]);
+
   const refreshStorageData = async () => {
     if (!user?.email || !activeTeam?.id) return;
 
     setIsLoadingStorage(true);
     try {
       const response = await fetch(
-        `/api/users/storage?teamId=${activeTeam.id}`,
+        `/api/users/storage?teamId=${activeTeam.id}&includeTrash=true`,
       );
 
       if (!response.ok) {
@@ -523,15 +638,15 @@ export default function SideNavBottomSection({
 
       const usedBytes = BigInt(data.storage?.usedBytes || 0);
       const limitBytes = BigInt(
-        data.storage?.limitBytes || 10 * 1024 * 1024 * 1024,
+        data.storage?.limitBytes || 2 * 1024 * 1024 * 1024,
       );
 
       const currentUsageGB = Number(usedBytes) / (1024 * 1024 * 1024);
       const maxStorageGB = Number(limitBytes) / (1024 * 1024 * 1024);
-      const percentage = (currentUsageGB / maxStorageGB) * 100;
+      const percentage = data.storage?.percentage || 0;
 
       const remainingBytes = limitBytes - usedBytes;
-      const canCreateFiles = remainingBytes > 100 * 1024 * 1024;
+      const canCreateFiles = remainingBytes > 75 * 1024 * 1024;
 
       setStorageData({
         currentUsageGB,
@@ -558,14 +673,43 @@ export default function SideNavBottomSection({
   };
 
   useEffect(() => {
+    if (activeTeam?.id !== prevTeamIdRef.current) {
+      setStorageData({
+        currentUsageGB: 0,
+        maxStorageGB: 10,
+        plan: "FREE",
+        usedBytes: BigInt(0),
+        limitBytes: BigInt(10 * 1024 * 1024 * 1024),
+        percentage: 0,
+        canCreateFiles: true,
+      });
+
+      setStorageCheckResult({ canCreate: true });
+
+      prevStorageStateRef.current = {};
+
+      prevTeamIdRef.current = activeTeam?.id;
+
+      setDeletedFiles([]);
+      setSelectedFiles([]);
+
+      setIsGithubConnected(false);
+    }
+  }, [activeTeam?.id]);
+
+  useEffect(() => {
     if (user?.email && activeTeam?.id) {
       refreshStorageData();
+
+      checkGithubConnection();
+
+      checkStorage();
     }
   }, [user?.email, activeTeam?.id]);
 
   useEffect(() => {
     if (fileCount !== undefined) {
-      console.log("File count updated in context:", fileCount);
+      return;
     }
   }, [fileCount]);
 
@@ -615,12 +759,52 @@ export default function SideNavBottomSection({
     checkGithubConnection();
   };
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      checkStorage();
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [checkStorage]);
+
   const handleFileCreate = async (fileName: string) => {
-    if (!storageData.canCreateFiles) {
-      alert(
-        "Not enough storage space! Please free up some space or upgrade your plan.",
+    if (!storageCheckResult.canCreate) {
+      toast.error(
+        storageCheckResult.reason || "Cannot create file due to storage limits",
+        { duration: 5000 },
       );
+
+      if (
+        storageCheckResult.reason?.includes("Not enough storage") ||
+        storageCheckResult.reason?.includes("Storage almost full") ||
+        storageCheckResult.reason?.includes("Storage is completely full")
+      ) {
+        router.push("/pricing");
+      }
+
       return;
+    }
+
+    if (storageHook?.data) {
+      const fileSizeBytes = 75 * 1024 * 1024;
+      const usedBytes = BigInt(storageHook.data.storage.usedBytes || "0");
+      const limitBytes = BigInt(storageHook.data.storage.limitBytes || "0");
+
+      const remainingBytes = limitBytes - usedBytes;
+      if (remainingBytes < BigInt(fileSizeBytes)) {
+        const usedGB = Number(usedBytes) / 1024 ** 3;
+        const limitGB = Number(limitBytes) / 1024 ** 3;
+        const remainingGB = limitGB - usedGB;
+        const neededGB = (fileSizeBytes / 1024 ** 3).toFixed(2);
+
+        toast.error(
+          `Cannot create file. Need ${neededGB}GB, but only ${remainingGB.toFixed(2)}GB available.`,
+          { duration: 6000 },
+        );
+
+        router.push("/pricing");
+        return;
+      }
     }
 
     try {
@@ -629,9 +813,11 @@ export default function SideNavBottomSection({
 
       setTimeout(() => {
         refreshStorageData();
+        if (storageHook) storageHook.refresh();
       }, 1000);
     } catch (error) {
       console.error("Error creating file:", error);
+      toast.error("Failed to create file");
     }
   };
 
@@ -645,75 +831,182 @@ export default function SideNavBottomSection({
     storageData.canCreateFiles;
 
   const getStorageInfo = () => {
-    const remainingGB = storageData.maxStorageGB - storageData.currentUsageGB;
+    const { status, message, percentage, plan, showUpgrade } = storageStatus;
 
-    if (storageData.percentage >= 100) {
-      return {
-        status: "full",
-        message: "Storage full",
-        color: "text-red-600 dark:text-red-400",
-        bgColor: "bg-red-50 dark:bg-red-900/20",
-        buttonText: "Storage Full",
-      };
-    } else if (storageData.percentage >= 90) {
-      return {
-        status: "warning",
-        message: `${remainingGB.toFixed(1)} GB left`,
-        color: "text-amber-600 dark:text-amber-400",
-        bgColor: "bg-amber-50 dark:bg-amber-900/20",
-        buttonText: "Almost Full",
-      };
-    } else if (storageData.percentage >= 80) {
-      return {
-        status: "warning",
-        message: `${remainingGB.toFixed(1)} GB left`,
-        color: "text-amber-600 dark:text-amber-400",
-        bgColor: "bg-amber-50 dark:bg-amber-900/20",
-        buttonText: "Low Storage",
-      };
-    } else {
-      return {
-        status: "ok",
-        message: `${remainingGB.toFixed(1)} GB free`,
-        color: "text-blue-600 dark:text-blue-400",
-        bgColor: "bg-blue-50 dark:bg-blue-900/20",
-        buttonText: "New File",
-      };
+    switch (status) {
+      case "full":
+        return {
+          status: "full",
+          message,
+          color: "text-red-600 dark:text-red-400",
+          bgColor: "bg-red-50 dark:bg-red-900/20",
+          buttonText: getButtonText(status, plan),
+          disabled: true,
+          showUpgrade: true,
+        };
+      case "warning":
+        return {
+          status: "warning",
+          message,
+          color: "text-amber-600 dark:text-amber-400",
+          bgColor: "bg-amber-50 dark:bg-amber-900/20",
+          buttonText: getButtonText(status, plan),
+          disabled: percentage >= 90,
+          showUpgrade: showUpgrade,
+        };
+      case "no-permission":
+        return {
+          status: "no-permission",
+          message,
+          color: "text-gray-600 dark:text-gray-400",
+          bgColor: "bg-gray-50 dark:bg-gray-900/20",
+          buttonText: getButtonText(status, plan),
+          disabled: true,
+          showUpgrade: false,
+        };
+      case "no-team":
+        return {
+          status: "no-team",
+          message,
+          color: "text-gray-600 dark:text-gray-400",
+          bgColor: "bg-gray-50 dark:bg-gray-900/20",
+          buttonText: getButtonText(status, plan),
+          disabled: true,
+          showUpgrade: false,
+        };
+      default:
+        return {
+          status: "ok",
+          message,
+          color: "text-blue-600 dark:text-blue-400",
+          bgColor: "bg-blue-50 dark:bg-blue-900/20",
+          buttonText: getButtonText(status, plan),
+          disabled: false,
+          showUpgrade: false,
+        };
     }
   };
 
   const fetchDeletedFiles = async () => {
-    if (!activeTeam?.id) return;
+    if (!activeTeam?.id) {
+      console.error("❌ No active team ID for fetching trash");
+      return;
+    }
 
     setIsLoadingTrash(true);
     try {
       const response = await fetch(`/api/files/trash?teamId=${activeTeam.id}`);
       if (response.ok) {
-        const files = await response.json();
-        setDeletedFiles(files);
+        const data = await response.json();
+
+        setDeletedFiles(data.files || []);
         setSelectedFiles([]);
+
+        if (data.warnings && data.warnings.length > 0) {
+          data.warnings.forEach((warning: any) => {
+            if (warning.type === "TRASH_FULL") {
+              toast.warning(warning.message, {
+                duration: 6000,
+                action:
+                  warning.action === "upgrade_or_clean"
+                    ? {
+                        label: "Upgrade",
+                        onClick: () => router.push("/pricing"),
+                      }
+                    : undefined,
+              });
+            }
+          });
+        }
+      } else {
+        console.error("❌ Failed to fetch deleted files:", response.status);
       }
     } catch (error) {
-      console.error("Failed to fetch deleted files:", error);
+      console.error("❌ Failed to fetch deleted files:", error);
     } finally {
       setIsLoadingTrash(false);
     }
   };
 
+  const canDeletePermanently = useCallback(() => {
+    if (storageData.plan !== "FREE") {
+      return true;
+    }
+
+    return !hasDeletedOneFile;
+  }, [storageData.plan, hasDeletedOneFile]);
+
+  const getDeleteRestrictionMessage = () => {
+    if (storageData.plan === "FREE" && hasDeletedOneFile) {
+      return "You have already used your 1 permanent deletion. Upgrade to PRO for unlimited deletions.";
+    }
+    return "";
+  };
+
   const handleDeletePermanently = async (fileId: string) => {
+    if (!canDeletePermanently()) {
+      const restrictionMessage = getDeleteRestrictionMessage();
+      toast.error(
+        <div className="flex flex-col gap-1">
+          <span className="font-semibold">Delete limit reached</span>
+          <span>{restrictionMessage}</span>
+          <Button
+            variant="link"
+            className="h-auto p-0 text-blue-600 dark:text-blue-400 justify-start"
+            onClick={() => router.push("/pricing")}
+          >
+            Upgrade to PRO for unlimited deletions →
+          </Button>
+        </div>,
+        { duration: 8000 },
+      );
+      return;
+    }
+
     try {
       const response = await fetch(`/api/files/${fileId}/permanent`, {
         method: "DELETE",
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         setFileToDelete(null);
         setSelectedFiles((prev) => prev.filter((id) => id !== fileId));
         fetchDeletedFiles();
+
         refreshStorageData();
+        toast.success(data.message || "File permanently deleted");
+
+        if (storageData.plan === "FREE") {
+          setPermanentlyDeletedCount((prev) => prev + 1);
+          setHasDeletedOneFile(true);
+
+          localStorage.setItem(`free_plan_deleted_${activeTeam?.id}`, "true");
+        }
+      } else if (response.status === 403) {
+        toast.error(
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold">{data.error}</span>
+            <span>{data.details}</span>
+            {data.upgradeUrl && (
+              <Button
+                variant="link"
+                className="h-auto p-0 text-blue-600 dark:text-blue-400 justify-start"
+                onClick={() => router.push(data.upgradeUrl)}
+              >
+                Upgrade to PRO →
+              </Button>
+            )}
+          </div>,
+          { duration: 8000 },
+        );
+      } else {
+        toast.error(data.error || data.details || "Failed to delete file");
       }
     } catch (error) {
       console.error("❌ Error deleting file permanently:", error);
+      toast.error("Failed to delete file");
     }
   };
 
@@ -723,19 +1016,72 @@ export default function SideNavBottomSection({
         method: "PATCH",
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         setSelectedFiles((prev) => prev.filter((id) => id !== fileId));
         fetchDeletedFiles();
         refreshStorageData();
+        toast.success(data.message || "File restored successfully");
+
+        if (storageData.plan === "FREE") {
+          localStorage.setItem("lastRestoreTime", Date.now().toString());
+        }
+      } else {
+        toast.error(data.error || "Failed to restore file");
       }
     } catch (error) {
       console.error("Failed to restore file:", error);
+      toast.error("Failed to restore file");
     }
   };
 
   const deleteSelectedFiles = async () => {
     try {
       setIsLoadingTrash(true);
+      if (storageData.plan === "FREE") {
+        if (hasDeletedOneFile && selectedFiles.length > 0) {
+          const restrictionMessage = getDeleteRestrictionMessage();
+          toast.error(
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold">Delete limit reached</span>
+              <span>{restrictionMessage}</span>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-blue-600 dark:text-blue-400 justify-start"
+                onClick={() => router.push("/pricing")}
+              >
+                Upgrade to PRO for unlimited deletions →
+              </Button>
+            </div>,
+            { duration: 8000 },
+          );
+          setIsLoadingTrash(false);
+          return;
+        }
+
+        if (!hasDeletedOneFile && selectedFiles.length > 1) {
+          toast.error(
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold">Free plan restriction</span>
+              <span>
+                You can only delete one file at a time on FREE plan. Upgrade to
+                PRO for bulk deletions.
+              </span>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-blue-600 dark:text-blue-400 justify-start"
+                onClick={() => router.push("/pricing")}
+              >
+                Upgrade to PRO →
+              </Button>
+            </div>,
+            { duration: 8000 },
+          );
+          setIsLoadingTrash(false);
+          return;
+        }
+      }
 
       for (const fileId of selectedFiles) {
         await handleDeletePermanently(fileId);
@@ -750,19 +1096,208 @@ export default function SideNavBottomSection({
   };
 
   const emptyTrash = async () => {
-    try {
-      setIsLoadingTrash(true);
-
-      for (const file of deletedFiles) {
-        await handleDeletePermanently(file.id);
+    if (storageData.plan === "FREE") {
+      if (hasDeletedOneFile) {
+        const restrictionMessage = getDeleteRestrictionMessage();
+        toast.error(
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold">Delete limit reached</span>
+            <span>{restrictionMessage}</span>
+            <Button
+              variant="link"
+              className="h-auto p-0 text-blue-600 dark:text-blue-400 justify-start"
+              onClick={() => router.push("/pricing")}
+            >
+              Upgrade to PRO for unlimited deletions →
+            </Button>
+          </div>,
+          { duration: 8000 },
+        );
+        return;
       }
 
-      setSelectedFiles([]);
-    } catch (error) {
-      console.error("Failed to delete all files:", error);
-    } finally {
-      setIsLoadingTrash(false);
+      if (deletedFiles.length === 0) {
+        toast.info("Trash is already empty");
+        return;
+      }
+
+      if (deletedFiles.length > 1) {
+        toast.error(
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold">Free plan restriction</span>
+            <span>
+              You can only delete one file at a time on FREE plan. Please select
+              one file to delete.
+            </span>
+            <Button
+              variant="link"
+              className="h-auto p-0 text-blue-600 dark:text-blue-400 justify-start"
+              onClick={() => router.push("/pricing")}
+            >
+              Upgrade to PRO for bulk deletions →
+            </Button>
+          </div>,
+          { duration: 8000 },
+        );
+        return;
+      }
     }
+
+    if (
+      confirm(
+        `Empty trash? This will permanently delete ${deletedFiles.length} item${deletedFiles.length > 1 ? "s" : ""}.`,
+      )
+    ) {
+      try {
+        setIsLoadingTrash(true);
+
+        for (const file of deletedFiles) {
+          await handleDeletePermanently(file.id);
+        }
+
+        setSelectedFiles([]);
+      } catch (error) {
+        console.error("Failed to delete all files:", error);
+      } finally {
+        setIsLoadingTrash(false);
+      }
+    }
+  };
+
+  const updateTrashStateOnly = () => {
+    fetchDeletedFiles();
+  };
+
+  useEffect(() => {
+    if (activeTeam?.id) {
+      const hasDeleted = localStorage.getItem(
+        `free_plan_deleted_${activeTeam.id}`,
+      );
+      setHasDeletedOneFile(hasDeleted === "true");
+
+      const checkDeletedCount = async () => {
+        try {
+          const response = await fetch(`/api/files/trash/count`);
+          if (response.ok) {
+            const data = await response.json();
+            setPermanentlyDeletedCount(data.count || 0);
+            if (data.count > 0) {
+              setHasDeletedOneFile(true);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch deleted count:", error);
+        }
+      };
+
+      if (storageData.plan === "FREE") {
+        checkDeletedCount();
+      }
+    }
+  }, [activeTeam?.id, storageData.plan]);
+
+  const renderDeleteButton = () => {
+    const isDisabled = storageData.plan === "FREE" && hasDeletedOneFile;
+    const tooltip = isDisabled
+      ? "Delete limit reached (1/1 used)"
+      : "Delete permanently";
+
+    return (
+      <button
+        onClick={() => {
+          if (isDisabled) {
+            toast.error(
+              <div className="flex flex-col gap-1">
+                <span className="font-semibold">Delete limit reached</span>
+                <span>
+                  You have already permanently deleted one file. Upgrade to PRO
+                  for unlimited deletions.
+                </span>
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-blue-600 dark:text-blue-400 justify-start"
+                  onClick={() => router.push("/pricing")}
+                >
+                  Upgrade to PRO →
+                </Button>
+              </div>,
+              { duration: 8000 },
+            );
+            return;
+          }
+
+          if (
+            confirm(
+              `Permanently delete ${selectedFiles.length} item${selectedFiles.length > 1 ? "s" : ""}?`,
+            )
+          ) {
+            deleteSelectedFiles();
+          }
+        }}
+        disabled={isDisabled || selectedFiles.length === 0}
+        className={`text-sm font-medium px-2 py-1 rounded-md transition-colors ${
+          isDisabled
+            ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
+            : "text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+        }`}
+        title={tooltip}
+      >
+        Delete
+      </button>
+    );
+  };
+
+  const renderFileDeleteButton = (fileId: string) => {
+    const isDisabled = storageData.plan === "FREE" && hasDeletedOneFile;
+    const tooltip = isDisabled
+      ? "You have already used your one permanent deletion on FREE plan"
+      : "Delete permanently";
+
+    return (
+      <Button
+        variant="secondary"
+        size="icon"
+        className={`h-8 w-8 shadow-md hover:shadow-lg backdrop-blur-sm ${
+          isDisabled
+            ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+            : "bg-white/90 dark:bg-[#252528]/90"
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isDisabled) {
+            toast.error(
+              <div className="flex flex-col gap-1">
+                <span className="font-semibold">Delete limit reached</span>
+                <span>
+                  You have already permanently deleted one file. Upgrade to PRO
+                  for unlimited deletions.
+                </span>
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-blue-600 dark:text-blue-400 justify-start"
+                  onClick={() => router.push("/pricing")}
+                >
+                  Upgrade to PRO →
+                </Button>
+              </div>,
+              { duration: 8000 },
+            );
+          } else {
+            setFileToDelete(fileId);
+          }
+        }}
+        disabled={isDisabled}
+        title={tooltip}
+      >
+        <Trash2
+          className={`h-4 w-4 ${
+            isDisabled
+              ? "text-gray-400 dark:text-gray-600"
+              : "text-red-600 dark:text-red-400"
+          }`}
+        />
+      </Button>
+    );
   };
 
   const handleUpgradeClick = () => {
@@ -1161,11 +1696,11 @@ export default function SideNavBottomSection({
                     buttonSize.text,
                     buttonSize.gap,
                   )}
-                  id="storage-full-button"
+                  id="create-file-button-sidenav"
                   disabled
                 >
                   <Lock className={cn("text-white", buttonSize.icon)} />
-                  <span className="text-white font-semibold">
+                  <span className="text-white font-semibold ">
                     {storageInfo.status === "full"
                       ? "Storage Full"
                       : storageInfo.status === "warning"
@@ -1176,23 +1711,24 @@ export default function SideNavBottomSection({
               ) : (
                 <Dialog>
                   <DialogTrigger className="w-full" asChild>
-                    <Button
+                    <button
                       className={cn(
-                        "group relative px-6 py-3 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300",
-                        storageInfo.status === "warning"
-                          ? "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 dark:from-amber-600 dark:to-orange-700 dark:hover:from-amber-700 dark:hover:to-orange-800"
-                          : "from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 dark:from-blue-500 dark:to-indigo-600 dark:hover:from-blue-600 dark:hover:to-indigo-700",
-                        "dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
+                        getButtonStyles(storageStatus.status),
                         buttonSize.height,
                         buttonSize.text,
                         buttonSize.gap,
+                        "w-full",
                       )}
-                      disabled={!canCreateFiles}
+                      disabled={!storageStatus.canCreate}
                       id="create-file-button-sidenav"
                     >
-                      <Plus className={buttonSize.icon} />
-                      {storageInfo.buttonText}
-                    </Button>
+                      {storageStatus.status === "full" ? (
+                        <Lock className={buttonSize.icon} />
+                      ) : (
+                        <Plus className={buttonSize.icon} />
+                      )}
+                      {getButtonText(storageStatus.status, storageStatus.plan)}
+                    </button>
                   </DialogTrigger>
 
                   <DialogContent
@@ -1232,15 +1768,7 @@ export default function SideNavBottomSection({
                               : "text-base",
                           isLargeTabletDevice && "text-lg",
                         )}
-                      >
-                        {storageInfo.status === "warning" ? (
-                          <span className="text-amber-600 dark:text-amber-400">
-                            ⚠️ Only {storageInfo.message} available
-                          </span>
-                        ) : (
-                          "Give your file a descriptive name"
-                        )}
-                      </DialogDescription>
+                      ></DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4">
@@ -1263,6 +1791,19 @@ export default function SideNavBottomSection({
                         value={fileInput}
                         autoFocus
                       />
+
+                      {storageData.plan !== "FREE" && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-lg">
+                          <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                            💡 Storage Information
+                          </p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                            Storage calculation includes all files (even those
+                            in trash). Files in trash will be permanently
+                            deleted after 30 days.
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <DialogFooter
@@ -1352,6 +1893,27 @@ export default function SideNavBottomSection({
                       <p className="text-gray-500 dark:text-[#a0a0a0] mt-1">
                         Files will be permanently deleted after 30 days
                       </p>
+
+                      {storageData.plan === "FREE" && (
+                        <div className="mt-2 flex items-center gap-2 text-sm">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              hasDeletedOneFile ? "bg-red-500" : "bg-green-500"
+                            }`}
+                          />
+                          <span
+                            className={`font-medium ${
+                              hasDeletedOneFile
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-green-600 dark:text-green-400"
+                            }`}
+                          >
+                            {hasDeletedOneFile
+                              ? "1/1 used"
+                              : "1 deletion available"}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1404,22 +1966,8 @@ export default function SideNavBottomSection({
                             Restore
                           </button>
                           <div className="h-4 w-px bg-gray-300 dark:bg-[#2a2a2d]" />
-                          <button
-                            onClick={() => {
-                              if (
-                                confirm(
-                                  `Permanently delete ${
-                                    selectedFiles.length
-                                  } item${selectedFiles.length > 1 ? "s" : ""}?`,
-                                )
-                              ) {
-                                deleteSelectedFiles();
-                              }
-                            }}
-                            className="text-sm font-medium px-2 py-1 rounded-md transition-colors text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          >
-                            Delete
-                          </button>
+
+                          {renderDeleteButton()}
                         </div>
                       )}
                     </div>
@@ -1430,17 +1978,17 @@ export default function SideNavBottomSection({
                         size="sm"
                         className="gap-2 px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
                         onClick={() => {
-                          if (
-                            confirm(
-                              `Empty trash? This will permanently delete ${
-                                deletedFiles.length
-                              } item${deletedFiles.length > 1 ? "s" : ""}.`,
-                            )
-                          ) {
-                            emptyTrash();
-                          }
+                          emptyTrash();
                         }}
-                        disabled={isLoadingTrash}
+                        disabled={
+                          isLoadingTrash ||
+                          (storageData.plan === "FREE" && hasDeletedOneFile)
+                        }
+                        title={
+                          storageData.plan === "FREE" && hasDeletedOneFile
+                            ? "Delete limit reached (1/1 used)"
+                            : "Empty trash"
+                        }
                       >
                         {isLoadingTrash ? (
                           <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1544,17 +2092,8 @@ export default function SideNavBottomSection({
                                   />
                                 </svg>
                               </Button>
-                              <Button
-                                variant="secondary"
-                                size="icon"
-                                className="h-8 w-8 shadow-md hover:shadow-lg bg-white/90 dark:bg-[#252528]/90 backdrop-blur-sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setFileToDelete(file.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
-                              </Button>
+
+                              {renderFileDeleteButton(file.id)}
                             </div>
                           </div>
 
@@ -1591,6 +2130,16 @@ export default function SideNavBottomSection({
                             </div>
                           </div>
 
+                          {storageData.plan === "FREE" && (
+                            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                {hasDeletedOneFile
+                                  ? "1/1 permanent deletions used"
+                                  : "1 permanent deletion available"}
+                              </p>
+                            </div>
+                          )}
+
                           <div className="absolute inset-0 rounded-xl pointer-events-none bg-linear-to-br from-transparent to-gray-50/50 dark:from-transparent dark:to-[#252528]/50 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       ))}
@@ -1626,23 +2175,60 @@ export default function SideNavBottomSection({
                 )}
               </div>
 
-              <div className="px-8 py-6 dark:border-[#2a2a2d] bg-gray-50/50 dark:bg-[#252528]/50">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-500 dark:text-[#a0a0a0]">
-                    {deletedFiles.length > 0 ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse" />
-                        <span>
-                          {deletedFiles.length} item
-                          {deletedFiles.length > 1 ? "s" : ""} will be deleted
-                          in {daysUntilDeletion} days
-                        </span>
+              <div className="flex justify-center px-5 py-3 border-t border-gray-100 dark:border-[#2a2a2d] bg-white/60 dark:bg-[#1a1a1c]/60">
+                {deletedFiles.length > 0 ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-8 h-8">
+                        <svg className="w-full h-full transform -rotate-90">
+                          <circle
+                            cx="16"
+                            cy="16"
+                            r="14"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            className="text-gray-200 dark:text-[#2a2a2d]"
+                          />
+                          <circle
+                            cx="16"
+                            cy="16"
+                            r="14"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            className="text-amber-500 dark:text-amber-400"
+                            strokeDasharray={`${(88 * daysUntilDeletion) / 30} 88`}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xs font-bold text-gray-900 dark:text-[#f0f0f0]">
+                            {daysUntilDeletion}
+                          </span>
+                        </div>
                       </div>
-                    ) : (
-                      <span>No items in trash</span>
-                    )}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-[#f0f0f0]">
+                          {deletedFiles.length} file
+                          {deletedFiles.length > 1 ? "s" : ""}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                          in trash
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                      <CheckCircle className="h-3 w-3 text-gray-500 dark:text-[#a0a0a0]" />
+                    </div>
+                    <span className="text-sm text-gray-500 dark:text-[#a0a0a0]">
+                      Empty
+                    </span>
+                  </div>
+                )}
               </div>
             </DialogContent>
           </Dialog>
