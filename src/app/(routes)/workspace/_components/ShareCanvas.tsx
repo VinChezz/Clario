@@ -6,6 +6,7 @@ import { FILE } from "@/shared/types/file.interface";
 import { toast } from "sonner";
 import "@excalidraw/excalidraw/index.css";
 import { MainMenu, WelcomeScreen } from "@excalidraw/excalidraw";
+import { Save, CheckCircle2, Loader2 } from "lucide-react";
 
 const Excalidraw = dynamic(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
@@ -16,7 +17,7 @@ const Excalidraw = dynamic(
         <div className="text-lg text-gray-500">Loading whiteboard...</div>
       </div>
     ),
-  }
+  },
 );
 
 interface CanvasProps {
@@ -39,7 +40,27 @@ export default function ShareCanvas({
   const [whiteBoardData, setWhiteBoardData] = useState<any>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const excalidrawRef = useRef<any>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const isDark =
+        window.matchMedia("(prefers-color-scheme: dark)").matches ||
+        document.documentElement.classList.contains("dark");
+      setIsDarkMode(isDark);
+    };
+
+    if (typeof window !== "undefined") {
+      checkDarkMode();
+
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      mediaQuery.addEventListener("change", checkDarkMode);
+
+      return () => mediaQuery.removeEventListener("change", checkDarkMode);
+    }
+  }, []);
 
   useEffect(() => {
     if (fileData?.whiteboard) {
@@ -83,6 +104,7 @@ export default function ShareCanvas({
       console.log("✅ Whiteboard saved successfully!");
       toast.success("Whiteboard saved successfully!");
       setHasUnsavedChanges(false);
+      setLastSaved(new Date());
 
       if (onSaveSuccess) {
         onSaveSuccess();
@@ -98,15 +120,14 @@ export default function ShareCanvas({
   const handleChange = useCallback(
     (elements: readonly any[]) => {
       setWhiteBoardData(elements);
-      // Только отмечаем что есть изменения, но не сохраняем автоматически
+
       if (permissions === "EDIT") {
         setHasUnsavedChanges(true);
       }
     },
-    [permissions]
+    [permissions],
   );
 
-  // Установка readOnly режима через API после инициализации
   useEffect(() => {
     if (excalidrawRef.current && permissions === "VIEW") {
       excalidrawRef.current.readyPromise.then((api: any) => {
@@ -119,60 +140,114 @@ export default function ShareCanvas({
     }
   }, [permissions]);
 
+  const formatLastSaved = () => {
+    if (!lastSaved) return null;
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - lastSaved.getTime()) / 1000);
+
+    if (diff < 60) return "Saved just now";
+    if (diff < 3600) return `Saved ${Math.floor(diff / 60)} min ago`;
+    return `Saved at ${lastSaved.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  };
+
   return (
     <div className="h-full flex flex-col">
-      <div className="p-2 bg-gray-100 border-b flex justify-between items-center">
-        <div className="flex gap-2">
-          {permissions !== "VIEW" && (
-            <button
-              onClick={saveWhiteboard}
-              className={`px-3 py-1 rounded text-sm ${
-                hasUnsavedChanges
-                  ? "bg-blue-500 text-white hover:bg-blue-600"
-                  : "bg-green-500 text-white hover:bg-green-600"
-              }`}
-              disabled={isSaving || !hasUnsavedChanges}
-            >
-              {isSaving
-                ? "Saving..."
-                : hasUnsavedChanges
-                ? "Save Changes"
-                : "Saved"}
-            </button>
-          )}
-
-          <button
-            onClick={() => {
-              console.log("Current whiteboard data:", whiteBoardData);
-              toast.info("Check console for whiteboard data");
-            }}
-            className="px-3 py-1 bg-gray-300 rounded text-sm"
+      <div
+        className={`flex items-center justify-between px-4 py-3 border-b ${
+          isDarkMode
+            ? "bg-[#1e1e1e] border-[#333]"
+            : "bg-gray-50/80 border-gray-200"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <span
+            className={`text-sm font-medium ${
+              isDarkMode ? "text-gray-400" : "text-gray-600"
+            }`}
           >
-            Debug data
-          </button>
-
-          {permissions === "VIEW" && (
-            <span className="px-3 py-1 bg-yellow-200 rounded text-sm">
-              Read-only Whiteboard
-            </span>
-          )}
+            Whiteboard
+          </span>
         </div>
 
-        <div className="text-sm text-gray-600">
-          {permissions === "EDIT"
-            ? hasUnsavedChanges
-              ? "Unsaved changes"
-              : "All changes saved"
-            : "View only"}
+        <div className="flex items-center gap-3">
+          {permissions === "EDIT" && (
+            <div className="flex items-center gap-2">
+              {hasUnsavedChanges ? (
+                <span
+                  className={`text-xs ${
+                    isDarkMode ? "text-amber-400" : "text-amber-600"
+                  }`}
+                >
+                  Unsaved changes
+                </span>
+              ) : lastSaved ? (
+                <span
+                  className={`text-xs flex items-center gap-1.5 ${
+                    isDarkMode ? "text-emerald-400" : "text-emerald-600"
+                  }`}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {formatLastSaved()}
+                </span>
+              ) : null}
+
+              <button
+                onClick={saveWhiteboard}
+                disabled={isSaving || !hasUnsavedChanges}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+                  transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+                  ${
+                    hasUnsavedChanges
+                      ? isDarkMode
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
+                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
+                      : isDarkMode
+                        ? "bg-emerald-600/80 text-white"
+                        : "bg-emerald-600/90 text-white"
+                  }
+                `}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : hasUnsavedChanges ? (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>Save</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Saved</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {permissions === "VIEW" && (
+            <div
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${
+                isDarkMode
+                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  : "bg-amber-50 text-amber-700 border border-amber-200"
+              }`}
+            >
+              <span>Read-only mode</span>
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={{ height: "100%", width: "100%" }}>
+      <div className="flex-1" style={{ height: "100%", width: "100%" }}>
         <Excalidraw
           excalidrawAPI={(api) => {
             excalidrawRef.current = api;
           }}
-          theme="light"
+          theme={isDarkMode ? "dark" : "light"}
           initialData={{ elements: whiteBoardData }}
           onChange={handleChange}
           viewModeEnabled={permissions === "VIEW"}
@@ -185,27 +260,7 @@ export default function ShareCanvas({
               changeViewBackgroundColor: permissions === "EDIT",
             },
           }}
-        >
-          <MainMenu>
-            <MainMenu.DefaultItems.ClearCanvas />
-            <MainMenu.DefaultItems.SaveAsImage />
-            <MainMenu.DefaultItems.ChangeCanvasBackground />
-            {permissions === "VIEW" && (
-              <MainMenu.Item onSelect={() => {}}>
-                <div className="text-yellow-600 font-medium">
-                  🔒 Read-only Mode
-                </div>
-              </MainMenu.Item>
-            )}
-          </MainMenu>
-          <WelcomeScreen>
-            <WelcomeScreen.Hints.MenuHint />
-            <WelcomeScreen.Hints.ToolbarHint />
-            <WelcomeScreen.Center>
-              <WelcomeScreen.Center.MenuItemHelp />
-            </WelcomeScreen.Center>
-          </WelcomeScreen>
-        </Excalidraw>
+        />
       </div>
     </div>
   );
