@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: Promise<{ token: string }> },
 ) {
   try {
     const { token } = await params;
@@ -32,10 +32,21 @@ export async function GET(
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
+    let parsedDocument = null;
+    if (file.document && typeof file.document === "string") {
+      try {
+        parsedDocument = JSON.parse(file.document);
+      } catch (err) {
+        console.error("Error parsing document:", err);
+      }
+    } else {
+      parsedDocument = file.document;
+    }
+
     return NextResponse.json({
       id: file.id,
       fileName: file.fileName,
-      document: file.document,
+      document: parsedDocument,
       whiteboard: file.whiteboard,
       permissions: file.permissions,
       createdBy: file.createdBy,
@@ -45,7 +56,7 @@ export async function GET(
     console.error("Error accessing public file:", err);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
