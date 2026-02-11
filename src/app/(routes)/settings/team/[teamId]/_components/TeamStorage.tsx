@@ -60,8 +60,8 @@ export function TeamStorage({
   const realUsedBytes = storageHook?.data?.files?.calculatedSizeBytes
     ? Number(storageHook.data.files.calculatedSizeBytes)
     : storageHook?.data?.storage?.dbUsedBytes
-    ? Number(storageHook.data.storage.dbUsedBytes)
-    : 0;
+      ? Number(storageHook.data.storage.dbUsedBytes)
+      : 0;
 
   const realUsedGB = realUsedBytes / 1024 ** 3;
 
