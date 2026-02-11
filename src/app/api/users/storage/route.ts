@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
     let totalCalculatedSize = BigInt(0);
     let teamFiles = [];
     let teamVersions = [];
+    let teamStorageInfo = null;
 
     if (teamId) {
       const team = await prisma.team.findUnique({
@@ -51,6 +52,14 @@ export async function GET(request: NextRequest) {
         include: {
           members: {
             where: { userId: dbUser.id },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              plan: true,
+            },
           },
         },
       });
@@ -67,6 +76,9 @@ export async function GET(request: NextRequest) {
           { status: 403 },
         );
       }
+
+      const creatorPlanLimits = getPlanLimit(team.createdBy.plan as Plan);
+      const creatorStorageLimit = BigInt(creatorPlanLimits.maxStorage);
 
       teamFiles = await prisma.file.findMany({
         where: { teamId },
@@ -95,9 +107,71 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      if (team.storageLimitBytes) {
-        storageLimit = team.storageLimitBytes;
-      }
+      teamFiles.forEach((file) => {
+        const fileSize = calculateFileSize(
+          file.document || undefined,
+          file.whiteboard || undefined,
+        );
+        totalCalculatedSize += fileSize;
+      });
+
+      teamVersions.forEach((version) => {
+        if (version.sizeBytes && version.sizeBytes > 0) {
+          totalCalculatedSize += version.sizeBytes;
+        } else {
+          let versionSize: bigint;
+
+          if (version.type === "document") {
+            versionSize = calculateFullVersionSize(version.content, "document");
+          } else if (version.type === "whiteboard") {
+            versionSize = calculateFullVersionSize(
+              version.content,
+              "whiteboard",
+            );
+          } else {
+            try {
+              JSON.parse(version.content);
+              versionSize = calculateFullVersionSize(
+                version.content,
+                "whiteboard",
+              );
+            } catch {
+              versionSize = calculateFullVersionSize(
+                version.content,
+                "document",
+              );
+            }
+          }
+
+          totalCalculatedSize += versionSize;
+        }
+      });
+
+      storageLimit = creatorStorageLimit;
+
+      const teamMembersCount = await prisma.teamMember.count({
+        where: { teamId },
+      });
+
+      teamStorageInfo = {
+        teamId: team.id,
+        teamName: team.name,
+        usedBytes: totalCalculatedSize.toString(),
+        limitBytes: storageLimit.toString(),
+        percentage:
+          storageLimit > BigInt(0)
+            ? parseFloat(
+                ((totalCalculatedSize * BigInt(100)) / storageLimit).toString(),
+              )
+            : 0,
+        creatorPlan: team.createdBy.plan,
+        creatorName: team.createdBy.name || team.createdBy.email,
+        filesCount: teamFiles.length,
+        membersCount: teamMembersCount,
+        usedFormatted: formatBytes(totalCalculatedSize),
+        limitFormatted: formatBytes(storageLimit),
+        availableFormatted: formatBytes(storageLimit - totalCalculatedSize),
+      };
     } else {
       const userFiles = await prisma.file.findMany({
         where: { createdById: dbUser.id },
@@ -125,41 +199,47 @@ export async function GET(request: NextRequest) {
       });
 
       teamFiles = userFiles;
-    }
 
-    teamFiles.forEach((file) => {
-      const fileSize = calculateFileSize(
-        file.document || undefined,
-        file.whiteboard || undefined,
-      );
-      totalCalculatedSize += fileSize;
-    });
+      teamFiles.forEach((file) => {
+        const fileSize = calculateFileSize(
+          file.document || undefined,
+          file.whiteboard || undefined,
+        );
+        totalCalculatedSize += fileSize;
+      });
 
-    teamVersions.forEach((version) => {
-      if (version.sizeBytes && version.sizeBytes > 0) {
-        totalCalculatedSize += version.sizeBytes;
-      } else {
-        let versionSize: bigint;
-
-        if (version.type === "document") {
-          versionSize = calculateFullVersionSize(version.content, "document");
-        } else if (version.type === "whiteboard") {
-          versionSize = calculateFullVersionSize(version.content, "whiteboard");
+      teamVersions.forEach((version) => {
+        if (version.sizeBytes && version.sizeBytes > 0) {
+          totalCalculatedSize += version.sizeBytes;
         } else {
-          try {
-            JSON.parse(version.content);
+          let versionSize: bigint;
+
+          if (version.type === "document") {
+            versionSize = calculateFullVersionSize(version.content, "document");
+          } else if (version.type === "whiteboard") {
             versionSize = calculateFullVersionSize(
               version.content,
               "whiteboard",
             );
-          } catch {
-            versionSize = calculateFullVersionSize(version.content, "document");
+          } else {
+            try {
+              JSON.parse(version.content);
+              versionSize = calculateFullVersionSize(
+                version.content,
+                "whiteboard",
+              );
+            } catch {
+              versionSize = calculateFullVersionSize(
+                version.content,
+                "document",
+              );
+            }
           }
-        }
 
-        totalCalculatedSize += versionSize;
-      }
-    });
+          totalCalculatedSize += versionSize;
+        }
+      });
+    }
 
     const activeFiles = teamFiles.filter((file) => !file.deletedAt);
     const trashFiles = teamFiles.filter((file) => file.deletedAt);
@@ -180,7 +260,7 @@ export async function GET(request: NextRequest) {
         ? Number((storageUsed * BigInt(100)) / storageLimit)
         : 0;
 
-    const response = {
+    const response: any = {
       user: {
         id: dbUser.id,
         email: dbUser.email,
@@ -209,6 +289,10 @@ export async function GET(request: NextRequest) {
       },
       requiresUpgrade: storageUsed >= (storageLimit * BigInt(90)) / BigInt(100),
     };
+
+    if (teamStorageInfo) {
+      response.teamStorage = teamStorageInfo;
+    }
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
