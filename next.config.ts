@@ -22,7 +22,6 @@ const nextConfig: NextConfig = {
   },
   devIndicators: false,
   compress: true,
-  optimizeCss: true,
   experimental: {
     optimizeCss: true,
     optimizePackageImports: [
