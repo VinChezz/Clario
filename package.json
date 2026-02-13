@@ -111,6 +111,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "critters": "^0.0.23",
     "install": "^0.13.0",
     "nodemailer": "^7.0.11",
     "nodemon": "^3.1.10",
