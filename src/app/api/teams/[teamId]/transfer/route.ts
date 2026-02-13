@@ -4,7 +4,7 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> },
 ) {
   try {
     const { getUser } = getKindeServerSession();
@@ -22,17 +22,18 @@ export async function POST(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { teamId } = await params;
     const { newOwnerId } = await request.json();
 
     if (!newOwnerId) {
       return NextResponse.json(
         { error: "New owner ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const team = await prisma.team.findUnique({
-      where: { id: params.teamId },
+      where: { id: teamId },
     });
 
     if (!team) {
@@ -42,13 +43,13 @@ export async function POST(
     if (team.createdById !== dbUser.id) {
       return NextResponse.json(
         { error: "Only the team owner can transfer ownership" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     const newOwnerMember = await prisma.teamMember.findFirst({
       where: {
-        teamId: params.teamId,
+        teamId: teamId,
         userId: newOwnerId,
       },
     });
@@ -56,12 +57,12 @@ export async function POST(
     if (!newOwnerMember) {
       return NextResponse.json(
         { error: "Selected user is not a team member" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     await prisma.team.update({
-      where: { id: params.teamId },
+      where: { id: teamId },
       data: {
         createdById: newOwnerId,
       },
@@ -70,7 +71,7 @@ export async function POST(
     await Promise.all([
       prisma.teamMember.updateMany({
         where: {
-          teamId: params.teamId,
+          teamId: teamId,
           userId: dbUser.id,
         },
         data: {
@@ -80,7 +81,7 @@ export async function POST(
 
       prisma.teamMember.updateMany({
         where: {
-          teamId: params.teamId,
+          teamId: teamId,
           userId: newOwnerId,
         },
         data: {
@@ -94,10 +95,10 @@ export async function POST(
       message: "Ownership transferred successfully",
     });
   } catch (error) {
-    console.error("Error transferring ownership:", error);
+    console.error("❌ Error transferring ownership:", error);
     return NextResponse.json(
       { error: "Failed to transfer ownership" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -5,7 +5,7 @@ import { serializeBigInt } from "@/lib/serializeBigInt";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> },
 ) {
   try {
     const { getUser } = getKindeServerSession();
@@ -17,7 +17,7 @@ export async function PATCH(
         {
           status: 401,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -31,11 +31,11 @@ export async function PATCH(
         {
           status: 404,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
-    const { teamId } = params;
+    const { teamId } = await params;
 
     const teamMember = await prisma.teamMember.findFirst({
       where: {
@@ -51,7 +51,7 @@ export async function PATCH(
         {
           status: 403,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -64,7 +64,7 @@ export async function PATCH(
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -76,7 +76,7 @@ export async function PATCH(
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -90,7 +90,7 @@ export async function PATCH(
         {
           status: 404,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -108,7 +108,7 @@ export async function PATCH(
           {
             status: 400,
             headers: { "Content-Type": "application/json" },
-          }
+          },
         );
       }
     }
@@ -133,10 +133,10 @@ export async function PATCH(
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   } catch (error) {
-    console.error("Team update error:", error);
+    console.error("❌ Team update error:", error);
     return NextResponse.json(
       {
         error: "Failed to update team",
@@ -146,7 +146,7 @@ export async function PATCH(
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   }
 }

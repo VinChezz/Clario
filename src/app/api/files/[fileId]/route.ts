@@ -10,7 +10,7 @@ interface UpdateBody {
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { fileId: string } },
+  { params }: { params: Promise<{ fileId: string }> },
 ) {
   try {
     const { fileId } = await params;
@@ -100,7 +100,7 @@ export async function PATCH(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { fileId: string } },
+  { params }: { params: Promise<{ fileId: string }> },
 ) {
   try {
     const { fileId } = await params;
@@ -192,7 +192,7 @@ export async function GET(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { fileId: string } },
+  { params }: { params: Promise<{ fileId: string }> },
 ) {
   try {
     const { fileId } = await params;

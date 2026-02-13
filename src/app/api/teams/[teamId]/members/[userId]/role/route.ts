@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: { teamId: string; userId: string } },
+  { params }: { params: Promise<{ teamId: string; userId: string }> },
 ) {
   try {
     const { teamId, userId } = await params;
@@ -26,7 +26,7 @@ export async function GET(
       role: teamMember.role,
     });
   } catch (error) {
-    console.error("Failed to fetch user role:", error);
+    console.error("❌ Failed to fetch user role:", error);
     return NextResponse.json(
       { error: "Failed to fetch user role" },
       { status: 500 },

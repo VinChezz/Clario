@@ -4,7 +4,7 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ teamId: string }> },
 ) {
   try {
     const { getUser, isAuthenticated } = getKindeServerSession();
@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const teamId = params.id;
+    const { teamId } = await params;
 
     const dbUser = await prisma.user.findUnique({
       where: {
@@ -42,7 +42,7 @@ export async function GET(
 
     const hasAdminAccess = teamMember?.role === "ADMIN";
 
-    console.log("Access check result:", {
+    console.log("🔐 Access check result:", {
       kindeEmail: user.email,
       dbUserId: dbUser.id,
       teamId,
@@ -52,10 +52,10 @@ export async function GET(
 
     return NextResponse.json({ hasAdminAccess });
   } catch (error) {
-    console.error("Check access error:", error);
+    console.error("❌ Check access error:", error);
     return NextResponse.json(
       { error: "Failed to check access" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

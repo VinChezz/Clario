@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> },
 ) {
   try {
     const { getUser } = getKindeServerSession();
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const teamId = params.teamId;
+    const { teamId } = await params;
 
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email },
@@ -52,10 +52,10 @@ export async function GET(
       team: membership?.team,
     });
   } catch (error) {
-    console.error("Permissions check error:", error);
+    console.error("❌ Permissions check error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
