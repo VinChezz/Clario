@@ -35,7 +35,6 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
       }`}
     >
       <div className="mx-auto flex h-20 max-w-screen-xl items-center gap-6 px-4 sm:px-6 lg:px-8">
-        {/* logo with animations */}
         <motion.div
           className="flex items-center gap-4"
           whileHover={{ scale: 1.05 }}
@@ -47,6 +46,7 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
             width={48}
             height={48}
             className="rounded-lg"
+            priority
           />
           <motion.div
             className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-slate-200 bg-clip-text text-transparent"
@@ -59,7 +59,6 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
         </motion.div>
 
         <div className="flex flex-1 items-center justify-end md:justify-between">
-          {/* navigation */}
           <motion.nav
             aria-label="Global"
             className="hidden md:block"
@@ -88,7 +87,6 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
             </ul>
           </motion.nav>
 
-          {/* login/register buttons */}
           <motion.div
             className="flex items-center gap-4"
             initial={{ opacity: 0, x: 20 }}
@@ -120,7 +118,6 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
               </motion.div>
             </div>
 
-            {/* mobile menu */}
             <div className="md:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -159,7 +156,6 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
                     transition={{ type: "spring", damping: 25, stiffness: 200 }}
                     className="h-full flex flex-col"
                   >
-                    {/* Заголовок мобильного меню */}
                     <div className="flex items-center justify-between p-6 border-b border-indigo-400/20">
                       <motion.div
                         initial={{ opacity: 0, x: -20 }}
@@ -173,6 +169,7 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
                           width={32}
                           height={32}
                           className="rounded-lg"
+                          priority
                         />
                         <span className="text-lg font-bold bg-gradient-to-r from-indigo-400 to-slate-200 bg-clip-text text-transparent">
                           Clario
@@ -189,7 +186,6 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
                       </Button>
                     </div>
 
-                    {/* Навигация */}
                     <nav className="flex-1 p-6">
                       <motion.ul
                         className="space-y-4"
@@ -224,7 +220,6 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
                       </motion.ul>
                     </nav>
 
-                    {/* Кнопки авторизации */}
                     <motion.div
                       className="p-6 border-t border-indigo-400/20 space-y-4"
                       initial={{ opacity: 0, y: 20 }}
@@ -257,7 +252,6 @@ export default function Header({ variant = "dark" }: HeaderProps & TextProps) {
                       </motion.div>
                     </motion.div>
 
-                    {/* Декоративный элемент */}
                     <motion.div
                       className="absolute bottom-4 left-4 w-8 h-8 bg-indigo-400/20 rounded-full blur-sm"
                       animate={{
