@@ -2,24 +2,53 @@
 
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
-import SideNav from "./_components/SideNav";
+import React, { useEffect, useState, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { FileListContext } from "@/app/_context/FileListContext";
 import {
   useIsLargeTablet,
   useIsMobile,
   useIsTablet,
-  useIsDesktop,
 } from "@/hooks/useMediaQuery";
 import { TourProvider } from "../../_context/TourContext";
-import GettingStartedTour from "./_components/GettingStartedTour";
 import { FileDataProvider } from "../../_context/FileDataContext";
 import { GithubProvider, useGithub } from "@/app/_context/GithubContext";
-import { CodeViewerModal } from "./_components/github-modal/_components/CodeViewer";
 import { SidebarProvider, useSidebar } from "@/app/_context/SidebarContext";
+import { LoadingProvider, useLoading } from "@/app/_context/LoadingContext";
 import GradientLoader from "@/app/_loaders/GradientLoader";
 import { FavoritesProvider } from "@/app/_context/FavoritesContext";
 import { ApperanceProvider } from "@/app/_context/AppearanceContext";
+import { cn } from "@/lib/utils";
+import { requestManager } from "@/lib/requestManager";
+
+const SideNav = dynamic(() => import("./_components/SideNav"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full bg-white dark:bg-[#1a1a1c] border-r border-gray-200 dark:border-[#2a2a2d] p-4">
+      <div className="animate-pulse space-y-4">
+        <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+        <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+        <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+      </div>
+    </div>
+  ),
+});
+
+const GettingStartedTour = dynamic(
+  () => import("./_components/GettingStartedTour"),
+  {
+    ssr: false,
+    loading: () => null,
+  },
+);
+
+const CodeViewerModal = dynamic(
+  () =>
+    import("./_components/github-modal/_components/CodeViewer").then((mod) => ({
+      default: mod.CodeViewerModal,
+    })),
+  { ssr: false, loading: () => null },
+);
 
 function GlobalCodeViewer() {
   const { codeViewerState, setCodeViewerState } = useGithub();
@@ -50,86 +79,96 @@ function GlobalCodeViewer() {
   );
 }
 
-function DashboardLayout({ children }: { children: React.ReactNode }) {
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, isLoading: authLoading } = useKindeBrowserClient();
   const [fileList_, setFileList_] = useState();
-  const [isChecking, setIsChecking] = useState(true);
-  const [pageLoading, setPageLoading] = useState(true);
+  const [isSetupComplete, setIsSetupComplete] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isSidebarOpen, closeSidebar } = useSidebar();
+  const { setSideNavReady, setDashboardReady, areAllComponentsReady } =
+    useLoading();
+  const skipTeamCheck = searchParams.get("skipTeamCheck") === "true";
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const isLargeTablet = useIsLargeTablet();
-  const isDesktop = useIsDesktop();
-
-  const { isSidebarOpen, closeSidebar } = useSidebar();
-
-  const skipTeamCheck = searchParams.get("skipTeamCheck") === "true";
 
   useEffect(() => {
-    if (user) {
-      check2FAStatus();
-    } else {
-      setIsChecking(false);
-      setPageLoading(false);
-    }
-  }, [user]);
+    if (!user || skipTeamCheck || isSetupComplete) return;
 
-  const check2FAStatus = async () => {
-    try {
-      const resp = await fetch("/api/auth/2fa/status", {
-        method: "GET",
-        cache: "no-store",
-      });
+    let mounted = true;
 
-      const securityStatus = await resp.json();
-      console.log("2FA Status:", securityStatus);
+    const checkSetup = async () => {
+      if (requestManager.hasValidCache("auth-setup", "setup")) {
+        const setupData = requestManager.getCached("auth-setup") as {
+          security: { isEnabled: boolean };
+          teams: unknown[];
+        };
+        if (!mounted || !setupData) return;
 
-      if (securityStatus.isEnabled) {
-        setIsChecking(false);
-      } else {
-        if (!skipTeamCheck) {
-          await checkTeam();
-        } else {
-          console.log("⚡ Skipping team check");
-          setIsChecking(false);
+        if (
+          !setupData.security.isEnabled &&
+          Array.isArray(setupData.teams) &&
+          setupData.teams.length === 0
+        ) {
+          router.push("/teams/create");
+          return;
         }
-      }
-    } catch (err) {
-      console.error("❌ Error checking 2FA status:", err);
 
-      if (!skipTeamCheck) {
-        await checkTeam();
-      } else {
-        setIsChecking(false);
+        setIsSetupComplete(true);
+        return;
       }
+
+      try {
+        const setupData = await requestManager.fetch(
+          "auth-setup",
+          "setup",
+          async () => {
+            const [securityResp, teamsResp] = await Promise.all([
+              fetch("/api/auth/2fa/status"),
+              fetch("/api/teams"),
+            ]);
+            return {
+              security: await securityResp.json(),
+              teams: await teamsResp.json(),
+            };
+          },
+        );
+
+        if (!mounted) return;
+
+        if (
+          !setupData.security.isEnabled &&
+          Array.isArray(setupData.teams) &&
+          setupData.teams.length === 0
+        ) {
+          router.push("/teams/create");
+          return;
+        }
+
+        setIsSetupComplete(true);
+      } catch (error) {
+        console.error("❌ Setup check failed:", error);
+        setIsSetupComplete(true);
+      }
+    };
+
+    checkSetup();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user, skipTeamCheck, router, isSetupComplete]);
+
+  useEffect(() => {
+    if (isSetupComplete && !authLoading) {
+      const timer = setTimeout(() => {
+        setDashboardReady(true);
+      }, 50);
+      return () => clearTimeout(timer);
     }
-  };
-
-  const checkTeam = async () => {
-    try {
-      setIsChecking(true);
-      const resp = await fetch("/api/teams", {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      const result = await resp.json();
-
-      if (Array.isArray(result) && result.length === 0) {
-        console.log("⚠️ No team found, redirecting to create team");
-        router.push("/teams/create");
-      } else {
-        setIsChecking(false);
-        setPageLoading(false);
-      }
-    } catch (err) {
-      console.error("❌ Error checking team:", err);
-      setIsChecking(false);
-      setPageLoading(false);
-    }
-  };
+  }, [isSetupComplete, authLoading, setDashboardReady]);
 
   const getSidebarWidth = () => {
     if (isMobile) return "w-72";
@@ -138,7 +177,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     return "w-64";
   };
 
-  if (authLoading || pageLoading) {
+  if (authLoading || !isSetupComplete) {
     return (
       <div className="w-full bg-white dark:bg-[#1a1a1c]">
         <GradientLoader />
@@ -147,52 +186,78 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <FileListContext.Provider value={{ fileList_, setFileList_ }}>
+      <div className="flex min-h-screen w-full bg-background overflow-hidden">
+        {isMobile && isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
+            onClick={closeSidebar}
+          />
+        )}
+
+        <div
+          className={cn(
+            "fixed lg:static top-0 left-0 h-screen z-50 transition-all duration-500 ease-in-out",
+            getSidebarWidth(),
+            isSidebarOpen || !isMobile ? "translate-x-0" : "-translate-x-full",
+            !areAllComponentsReady && "opacity-0",
+            areAllComponentsReady && "opacity-100",
+          )}
+        >
+          <div className="h-full bg-background border-r border-gray-200">
+            <Suspense
+              fallback={
+                <div className="h-full w-full bg-white dark:bg-[#1a1a1c] border-r border-gray-200 dark:border-[#2a2a2d] p-4">
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+                    <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+                    <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+                  </div>
+                </div>
+              }
+            >
+              <SideNav
+                onCloseSidebar={closeSidebar}
+                isMobileMenuOpen={isSidebarOpen}
+                onReady={() => setSideNavReady(true)}
+              />
+            </Suspense>
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            "flex-1 flex flex-col h-screen overflow-hidden transition-opacity duration-500 ease-in-out",
+            !areAllComponentsReady && "opacity-0",
+            areAllComponentsReady && "opacity-100",
+          )}
+        >
+          <div className="flex-1 overflow-y-auto">
+            <Suspense fallback={null}>
+              <GettingStartedTour />
+            </Suspense>
+            {children}
+          </div>
+        </div>
+
+        <Suspense fallback={null}>
+          <GlobalCodeViewer />
+        </Suspense>
+      </div>
+    </FileListContext.Provider>
+  );
+}
+
+function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
     <ApperanceProvider>
       <TourProvider>
         <FileDataProvider>
           <GithubProvider>
             <FavoritesProvider>
-              <FileListContext.Provider value={{ fileList_, setFileList_ }}>
-                <div className="flex min-h-screen w-full bg-background overflow-hidden">
-                  {isMobile && isSidebarOpen && (
-                    <div
-                      className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-in fade-in duration-300"
-                      onClick={closeSidebar}
-                    />
-                  )}
-
-                  <div
-                    className={`
-                fixed lg:static
-                top-0 left-0
-                h-screen
-                z-50
-                transition-all duration-300 ease-in-out
-                ${getSidebarWidth()}
-                ${
-                  isSidebarOpen
-                    ? "translate-x-0 shadow-2xl"
-                    : "-translate-x-full lg:translate-x-0 lg:shadow-none"
-                }
-              `}
-                  >
-                    <div className="h-full bg-background border-r border-gray-200">
-                      <SideNav
-                        onCloseSidebar={closeSidebar}
-                        isMobileMenuOpen={isSidebarOpen}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                    <div className="flex-1 overflow-y-auto">
-                      <GettingStartedTour />
-                      {children}
-                    </div>
-                  </div>
-                  <GlobalCodeViewer />
-                </div>
-              </FileListContext.Provider>
+              <LoadingProvider>
+                <DashboardLayoutContent>{children}</DashboardLayoutContent>
+              </LoadingProvider>
             </FavoritesProvider>
           </GithubProvider>
         </FileDataProvider>

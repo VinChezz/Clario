@@ -1,319 +1,231 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useCallback, useState } from "react";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
-import Header from "./_components/Header";
-import FileList from "./_components/FileList";
-import GradientLoader from "@/app/_loaders/GradientLoader";
-import {
-  ContentLoader,
-  StaggeredLoader,
-  StaggeredItem,
-} from "./_components/ContentLoader";
+import dynamic from "next/dynamic";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useFileData } from "../../_context/FileDataContext";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import { useLoading } from "@/app/_context/LoadingContext";
 import Virgil from "next/font/local";
 import { useTheme } from "@/app/_context/AppearanceContext";
-import { getTeamWithMembers } from "@/lib/team";
+import { useTeamData } from "@/hooks/useTeamData";
+import { useSocket } from "@/hooks/useSocket";
+
+const Header = dynamic(() => import("./_components/Header"), {
+  ssr: false,
+  loading: () => <div className="h-16 animate-pulse bg-gray-100" />,
+});
+
+const FileList = dynamic(() => import("./_components/FileList"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex justify-center items-center h-64">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-400">Loading files...</p>
+      </div>
+    </div>
+  ),
+});
 
 const virgil = Virgil({
   src: "../../fonts/Virgil.woff2",
+  display: "swap",
+  preload: true,
+  fallback: ["system-ui", "arial", "sans-serif"],
 });
-
 interface DashboardProps {
   onMenuToggle?: () => void;
 }
 
-export default function Dashboard({ onMenuToggle }: DashboardProps) {
-  const { user, isLoading } = useKindeBrowserClient();
-  const [dbUser, setDbUser] = useState<any>(null);
-  const [contentLoaded, setContentLoaded] = useState(false);
-  const [fileList, setFileList] = useState<any[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [teamMembersCount, setTeamMembersCount] = useState<number>(0);
-  const [storagePercentage, setStoragePercentage] = useState<number>(0);
+const StatCard = ({
+  icon: Icon,
+  title,
+  value,
+  gradient,
+  iconColor,
+  id,
+}: any) => (
+  <div
+    id={id}
+    className="bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-[#2a2a2d] hover:shadow-md transition-all duration-300 group"
+  >
+    <div className="flex items-center gap-3 sm:gap-4">
+      <div
+        className={`w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br ${gradient} rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300`}
+      >
+        <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${iconColor}`} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-[#a0a0a0] mb-1">
+          {title}
+        </p>
+        <p className={`text-lg sm:text-xl lg:text-2xl font-bold ${iconColor}`}>
+          {value}
+        </p>
+      </div>
+    </div>
+  </div>
+);
 
-  const { updateFromFileList, fileCount } = useFileData();
+export default function Dashboard({ onMenuToggle }: DashboardProps) {
+  const { user, isLoading: authLoading } = useKindeBrowserClient();
   const { activeTeam } = useActiveTeam();
   const { fontSize } = useTheme();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+  const { updateFromFileList, fileCount } = useFileData();
+  const { setDashboardReady } = useLoading();
+  const { isConnected } = useSocket("", user, false);
+
+  const {
+    files,
+    teamMembers,
+    storagePercentage,
+    isLoading: dataLoading,
+    error,
+    refresh,
+  } = useTeamData(activeTeam?.id);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      window.location.href =
-        "/api/auth/login?post_login_redirect_url=/dashboard";
-      return;
+    if (!authLoading && !user) {
+      const timer = setTimeout(() => {
+        window.location.href =
+          "/api/auth/login?post_login_redirect_url=/dashboard";
+      }, 100);
+      return () => clearTimeout(timer);
     }
-
-    if (user) {
-      fetch("/api/auth/[kindeAuth]/kinde_callback")
-        .then((res) => res.json())
-        .then((data) => {
-          setDbUser(data);
-          setTimeout(() => setContentLoaded(true), 1000);
-        })
-        .catch((error) => {
-          console.error("Failed to load user:", error);
-          setContentLoaded(true);
-        });
-    }
-  }, [user, isLoading]);
+  }, [user, authLoading]);
 
   useEffect(() => {
-    const loadTeamData = async () => {
-      try {
-        if (!activeTeam?.id) {
-          setTeamMembersCount(0);
-          setStoragePercentage(0);
-          return;
-        }
-
-        const teamResponse = await fetch(
-          `/api/teams/${activeTeam.id}/members`,
-          {
-            method: "GET",
-          },
-        );
-
-        if (teamResponse.ok) {
-          const teamData = await teamResponse.json();
-          setTeamMembersCount(teamData.members?.length || 0);
-        }
-
-        const storageResponse = await fetch(
-          `/api/users/storage?teamId=${activeTeam.id}&includeTrash=true`,
-        );
-
-        if (storageResponse.ok) {
-          const storageData = await storageResponse.json();
-
-          const percentage = storageData.storage?.percentage || 0;
-
-          setStoragePercentage(Math.min(percentage, 100));
-
-          const usedBytes = Number(storageData.storage?.usedBytes || 0);
-          const limitBytes = Number(storageData.storage?.limitBytes || 0);
-          const calculatedGB = usedBytes / (1024 * 1024 * 1024);
-          const limitGB = limitBytes / (1024 * 1024 * 1024);
-        }
-      } catch (error) {
-        console.error("❌ Failed to load team data:", error);
-        setTeamMembersCount(0);
-        setStoragePercentage(0);
-      }
-    };
-
-    if (user && activeTeam?.id) {
-      loadTeamData();
-    } else {
-      setTeamMembersCount(0);
-      setStoragePercentage(0);
+    if (!dataLoading) {
+      const timer = setTimeout(() => {
+        setDashboardReady(true);
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [user, activeTeam?.id]);
+  }, [dataLoading, setDashboardReady]);
 
   useEffect(() => {
-    const loadFiles = async () => {
-      try {
-        if (!activeTeam?.id) {
-          setFileList([]);
-          updateFromFileList([]);
-          return;
-        }
-
-        const response = await fetch(
-          `/api/files?teamId=${activeTeam.id}&includeTrashed=false`,
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const files = await response.json();
-
-        const filesArray = Array.isArray(files) ? files : [];
-
-        const activeFiles = Array.isArray(files)
-          ? files.filter((file) => !file.deletedAt)
-          : [];
-
-        setFileList(activeFiles);
-        updateFromFileList(activeFiles);
-      } catch (error) {
-        console.error("❌ Failed to load files:", error);
-
-        setFileList([]);
-        updateFromFileList([]);
-      }
-    };
-
-    if (user && activeTeam?.id) {
-      loadFiles();
-    } else {
-      setFileList([]);
+    if (files.length > 0) {
+      updateFromFileList(files);
+    } else if (!dataLoading && files.length === 0) {
+      console.log("📁 No files, resetting FileDataContext");
       updateFromFileList([]);
     }
-  }, [user, activeTeam?.id, updateFromFileList]);
+  }, [files, dataLoading, updateFromFileList, isConnected]);
 
-  const handleFileUpdate = (updatedFiles: any[]) => {
-    setFileList(updatedFiles);
-    updateFromFileList(updatedFiles);
-  };
+  const handleFileUpdate = useCallback(
+    (updatedFiles: any[]) => {
+      console.log("📝 File update received:", updatedFiles.length);
+      updateFromFileList(updatedFiles);
+      refresh();
+    },
+    [updateFromFileList, refresh],
+  );
 
-  const handleTeamUpdate = () => {
-    return;
-  };
-
-  const getPaddingClasses = () => {
-    const baseClasses = "px-1";
-
+  const getPaddingClasses = useMemo(() => {
     if (fontSize === "LARGE") {
-      if (isMobile) {
-        return "px-6";
-      } else if (isTablet) {
-        return "px-8";
-      } else {
-        return "px-10";
-      }
-    } else if (fontSize === "SMALL") {
-      if (isMobile) {
-        return "";
-      } else {
-        return "";
-      }
+      if (isMobile) return "px-6";
+      if (isTablet) return "px-8";
+      return "px-10";
     }
+    if (fontSize === "SMALL") return "";
+    return "px-1";
+  }, [fontSize, isMobile, isTablet]);
 
-    return baseClasses;
-  };
-
-  const paddingClasses = getPaddingClasses();
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-[#1a1a1c] flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="text-red-600 dark:text-red-400 text-xl mb-4">
+            Error loading data
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <button
+            onClick={refresh}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className={`min-h-screen bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${paddingClasses}`}
-      style={{
-        WebkitOverflowScrolling: "touch",
-        overscrollBehavior: "contain",
-      }}
+      className={`min-h-screen bg-white dark:bg-[#1a1a1c] shadow-xl border-r border-gray-200 dark:border-[#2a2a2d] transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${getPaddingClasses}`}
     >
       <div className="flex flex-col min-h-screen">
         <div className="flex-1 flex flex-col min-w-0">
-          <Header onMenuToggle={onMenuToggle} onTeamUpdate={handleTeamUpdate} />
+          <Header onMenuToggle={onMenuToggle} onTeamUpdate={refresh} />
 
-          <main
-            className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto"
-            style={{
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-            <ContentLoader>
-              <div className="mb-4 sm:mb-6 lg:mb-8">
-                <h1
-                  className={`${virgil.className} text-3xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-[#f0f0f0] mb-1 sm:mb-2`}
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            <div className="mb-4 sm:mb-6 lg:mb-8">
+              <h1
+                className={`${virgil.className} text-3xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-[#f0f0f0] mb-1 sm:mb-2`}
+              >
+                Welcome back,
+                <span
+                  className={`${virgil.className} text-indigo-500 dark:text-[#3b82f6]`}
                 >
-                  Welcome back,
-                  <span
-                    className={`${virgil.className} text-indigo-500 dark:text-[#3b82f6]`}
-                  >
-                    {user?.given_name ? ` ${user.given_name}` : ""}!
-                  </span>
-                </h1>
-                <p className="text-gray-600 dark:text-[#a0a0a0] text-sm sm:text-sm lg:text-lg">
-                  Here are your recent files and documents
-                </p>
-              </div>
-            </ContentLoader>
+                  {user?.given_name ? ` ${user.given_name}` : ""}!
+                </span>
+              </h1>
+              <p className="text-gray-600 dark:text-[#a0a0a0] text-sm sm:text-sm lg:text-lg">
+                Here are your recent files and documents
+              </p>
+            </div>
 
-            <StaggeredLoader>
-              <div
-                className={`
-                grid gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8
-                ${isMobile ? "grid-cols-1" : ""}
-                ${isTablet ? "grid-cols-2" : ""}
-                ${!isMobile && !isTablet ? "grid-cols-3" : ""}
-              `}
-              >
-                <StaggeredItem>
-                  <div
-                    className="bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-[#2a2a2d] hover:shadow-md transition-all duration-300 group"
-                    id="total-files-card"
-                  >
-                    <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300">
-                        <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-[#a0a0a0] mb-1">
-                          Total Files
-                        </p>
-                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-600 dark:text-blue-400">
-                          {fileCount}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </StaggeredItem>
+            <div
+              className={`grid gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8 ${
+                isMobile
+                  ? "grid-cols-1"
+                  : isTablet
+                    ? "grid-cols-2"
+                    : "grid-cols-3"
+              }`}
+            >
+              <StatCard
+                id="total-files-card"
+                icon={FileTextIcon}
+                title="Total Files"
+                value={dataLoading ? "0" : fileCount || 0}
+                gradient="from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20"
+                iconColor="text-blue-600 dark:text-blue-400"
+              />
+              <StatCard
+                id="team-members-card"
+                icon={UsersIcon}
+                title="Team Members"
+                value={dataLoading ? "0" : teamMembers || 0}
+                gradient="from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20"
+                iconColor="text-green-600 dark:text-green-400"
+              />
+              <StatCard
+                id="storage-card"
+                icon={CloudIcon}
+                title="Storage Used"
+                value={
+                  dataLoading ? "0%" : `${Math.round(storagePercentage || 0)}%`
+                }
+                gradient="from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20"
+                iconColor="text-purple-600 dark:text-purple-400"
+              />
+            </div>
 
-                <StaggeredItem>
-                  <div
-                    className="bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-[#2a2a2d] hover:shadow-md transition-all duration-300 group"
-                    id="team-members-card"
-                  >
-                    <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300">
-                        <Users className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-[#a0a0a0] mb-1">
-                          Team Members
-                        </p>
-                        <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600 dark:text-green-400">
-                          {teamMembersCount}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </StaggeredItem>
-
-                <StaggeredItem>
-                  <div
-                    className={`
-                    bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-[#2a2a2d] hover:shadow-md transition-all duration-300 group
-                    ${isMobile ? "col-span-1" : ""}
-                    ${isTablet ? "col-span-2" : ""}
-                    ${!isMobile && !isTablet ? "col-span-1" : ""}
-                  `}
-                    id="storage-card"
-                  >
-                    <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300">
-                        <Cloud className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-[#a0a0a0] mb-1">
-                          Storage Used
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600 dark:text-purple-400">
-                            {Math.round(storagePercentage)}%
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </StaggeredItem>
-              </div>
-            </StaggeredLoader>
-
-            <ContentLoader>
-              <div
-                className="bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a2a2d] p-4 sm:p-6 lg:p-8"
-                id="file-list-container"
-              >
-                <FileList files={fileList} onFileUpdate={handleFileUpdate} />
-              </div>
-            </ContentLoader>
+            <div
+              className="bg-white dark:bg-[#1a1a1c] rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 dark:border-[#2a2a2d] p-4 sm:p-6 lg:p-8"
+              id="file-list-container"
+            >
+              <FileList
+                key={`filelist-${activeTeam?.id}`}
+                files={files}
+                onFileUpdate={handleFileUpdate}
+              />
+            </div>
           </main>
         </div>
       </div>
@@ -321,7 +233,7 @@ export default function Dashboard({ onMenuToggle }: DashboardProps) {
   );
 }
 
-const FileText = ({ className }: { className?: string }) => (
+const FileTextIcon = ({ className }: { className?: string }) => (
   <svg
     className={className}
     fill="none"
@@ -337,7 +249,7 @@ const FileText = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const Users = ({ className }: { className?: string }) => (
+const UsersIcon = ({ className }: { className?: string }) => (
   <svg
     className={className}
     fill="none"
@@ -353,7 +265,7 @@ const Users = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const Cloud = ({ className }: { className?: string }) => (
+const CloudIcon = ({ className }: { className?: string }) => (
   <svg
     className={className}
     fill="none"
