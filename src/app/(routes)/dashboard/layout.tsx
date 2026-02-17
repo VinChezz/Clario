@@ -199,7 +199,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           className={cn(
             "fixed lg:static top-0 left-0 h-screen z-50 transition-all duration-500 ease-in-out",
             getSidebarWidth(),
-            isSidebarOpen || !isMobile ? "translate-x-0" : "-translate-x-full",
+            isSidebarOpen
+              ? "translate-x-0 shadow-2xl"
+              : "-translate-x-full lg:translate-x-0 lg:shadow-none",
             !areAllComponentsReady && "opacity-0",
             areAllComponentsReady && "opacity-100",
           )}
@@ -219,7 +221,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <SideNav
                 onCloseSidebar={closeSidebar}
                 isMobileMenuOpen={isSidebarOpen}
-                onReady={() => setSideNavReady(true)}
               />
             </Suspense>
           </div>
