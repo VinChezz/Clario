@@ -483,7 +483,7 @@ export default function InviteModal({
                     exit={{ opacity: 0, height: 0 }}
                     className="flex items-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg text-sm"
                   >
-                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <AlertCircle className="h-4 w-4 shrink-0" />
                     <span>{searchError}</span>
                   </motion.div>
                 )}
@@ -667,7 +667,7 @@ export default function InviteModal({
                       disabled={isLoading}
                       className="w-full h-12 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white shadow-lg rounded-xl relative overflow-hidden group"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-1000" />
+                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-1000" />
                       {isLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : (
