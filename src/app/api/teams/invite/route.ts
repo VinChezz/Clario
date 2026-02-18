@@ -4,8 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 import nodemailer from "nodemailer";
 
-const isProd = process.env.NODE_ENV === "production";
-
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
@@ -35,7 +33,7 @@ export async function POST(request: NextRequest) {
     if (!teamId) {
       return NextResponse.json(
         { error: "Team ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -46,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (!dbUser) {
       return NextResponse.json(
         { error: "User not found in database" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -65,11 +63,11 @@ export async function POST(request: NextRequest) {
           error:
             "Team not found or you do not have permission to invite members",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    if (type === "telegram" || type === "discord") {
+    if (type === "telegram") {
       const token = randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -98,7 +96,7 @@ export async function POST(request: NextRequest) {
       if (!users || users.length === 0) {
         return NextResponse.json(
           { error: "At least one user is required for email invites" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -260,7 +258,7 @@ export async function POST(request: NextRequest) {
           } catch (emailError: any) {
             console.error(
               `❌ Email error for ${inviteeUser.email}:`,
-              emailError
+              emailError,
             );
             emailResults.push({
               email: inviteeUser.email,
@@ -283,19 +281,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: `Unsupported invite type: ${type}` },
-      { status: 400 }
+      { status: 400 },
     );
   } catch (error: any) {
     console.error("❌ Invite error:", error);
     if (error.code === "P1001") {
       return NextResponse.json(
         { error: "Database temporarily unavailable" },
-        { status: 503 }
+        { status: 503 },
       );
     }
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

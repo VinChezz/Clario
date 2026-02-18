@@ -13,8 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  MessageCircle,
-  User,
+  Users,
   Search,
   ArrowLeft,
   Send,
@@ -22,10 +21,17 @@ import {
   Check,
   Copy,
   Mail,
-  UserCog,
+  Sparkles,
+  Loader2,
+  PartyPopper,
+  Link2,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface User {
   id: string;
@@ -42,6 +48,8 @@ interface InviteModalProps {
   teamName?: string;
 }
 
+type ViewType = "main" | "email" | "link";
+
 export default function InviteModal({
   isOpen,
   onClose,
@@ -52,17 +60,34 @@ export default function InviteModal({
   const { user: currentUser } = useKindeBrowserClient();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [view, setView] = useState<"main" | "search" | "link">("main");
+  const [view, setView] = useState<ViewType>("main");
   const [searchQuery, setSearchQuery] = useState("");
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
-  const [currentPlatform, setCurrentPlatform] = useState<
-    "telegram" | "discord"
-  >("telegram");
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [existingMembers, setExistingMembers] = useState<User[]>([]);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 },
+    transition: { duration: 0.3 },
+  };
+
+  const staggerChildren = {
+    animate: {
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
 
   useEffect(() => {
     const fetchExistingMembers = async () => {
@@ -86,11 +111,16 @@ export default function InviteModal({
 
   useEffect(() => {
     if (!isOpen) {
-      setView("main");
-      setInviteLink("");
-      setSearchQuery("");
-      setSelectedUsers([]);
-      setUsers([]);
+      setTimeout(() => {
+        setView("main");
+        setInviteLink("");
+        setSearchQuery("");
+        setSelectedUsers([]);
+        setUsers([]);
+        setSearchError(null);
+        setEmailError(null);
+        setLinkCopied(false);
+      }, 300);
     }
   }, [isOpen]);
 
@@ -98,29 +128,49 @@ export default function InviteModal({
     const searchUsers = async () => {
       if (searchQuery.length < 2) {
         setUsers([]);
+        setSearchError(null);
         return;
       }
 
       setSearchLoading(true);
+      setSearchError(null);
+
       try {
         const response = await fetch(
-          `/api/users/search?q=${encodeURIComponent(searchQuery)}`
+          `/api/users/search?q=${encodeURIComponent(searchQuery)}`,
         );
-        if (response.ok) {
-          const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error("Search failed");
+        }
+
+        const data = await response.json();
+
+        if (data.users?.length === 0) {
+          setSearchError("No users found. Try a different search.");
+        } else {
           setUsers(data.users || []);
         }
       } catch (error) {
         console.log("Search error:", error);
-        toast.error("Failed to search users");
+        setSearchError("Failed to search users. Please try again.");
       } finally {
         setSearchLoading(false);
       }
     };
 
-    const debounceTimer = setTimeout(searchUsers, 300);
+    const debounceTimer = setTimeout(searchUsers, 400);
     return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
+
+  const validateEmailInput = () => {
+    if (selectedUsers.length === 0) {
+      setEmailError("Please select at least one user to invite");
+      return false;
+    }
+    setEmailError(null);
+    return true;
+  };
 
   const isUserAlreadyMember = (userId: string) => {
     return existingMembers.some((member) => member.id === userId);
@@ -137,28 +187,33 @@ export default function InviteModal({
       !selectedUsers.find((u) => u.id === user.id)
     ) {
       setSelectedUsers((prev) => [...prev, user]);
+      setSearchQuery("");
+      setEmailError(null);
+
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
     }
-    setSearchQuery("");
   };
 
   const removeUser = (userId: string) => {
     setSelectedUsers((prev) => prev.filter((user) => user.id !== userId));
   };
 
-  const generateInviteLink = async (platform: "telegram" | "discord") => {
+  const generateInviteLink = async () => {
     if (!teamId) {
       toast.error("No team selected");
       return;
     }
 
-    setIsLoading(true);
+    setIsGeneratingLink(true);
     try {
       const response = await fetch("/api/teams/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           teamId,
-          type: platform,
+          type: "telegram",
           users: [],
         }),
       });
@@ -170,13 +225,7 @@ export default function InviteModal({
         if (token) {
           const link = `${window.location.origin}/invite/accept?token=${token}`;
           setInviteLink(link);
-          setCurrentPlatform(platform);
           setView("link");
-          toast.success(
-            `${
-              platform === "telegram" ? "Telegram" : "Discord"
-            } invite link generated`
-          );
         }
       } else {
         toast.error(result.error || "Failed to generate link");
@@ -185,11 +234,12 @@ export default function InviteModal({
       console.error("Invite link error:", error);
       toast.error("Error generating invite link");
     } finally {
-      setIsLoading(false);
+      setIsGeneratingLink(false);
     }
   };
 
   const sendEmailInvites = async () => {
+    if (!validateEmailInput()) return;
     if (!teamId || selectedUsers.length === 0) return;
 
     setIsLoading(true);
@@ -209,12 +259,18 @@ export default function InviteModal({
       if (response.ok) {
         onInviteSent?.();
         toast.success(
-          `Invited ${selectedUsers.length} user(s) to ${teamName || "the team"}`
+          <div className="flex items-center gap-2">
+            <PartyPopper className="h-4 w-4" />
+            <span>Successfully invited {selectedUsers.length} user(s)!</span>
+          </div>,
         );
-        setSelectedUsers([]);
-        setSearchQuery("");
-        setView("main");
-        onClose();
+
+        setTimeout(() => {
+          setSelectedUsers([]);
+          setSearchQuery("");
+          setView("main");
+          onClose();
+        }, 500);
       } else {
         toast.error(result.error || "Failed to send invites");
       }
@@ -229,36 +285,12 @@ export default function InviteModal({
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink);
-      toast.success("Invite link copied!");
+      setLinkCopied(true);
+      toast.success("✨ Invite link copied to clipboard!");
+
+      setTimeout(() => setLinkCopied(false), 2000);
     } catch {
       toast.error("Failed to copy link");
-    }
-  };
-
-  const shareToTelegram = () => {
-    const text = `🎉 Join "${teamName}" team on our platform!\n\n${inviteLink}`;
-    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(
-      inviteLink
-    )}&text=${encodeURIComponent(text)}`;
-    window.open(telegramUrl, "_blank", "width=600,height=500");
-  };
-
-  const shareToDiscord = async () => {
-    try {
-      const textToCopy = `🎉 **Team Invitation**\n\nJoin **${teamName}**\n\nInvite Link: ${inviteLink}`;
-
-      await navigator.clipboard.writeText(textToCopy);
-
-      toast.success(
-        <div className="flex items-center gap-2">
-          <MessageCircle className="h-4 w-4" />
-          <span>Discord invite copied! Paste it in your server</span>
-        </div>,
-        { duration: 4000 }
-      );
-    } catch (error) {
-      console.error("Failed to share to Discord:", error);
-      toast.error("Failed to prepare Discord invite");
     }
   };
 
@@ -267,344 +299,388 @@ export default function InviteModal({
     setInviteLink("");
     setSelectedUsers([]);
     setSearchQuery("");
+    setEmailError(null);
   };
 
-  if (view === "link") {
+  if (view === "main") {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg bg-linear-to-br from-[#1a1a1c] to-[#252528] border border-[#2a2a2d] shadow-2xl">
-          <div className="rounded-2xl">
-            <DialogHeader className="text-center pb-4">
-              <div className="flex items-center justify-between mb-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleBackToMain}
-                  className="p-2 h-auto text-[#a0a0a0] hover:text-[#f0f0f0] hover:bg-[#252528] rounded-lg transition-colors"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex-1 text-center">
-                  <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                    {currentPlatform === "telegram" ? "Telegram" : "Discord"}{" "}
-                    Invite
-                  </DialogTitle>
-                  <DialogDescription className="text-[#a0a0a0]">
-                    Share this link with your team
-                  </DialogDescription>
-                </div>
-                <div className="w-10"></div>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl overflow-hidden">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="relative"
+          >
+            <DialogHeader className="text-center space-y-4 pb-6">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", delay: 0.1 }}
+                className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center shadow-lg"
+              >
+                <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+              </motion.div>
+
+              <div className="space-y-2">
+                <DialogTitle className="text-3xl font-bold text-gray-900 dark:text-white">
+                  Invite to {teamName}
+                </DialogTitle>
+                <DialogDescription className="text-gray-500 dark:text-gray-400 text-base">
+                  Choose how you want to invite your team members
+                </DialogDescription>
               </div>
             </DialogHeader>
 
-            <div className="space-y-6 p-1">
-              <div className="bg-[#252528]/80 backdrop-blur-sm rounded-xl p-6 border border-[#2a2a2d]/50">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-semibold text-[#f0f0f0] mb-3 block">
+            <motion.div
+              className="space-y-3"
+              variants={staggerChildren}
+              initial="initial"
+              animate="animate"
+            >
+              <motion.div variants={fadeInUp}>
+                <Button
+                  onClick={() => {
+                    setView("email");
+                    setTimeout(() => searchInputRef.current?.focus(), 100);
+                  }}
+                  disabled={!teamId}
+                  variant="outline"
+                  className="w-full h-20 justify-start px-6 border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl group relative overflow-hidden"
+                >
+                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mr-4">
+                    <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+
+                  <div className="text-left flex-1">
+                    <div className="font-semibold text-gray-900 dark:text-white text-lg">
+                      Email Invites
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Search and select team members
+                    </div>
+                  </div>
+
+                  <motion.div
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                  >
+                    <Send className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </motion.div>
+                </Button>
+              </motion.div>
+
+              <motion.div variants={fadeInUp}>
+                <Button
+                  onClick={generateInviteLink}
+                  disabled={!teamId || isGeneratingLink}
+                  variant="outline"
+                  className="w-full h-20 justify-start px-6 border-2 border-gray-200 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl group relative overflow-hidden"
+                >
+                  <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center mr-4">
+                    <Link2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+
+                  <div className="text-left flex-1">
+                    <div className="font-semibold text-gray-900 dark:text-white text-lg">
                       Invite Link
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={inviteLink}
-                        readOnly
-                        className="flex-1 font-mono text-sm bg-[#1a1a1c] border-[#2a2a2d] text-[#f0f0f0]"
-                      />
-                      <Button
-                        onClick={copyToClipboard}
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0 border-[#2a2a2d] hover:bg-[#252528] transition-colors text-[#f0f0f0]"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Generate a shareable link
                     </div>
                   </div>
 
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={
-                        currentPlatform === "telegram"
-                          ? shareToTelegram
-                          : shareToDiscord
-                      }
-                      className={`flex-1 h-12 transition-all duration-200 transform hover:scale-[1.02] ${
-                        currentPlatform === "telegram"
-                          ? "bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/25"
-                          : "bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg shadow-indigo-500/25"
-                      }`}
+                  {isGeneratingLink ? (
+                    <Loader2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400 animate-spin" />
+                  ) : (
+                    <motion.div
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ repeat: Infinity, duration: 2 }}
                     >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Share on{" "}
-                      {currentPlatform === "telegram" ? "Telegram" : "Discord"}
-                    </Button>
-                  </div>
-
-                  {currentPlatform === "discord" && (
-                    <Button
-                      onClick={() =>
-                        window.open(
-                          "https://discord.com/channels/@me",
-                          "_blank"
-                        )
-                      }
-                      variant="outline"
-                      className="w-full h-12 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-all duration-200 transform hover:scale-[1.02] rounded-xl"
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Open Discord
-                    </Button>
+                      <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    </motion.div>
                   )}
-                </div>
-              </div>
+                </Button>
+              </motion.div>
+            </motion.div>
 
-              {currentPlatform === "discord" && (
-                <div className="bg-linear-to-r from-indigo-900/20 to-purple-900/20 border border-indigo-500/30 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="bg-[#1a1a1c] p-2 rounded-lg border border-indigo-500/20">
-                      <MessageCircle className="h-4 w-4 text-indigo-400" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-indigo-300">
-                        How to share on Discord
-                      </p>
-                      <ol className="text-xs text-indigo-400/80 mt-1 list-decimal list-inside space-y-1">
-                        <li>Click "Share on Discord" to copy the invite</li>
-                        <li>
-                          Click {""}
-                          <span
-                            onClick={() =>
-                              window.open(
-                                "https://discord.com/channels/@me",
-                                "_blank"
-                              )
-                            }
-                            className="font-bold text-indigo-300 hover:text-indigo-200 transition-all duration-200 transform cursor-pointer"
-                          >
-                            "Open Discord" {""}
-                          </span>
-                          to go to your Discord
-                        </li>
-                        <li>Paste the invite in your desired channel</li>
-                        <li>Team members can click the link to join</li>
-                      </ol>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-linear-to-r from-blue-900/20 to-indigo-900/20 border border-blue-500/30 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="bg-[#1a1a1c] p-2 rounded-lg border border-blue-500/20">
-                    <Check className="h-4 w-4 text-blue-400" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-blue-300">
-                      Invite Link Active
-                    </p>
-                    <p className="text-xs text-blue-400/80 mt-1">
-                      This link expires in 7 days • Anyone can join your team
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-center text-xs text-gray-400 dark:text-gray-500 mt-6"
+            >
+              ✨ Team members will get access immediately
+            </motion.p>
+          </motion.div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  if (view === "search") {
+  if (view === "email") {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg bg-linear-to-br from-[#1a1a1c] to-[#252528] border border-[#2a2a2d] shadow-2xl">
-          <div className="rounded-2xl">
-            <DialogHeader className="text-center pb-4">
-              <div className="flex items-center justify-between mb-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
+        <DialogContent className="sm:max-w-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl">
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <DialogHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={handleBackToMain}
-                  className="p-2 h-auto text-[#a0a0a0] hover:text-[#f0f0f0] hover:bg-[#252528] rounded-lg transition-colors"
+                  className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
+                  <ArrowLeft className="h-5 w-5" />
+                </motion.button>
+
                 <div className="flex-1 text-center">
-                  <DialogTitle className="text-xl font-bold bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                    Invite by Email
+                  <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Email Invites
                   </DialogTitle>
-                  <DialogDescription className="text-[#a0a0a0]">
+                  <DialogDescription className="text-gray-500 dark:text-gray-400">
                     Search and select team members
                   </DialogDescription>
                 </div>
-                <div className="w-10"></div>
+
+                <div className="w-10" />
               </div>
             </DialogHeader>
 
-            <div className="space-y-4 p-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#707070] h-4 w-4" />
+            <div className="space-y-4">
+              <motion.div
+                className="relative"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
                 <Input
                   ref={searchInputRef}
                   placeholder="Search by name or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 h-12 bg-[#1a1a1c] border-[#2a2a2d] focus:border-blue-400 transition-colors rounded-xl text-[#f0f0f0] placeholder:text-[#707070]"
-                />
-              </div>
-
-              {selectedUsers.length > 0 && (
-                <div className="bg-linear-to-r from-blue-900/20 to-indigo-900/20 border border-blue-500/30 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-semibold text-blue-300">
-                      Selected ({selectedUsers.length})
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedUsers([])}
-                      className="h-6 text-blue-400 hover:text-blue-300 text-xs hover:bg-blue-500/10 rounded-md transition-colors"
-                    >
-                      Clear all
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedUsers.map((user) => (
-                      <Badge
-                        key={user.id}
-                        variant="secondary"
-                        className="bg-[#252528] text-[#f0f0f0] border-blue-500/20 px-3 py-1.5 rounded-full"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-4 w-4">
-                            <AvatarImage src={user.image} />
-                            <AvatarFallback className="text-[10px] bg-linear-to-br from-blue-900/30 to-blue-900/50 text-blue-400">
-                              {user.name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs max-w-20 truncate font-medium">
-                            {user.name}
-                          </span>
-                          <button
-                            onClick={() => removeUser(user.id)}
-                            className="hover:bg-[#2a2a2d] rounded-full p-0.5 transition-colors"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="max-h-64 overflow-y-auto space-y-2">
-                {searchLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
-                  </div>
-                ) : users.length === 0 && searchQuery ? (
-                  <div className="text-center py-8 text-[#a0a0a0] bg-[#1a1a1c]/50 rounded-xl border border-[#2a2a2d]">
-                    <User className="h-12 w-12 mx-auto mb-2 text-[#2a2a2d]" />
-                    <p>No users found</p>
-                    <p className="text-sm mt-1">Try a different search term</p>
-                  </div>
-                ) : (
-                  users.map((user) => {
-                    const isSelected = selectedUsers.some(
-                      (u) => u.id === user.id
-                    );
-                    const isAlreadyMember = isUserAlreadyMember(user.id);
-                    const isSelf = isCurrentUser(user);
-
-                    return (
-                      <button
-                        key={user.id}
-                        onClick={() => !isSelf && handleUserSelect(user)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border ${
-                          isSelected
-                            ? "bg-linear-to-r from-blue-900/20 to-blue-900/10 border-blue-500/30"
-                            : isSelf
-                            ? "bg-[#252528] border-[#2a2a2d] cursor-not-allowed"
-                            : isAlreadyMember
-                            ? "bg-green-900/20 border-green-500/30 cursor-not-allowed"
-                            : "bg-[#1a1a1c] border-[#2a2a2d] hover:bg-[#252528] hover:border-[#3a3a3d]"
-                        }`}
-                        disabled={isSelected || isSelf || isAlreadyMember}
-                      >
-                        <Avatar className="h-10 w-10 border-2 border-[#1a1a1c]">
-                          <AvatarImage src={user.image} />
-                          <AvatarFallback
-                            className={`${
-                              isSelf
-                                ? "bg-linear-to-br from-[#252528] to-[#2a2a2d] text-[#a0a0a0]"
-                                : "bg-linear-to-br from-blue-900/30 to-indigo-900/30 text-blue-400"
-                            }`}
-                          >
-                            {user.name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="text-left flex-1">
-                          <div className="font-medium text-[#f0f0f0] flex items-center gap-2">
-                            {user.name}
-                            {isSelf && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs bg-[#252528] text-[#a0a0a0] border-[#2a2a2d]"
-                              >
-                                <UserCog className="h-3 w-3 mr-1" />
-                                You
-                              </Badge>
-                            )}
-                            {isAlreadyMember && !isSelf && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs bg-green-900/20 text-green-400 border-green-500/30"
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                In Team
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-sm text-[#a0a0a0]">
-                            {user.email}
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <div className="bg-green-900/30 p-1.5 rounded-full">
-                            <Check className="h-4 w-4 text-green-400" />
-                          </div>
-                        )}
-                        {(isSelf || isAlreadyMember) && !isSelected && (
-                          <div className="text-xs text-[#707070] italic px-2">
-                            {isSelf ? "This is you" : "Already in team"}
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-
-              {selectedUsers.length > 0 && (
-                <Button
-                  onClick={sendEmailInvites}
-                  disabled={isLoading}
-                  className="w-full h-12 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 transition-all duration-200 transform hover:scale-[1.02] rounded-xl"
-                  size="lg"
-                >
-                  {isLoading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  ) : (
-                    <Send className="h-4 w-4 mr-2" />
+                  className={cn(
+                    "pl-10 pr-4 h-12 bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 rounded-xl",
+                    searchError && "border-red-500 focus:border-red-500",
                   )}
-                  Invite {selectedUsers.length}{" "}
-                  {selectedUsers.length === 1 ? "person" : "people"}
-                </Button>
-              )}
+                />
+                {searchLoading && (
+                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-600 dark:text-blue-400 animate-spin" />
+                )}
+              </motion.div>
+
+              <AnimatePresence>
+                {searchError && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg text-sm"
+                  >
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <span>{searchError}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence mode="popLayout">
+                {selectedUsers.length > 0 && (
+                  <motion.div
+                    key="selected-users"
+                    initial={{ opacity: 0, y: -20, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: "auto" }}
+                    exit={{ opacity: 0, y: -20, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                        Selected ({selectedUsers.length})
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedUsers([])}
+                        className="h-6 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs hover:bg-blue-100 dark:hover:bg-blue-800/50 rounded-md"
+                      >
+                        Clear all
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {selectedUsers.map((user) => (
+                        <motion.div
+                          key={user.id}
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <Badge
+                            variant="secondary"
+                            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-blue-200 dark:border-blue-800 px-3 py-1.5 rounded-full"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-4 w-4">
+                                <AvatarImage src={user.image} />
+                                <AvatarFallback className="text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+                                  {user.name.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-xs max-w-20 truncate font-medium">
+                                {user.name}
+                              </span>
+                              <button
+                                onClick={() => removeUser(user.id)}
+                                className="hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full p-0.5 transition-colors"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </Badge>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <motion.div
+                className="max-h-64 overflow-y-auto space-y-2 pr-2"
+                variants={staggerChildren}
+                initial="initial"
+                animate="animate"
+              >
+                {!searchLoading &&
+                  users.length === 0 &&
+                  searchQuery.length >= 2 &&
+                  !searchError && (
+                    <motion.div
+                      variants={fadeInUp}
+                      className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700"
+                    >
+                      <Users className="h-12 w-12 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                      <p>No users found</p>
+                      <p className="text-sm mt-1">Try a different search</p>
+                    </motion.div>
+                  )}
+
+                {users.map((user) => {
+                  const isSelected = selectedUsers.some(
+                    (u) => u.id === user.id,
+                  );
+                  const isAlreadyMember = isUserAlreadyMember(user.id);
+                  const isSelf = isCurrentUser(user);
+
+                  return (
+                    <button
+                      key={user.id}
+                      onClick={() =>
+                        !isSelf && !isAlreadyMember && handleUserSelect(user)
+                      }
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border",
+                        isSelected &&
+                          "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800",
+                        isSelf &&
+                          "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-50",
+                        isAlreadyMember &&
+                          !isSelf &&
+                          "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 cursor-not-allowed",
+                        !isSelected &&
+                          !isSelf &&
+                          !isAlreadyMember &&
+                          "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:border-blue-500 dark:hover:border-blue-400",
+                      )}
+                      disabled={isSelected || isSelf || isAlreadyMember}
+                    >
+                      <Avatar className="h-10 w-10 border-2 border-white dark:border-gray-800">
+                        <AvatarImage src={user.image} />
+                        <AvatarFallback className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+                          {user.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <div className="text-left flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 dark:text-white flex items-center gap-2 flex-wrap">
+                          <span className="truncate">{user.name}</span>
+                          {isSelf && (
+                            <Badge className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-0">
+                              You
+                            </Badge>
+                          )}
+                          {isAlreadyMember && !isSelf && (
+                            <Badge className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-0">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              In Team
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                          {user.email}
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="bg-green-100 dark:bg-green-900/30 p-1.5 rounded-full"
+                        >
+                          <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        </motion.div>
+                      )}
+                    </button>
+                  );
+                })}
+              </motion.div>
+
+              <AnimatePresence>
+                {emailError && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg text-sm"
+                  >
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{emailError}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {selectedUsers.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                  >
+                    <Button
+                      onClick={sendEmailInvites}
+                      disabled={isLoading}
+                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white shadow-lg rounded-xl relative overflow-hidden group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-1000" />
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-2" />
+                      )}
+                      Send {selectedUsers.length} Invitation
+                      {selectedUsers.length > 1 ? "s" : ""}
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-          </div>
+          </motion.div>
         </DialogContent>
       </Dialog>
     );
@@ -612,120 +688,135 @@ export default function InviteModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-linear-to-br from-[#1a1a1c] to-[#252528] border border-[#2a2a2d] shadow-2xl">
-        <div className="rounded-2xl">
-          <DialogHeader className="text-center space-y-2 pb-6">
-            <div className="mx-auto w-12 h-12 bg-linear-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
-              <Mail className="h-6 w-6 text-white" />
+      <DialogContent className="sm:max-w-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring" }}
+          className="relative"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring" }}
+            className="absolute -top-12 left-1/2 transform -translate-x-1/2"
+          >
+            <div className="w-24 h-24 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center shadow-xl">
+              <CheckCircle2 className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <DialogTitle className="text-2xl font-bold bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-              Invite to {teamName}
+          </motion.div>
+
+          <DialogHeader className="text-center pt-16 pb-4">
+            <DialogTitle className="text-3xl font-bold text-gray-900 dark:text-white">
+              Invite Link Ready
             </DialogTitle>
-            <DialogDescription className="text-[#a0a0a0] text-base">
-              Bring your team together
+            <DialogDescription className="text-gray-500 dark:text-gray-400">
+              Share this link with your team members
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 p-1">
-            <Button
-              onClick={() => {
-                setView("search");
-                setTimeout(() => searchInputRef.current?.focus(), 100);
-              }}
-              variant="outline"
-              className="w-full h-16 justify-start px-6 hover:bg-[#252528] hover:border-blue-400/30 transition-all duration-200 group border-2 border-[#2a2a2d] rounded-xl hover:shadow-lg"
-              disabled={!teamId}
+          <div className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700"
             >
-              <div className="w-10 h-10 bg-blue-900/30 rounded-lg flex items-center justify-center mr-4 group-hover:bg-blue-900/50 transition-colors">
-                <User className="h-5 w-5 text-blue-400" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-[#f0f0f0]">Email Invite</div>
-                <div className="text-sm text-[#a0a0a0]">
-                  Search and select users
-                </div>
-              </div>
-            </Button>
+              <div className="space-y-4">
+                <label className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Shareable Link
+                </label>
 
-            <Button
-              onClick={() => generateInviteLink("telegram")}
-              variant="outline"
-              className="w-full h-16 justify-start px-6 hover:bg-[#252528] hover:border-blue-400/30 transition-all duration-200 group border-2 border-[#2a2a2d] rounded-xl hover:shadow-lg"
-              disabled={!teamId || isLoading}
-            >
-              <div className="flex items-center justify-center w-10 h-10 bg-blue-900/30 rounded-lg mr-4 group-hover:bg-blue-900/50 transition-colors">
-                <svg
-                  className="w-10 h-10"
-                  viewBox="0 0 48 48"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <g clipPath="url(#clip0_318_61)">
-                    <path
-                      d="M24 48C37.2548 48 48 37.2548 48 24C48 10.7452 37.2548 0 24 0C10.7452 0 0 10.7452 0 24C0 37.2548 10.7452 48 24 48Z"
-                      fill="url(#paint0_linear_318_61)"
-                    />
-                    <path
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M10.8638 23.7466C17.8603 20.6984 22.5257 18.6888 24.8601 17.7179C31.5251 14.9456 32.91 14.4641 33.8127 14.4482C34.0113 14.4447 34.4552 14.4939 34.7427 14.7272C34.9855 14.9242 35.0523 15.1904 35.0843 15.3771C35.1163 15.5639 35.1561 15.9895 35.1244 16.3219C34.7633 20.1169 33.2004 29.3263 32.4053 33.5767C32.0689 35.3752 31.4065 35.9783 30.7652 36.0373C29.3714 36.1655 28.3131 35.1162 26.9632 34.2313C24.8509 32.8467 23.6576 31.9847 21.6072 30.6336C19.2377 29.0721 20.7738 28.2139 22.1242 26.8113C22.4776 26.4442 28.6183 20.8587 28.7372 20.352C28.7521 20.2886 28.7659 20.0524 28.6255 19.9277C28.4852 19.803 28.2781 19.8456 28.1286 19.8795C27.9168 19.9276 24.5423 22.158 18.0053 26.5707C17.0475 27.2284 16.1799 27.5489 15.4026 27.5321C14.5457 27.5135 12.8973 27.0475 11.6719 26.6492C10.1689 26.1606 8.97432 25.9023 9.07834 25.0726C9.13252 24.6404 9.72767 24.1984 10.8638 23.7466Z"
-                      fill="white"
-                    />
-                  </g>
-                  <defs>
-                    <linearGradient
-                      id="paint0_linear_318_61"
-                      x1="0"
-                      y1="0"
-                      x2="48"
-                      y2="48"
-                      gradientUnits="userSpaceOnUse"
-                    >
-                      <stop stopColor="#37AEE2" />
-                      <stop offset="1" stopColor="#1E96C8" />
-                    </linearGradient>
-                    <clipPath id="clip0_318_61">
-                      <rect width="48" height="48" fill="white" />
-                    </clipPath>
-                  </defs>
-                </svg>
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-[#f0f0f0]">Telegram</div>
-                <div className="text-sm text-[#a0a0a0]">
-                  Generate invite link
-                </div>
-              </div>
-            </Button>
-
-            <Button
-              onClick={() => generateInviteLink("discord")}
-              variant="outline"
-              className="w-full h-16 justify-start px-6 hover:bg-[#252528] hover:border-indigo-400/30 transition-all duration-200 group border-2 border-[#2a2a2d] rounded-xl hover:shadow-lg"
-              disabled={!teamId || isLoading}
-            >
-              <div className="flex items-center justify-center w-10 h-10 bg-indigo-900/30 rounded-lg mr-4 group-hover:bg-indigo-900/50 transition-colors">
-                <svg
-                  className="w-10 h-10"
-                  viewBox="0 0 48 48"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M40.634 8.31121C37.5747 6.90744 34.294 5.87321 30.8638 5.28087C30.8013 5.26943 30.7389 5.298 30.7067 5.35514C30.2848 6.10557 29.8175 7.08457 29.4902 7.85406C25.8008 7.30172 22.1304 7.30172 18.5166 7.85406C18.1893 7.06747 17.705 6.10557 17.2811 5.35514C17.249 5.29991 17.1866 5.27134 17.1241 5.28087C13.6958 5.87132 10.4151 6.90555 7.35387 8.31121C7.32737 8.32263 7.30465 8.3417 7.28958 8.36644C1.06678 17.6632 -0.6379 26.7314 0.19836 35.6872C0.202144 35.731 0.22674 35.7729 0.260796 35.7995C4.36642 38.8146 8.34341 40.645 12.2466 41.8583C12.309 41.8773 12.3752 41.8545 12.415 41.803C13.3383 40.5422 14.1613 39.2127 14.867 37.8146C14.9086 37.7328 14.8688 37.6356 14.7837 37.6032C13.4783 37.108 12.2352 36.5042 11.0395 35.8186C10.9449 35.7634 10.9373 35.6281 11.0243 35.5633C11.2759 35.3748 11.5276 35.1786 11.7679 34.9805C11.8114 34.9443 11.872 34.9367 11.9231 34.9595C19.7786 38.5461 28.2831 38.5461 36.0459 34.9595C36.097 34.9348 36.1576 34.9424 36.203 34.9786C36.4433 35.1767 36.6949 35.3748 36.9484 35.5633C36.9352 35.8186C35.7394 36.5176 34.4964 37.108 33.189 37.6014C33.1039 37.6337 33.0661 37.7328 33.1077 37.8146C33.8285 39.2108 34.6515 40.5402 35.5578 41.8012C35.5957 41.8545 35.6637 41.8773 35.7262 41.8583C39.6483 40.645 43.6252 38.8146 47.7309 35.7995C47.7668 35.7729 47.7895 35.7329 47.7933 35.6891C48.7942 25.3352 46.117 16.3413 40.6964 8.36833C40.6832 8.3417 40.6605 8.32263 40.634 8.31121ZM16.04 30.234C13.675 30.234 11.7263 28.0627 11.7263 25.3962C11.7263 22.7296 13.6372 20.5583 16.04 20.5583C18.4617 20.5583 20.3916 22.7487 20.3538 25.3962C20.3538 28.0627 18.4428 30.234 16.04 30.234ZM31.9895 30.234C29.6245 30.234 27.6758 28.0627 27.6758 25.3962C27.6758 22.7296 29.5867 20.5583 31.9895 20.5583C34.4113 20.5583 36.3411 22.7487 36.3033 25.3962C36.3033 28.0627 34.4113 30.234 31.9895 30.234Z"
-                    fill="#5865F2"
+                <div className="flex gap-2">
+                  <Input
+                    value={inviteLink}
+                    readOnly
+                    className="flex-1 font-mono text-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white"
                   />
-                </svg>
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-[#f0f0f0]">Discord</div>
-                <div className="text-sm text-[#a0a0a0]">
-                  Generate invite link
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={copyToClipboard}
+                    className={cn(
+                      "shrink-0 px-4 rounded-xl transition-all duration-200 flex items-center gap-2",
+                      linkCopied
+                        ? "bg-green-600 dark:bg-green-500 text-white"
+                        : "bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white",
+                    )}
+                  >
+                    {linkCopied ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </motion.button>
                 </div>
               </div>
-            </Button>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="bg-white dark:bg-gray-900 p-2 rounded-lg">
+                  <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+                    Link Details
+                  </p>
+                  <ul className="text-xs text-indigo-600 dark:text-indigo-400 mt-2 space-y-1">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                      Expires in 7 days
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                      Anyone with the link can join
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                      No email required
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="flex gap-3"
+            >
+              <Button
+                onClick={handleBackToMain}
+                variant="outline"
+                className="flex-1 h-11 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl"
+              >
+                Back
+              </Button>
+
+              <Button
+                onClick={onClose}
+                className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-xl"
+              >
+                Done
+              </Button>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
       </DialogContent>
     </Dialog>
   );
