@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
@@ -17,11 +17,10 @@ export async function GET(req: Request) {
     if (!fileId) {
       return NextResponse.json(
         { error: "File ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Находим пользователя в базе
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email },
     });
@@ -30,7 +29,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Проверяем доступ к файлу (создатель или участник команды)
     const file = await prisma.file.findFirst({
       where: {
         id: fileId,
@@ -65,12 +63,12 @@ export async function GET(req: Request) {
     console.error("Error getting share info:", err);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
@@ -79,16 +77,16 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { fileId, isPublic, permissions = "VIEW" } = await req.json();
+    const body = await req.json();
+    const { fileId, isPublic, permissions = "VIEW" } = body;
 
     if (!fileId) {
       return NextResponse.json(
         { error: "File ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Находим пользователя в базе
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email },
     });
@@ -97,30 +95,33 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Проверяем права доступа (только EDIT права могут менять настройки шаринга)
     const file = await prisma.file.findFirst({
       where: {
         id: fileId,
-        OR: [
-          { createdById: dbUser.id },
-          {
-            team: {
-              members: {
-                some: {
-                  userId: dbUser.id,
-                  role: "EDIT",
-                },
-              },
-            },
+      },
+      include: {
+        team: {
+          include: {
+            members: true,
           },
-        ],
+        },
       },
     });
 
     if (!file) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
+    const isCreator = file.createdById === dbUser.id;
+    const hasEditPermission = file.team?.members.some(
+      (m) =>
+        m.userId === dbUser.id && (m.role === "EDIT" || m.role === "ADMIN"),
+    );
+
+    if (!isCreator && !hasEditPermission) {
       return NextResponse.json(
-        { error: "File not found or insufficient permissions" },
-        { status: 404 }
+        { error: "You don't have permission to change share settings" },
+        { status: 403 },
       );
     }
 
@@ -154,7 +155,7 @@ export async function PATCH(req: Request) {
     console.error("Error updating share settings:", err);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
