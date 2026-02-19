@@ -241,10 +241,14 @@ export function GithubConnectModal({
       const result = await response.json();
 
       if (result.success) {
-        setRepoStats(result.data);
+        setRepoStats(result.data || null);
+      } else {
+        console.error("Failed to fetch repo stats:", result.error);
+        setRepoStats(null);
       }
     } catch (error) {
       console.error("Failed to fetch repo stats:", error);
+      setRepoStats(null);
     }
   };
 
@@ -259,7 +263,7 @@ export function GithubConnectModal({
       const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/\s?]+)/);
       if (!match) {
         setError(
-          "Invalid GitHub URL format. Please use: https://github.com/username/repository"
+          "Invalid GitHub URL format. Please use: https://github.com/username/repository",
         );
         return;
       }
@@ -291,7 +295,7 @@ export function GithubConnectModal({
       } else {
         setError(
           result.error ||
-            "Failed to connect repository. Please check if the repository exists and is accessible."
+            "Failed to connect repository. Please check if the repository exists and is accessible.",
         );
       }
     } catch (error: any) {
@@ -339,19 +343,31 @@ export function GithubConnectModal({
       const result = await response.json();
 
       if (result.success) {
-        const branchNames = result.data.map((branch: any) => branch.name);
-        setBranches(branchNames);
+        if (Array.isArray(result.data)) {
+          const branchNames = result.data.map((branch: any) => branch.name);
+          setBranches(branchNames);
 
-        if (branchNames.includes("main")) {
+          if (branchNames.includes("main")) {
+            setSelectedBranch("main");
+          } else if (branchNames.includes("master")) {
+            setSelectedBranch("master");
+          } else if (branchNames.length > 0) {
+            setSelectedBranch(branchNames[0]);
+          }
+        } else {
+          console.error("Branches data is not an array:", result.data);
+          setBranches([]);
           setSelectedBranch("main");
-        } else if (branchNames.includes("master")) {
-          setSelectedBranch("master");
-        } else if (branchNames.length > 0) {
-          setSelectedBranch(branchNames[0]);
         }
+      } else {
+        console.error("Failed to fetch branches:", result.error);
+        setBranches([]);
+        setSelectedBranch("main");
       }
     } catch (error) {
       console.error("Failed to fetch branches:", error);
+      setBranches([]);
+      setSelectedBranch("main");
     }
   };
 
@@ -376,28 +392,49 @@ export function GithubConnectModal({
       if (result.success) {
         switch (type) {
           case "issues":
-            setIssues(result.data);
+            setIssues(Array.isArray(result.data) ? result.data : []);
             break;
           case "pulls":
-            setPulls(result.data);
+            setPulls(Array.isArray(result.data) ? result.data : []);
             break;
           case "readme":
-            setReadme(result.data.content);
-            setReadmeContent(result.data.content);
+            setReadme(result.data?.content || null);
+            setReadmeContent(result.data?.content || "");
             break;
           case "tree":
-            setRepoTree(result.data);
+            setRepoTree(result.data || { tree: [] });
             break;
           case "branches":
-            setBranches(result.data.map((branch: any) => branch.name));
+            if (Array.isArray(result.data)) {
+              const branchNames = result.data.map((branch: any) => branch.name);
+              setBranches(branchNames);
+
+              if (branchNames.includes("main")) {
+                setSelectedBranch("main");
+              } else if (branchNames.includes("master")) {
+                setSelectedBranch("master");
+              } else if (branchNames.length > 0) {
+                setSelectedBranch(branchNames[0]);
+              }
+            } else {
+              console.error("Branches data is not an array:", result.data);
+              setBranches([]);
+            }
             break;
         }
       } else {
         setError(result.error || `Failed to fetch ${type}`);
+        if (type === "issues") setIssues([]);
+        if (type === "pulls") setPulls([]);
+        if (type === "branches") setBranches([]);
       }
     } catch (error: any) {
       console.error(`Failed to fetch ${type}:`, error);
       setError(`Failed to load ${type}. Please try again.`);
+
+      if (type === "issues") setIssues([]);
+      if (type === "pulls") setPulls([]);
+      if (type === "branches") setBranches([]);
     } finally {
       setIsLoading(false);
     }
@@ -433,7 +470,9 @@ export function GithubConnectModal({
   };
 
   const getCurrentFolderContents = () => {
-    if (!repoTree?.tree) return { folders: [], files: [] };
+    if (!repoTree?.tree || !Array.isArray(repoTree.tree)) {
+      return { folders: [], files: [] };
+    }
 
     const items = repoTree.tree.filter((item: any) => {
       if (!currentPath) {
@@ -521,27 +560,27 @@ export function GithubConnectModal({
         <DialogContent
           className={cn(
             "rounded-2xl border border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] shadow-xl overflow-hidden flex flex-col",
-            getConnectDialogSize()
+            getConnectDialogSize(),
           )}
         >
           <DialogHeader className="text-center space-y-3 pt-6">
             <div
               className={cn(
                 "mx-auto bg-linear-to-br from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500 rounded-xl flex items-center justify-center shadow-lg",
-                getIconSize()
+                getIconSize(),
               )}
             >
               <Github
                 className={cn(
                   "text-white",
-                  isSmallMobile ? "h-4 w-4" : "h-6 w-6"
+                  isSmallMobile ? "h-4 w-4" : "h-6 w-6",
                 )}
               />
             </div>
             <DialogTitle
               className={cn(
                 "font-bold text-gray-900 dark:text-[#f0f0f0]",
-                getHeaderSize()
+                getHeaderSize(),
               )}
             >
               Connect GitHub Repository
@@ -563,7 +602,7 @@ export function GithubConnectModal({
                     <p
                       className={cn(
                         "text-red-800 dark:text-red-300 font-medium leading-relaxed",
-                        isSmallMobile ? "text-xs" : "text-sm"
+                        isSmallMobile ? "text-xs" : "text-sm",
                       )}
                     >
                       {error}
@@ -583,7 +622,7 @@ export function GithubConnectModal({
                     <p
                       className={cn(
                         "text-green-800 dark:text-green-300 font-medium leading-relaxed",
-                        isSmallMobile ? "text-xs" : "text-sm"
+                        isSmallMobile ? "text-xs" : "text-sm",
                       )}
                     >
                       {success}
@@ -598,7 +637,7 @@ export function GithubConnectModal({
                 <label
                   className={cn(
                     "font-semibold text-gray-700 dark:text-[#f0f0f0]",
-                    isSmallMobile ? "text-xs" : "text-sm"
+                    isSmallMobile ? "text-xs" : "text-sm",
                   )}
                 >
                   Repository URL
@@ -606,7 +645,7 @@ export function GithubConnectModal({
                 <span
                   className={cn(
                     "text-gray-400 dark:text-[#707070]",
-                    isSmallMobile ? "text-[10px]" : "text-xs"
+                    isSmallMobile ? "text-[10px]" : "text-xs",
                   )}
                 >
                   Required
@@ -625,7 +664,7 @@ export function GithubConnectModal({
                     getButtonSize(),
                     repoUrl && !isValidGithubUrl(repoUrl)
                       ? "border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                      : "border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 dark:focus:border-blue-500"
+                      : "border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 dark:focus:border-blue-500",
                   )}
                 />
                 {isValidGithubUrl(repoUrl) && (
@@ -643,7 +682,7 @@ export function GithubConnectModal({
             <div
               className={cn(
                 "rounded-xl text-sm bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 backdrop-blur-sm",
-                isSmallMobile ? "p-2" : "p-3"
+                isSmallMobile ? "p-2" : "p-3",
               )}
             >
               <div className="flex items-start gap-2">
@@ -660,7 +699,7 @@ export function GithubConnectModal({
                   <p
                     className={cn(
                       "font-medium text-blue-900 dark:text-blue-300 mb-1",
-                      isSmallMobile ? "text-xs" : "text-sm"
+                      isSmallMobile ? "text-xs" : "text-sm",
                     )}
                   >
                     What happens next?
@@ -668,7 +707,7 @@ export function GithubConnectModal({
                   <p
                     className={cn(
                       "text-blue-700 dark:text-blue-400 leading-relaxed",
-                      isSmallMobile ? "text-xs" : "text-sm"
+                      isSmallMobile ? "text-xs" : "text-sm",
                     )}
                   >
                     • Read-only access to repository contents
@@ -687,7 +726,7 @@ export function GithubConnectModal({
               disabled={!isButtonEnabled || isConnecting}
               className={cn(
                 "w-full rounded-xl font-semibold transition-all duration-200 shadow-lg bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:pointer-events-none",
-                getButtonSize()
+                getButtonSize(),
               )}
             >
               {isConnecting ? (
@@ -695,7 +734,7 @@ export function GithubConnectModal({
                   <Loader2
                     className={cn(
                       "animate-spin mr-2",
-                      isSmallMobile ? "h-3 w-3" : "h-4 w-4"
+                      isSmallMobile ? "h-3 w-3" : "h-4 w-4",
                     )}
                   />
                   {isSmallMobile ? "Connecting..." : "Connecting Repository..."}
@@ -705,7 +744,7 @@ export function GithubConnectModal({
                   <GitBranch
                     className={cn(
                       "mr-2",
-                      isSmallMobile ? "h-3 w-3" : "h-4 w-4"
+                      isSmallMobile ? "h-3 w-3" : "h-4 w-4",
                     )}
                   />
                   {isSmallMobile ? "Connect Repo" : "Connect Repository"}
@@ -716,7 +755,7 @@ export function GithubConnectModal({
             <p
               className={cn(
                 "text-center text-gray-400 dark:text-[#707070]",
-                isSmallMobile ? "text-[10px]" : "text-xs"
+                isSmallMobile ? "text-[10px]" : "text-xs",
               )}
             >
               Secure connection • Read-only access
@@ -733,13 +772,13 @@ export function GithubConnectModal({
         <DialogContent
           className={cn(
             "rounded-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#1a1a1c] shadow-xl",
-            getDialogSize()
+            getDialogSize(),
           )}
         >
           <DialogHeader
             className={cn(
               "shrink-0 px-6 pt-6",
-              isSmallMobile ? "pb-2" : "pb-3"
+              isSmallMobile ? "pb-2" : "pb-3",
             )}
           >
             <div className="flex items-center justify-between">
@@ -747,13 +786,13 @@ export function GithubConnectModal({
                 <div
                   className={cn(
                     "bg-linear-to-br from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500 rounded-xl flex items-center justify-center shadow-lg",
-                    getIconSize()
+                    getIconSize(),
                   )}
                 >
                   <Github
                     className={cn(
                       "text-white",
-                      isSmallMobile ? "h-3 w-3" : "h-4 w-4"
+                      isSmallMobile ? "h-3 w-3" : "h-4 w-4",
                     )}
                   />
                 </div>
@@ -761,7 +800,7 @@ export function GithubConnectModal({
                   <DialogTitle
                     className={cn(
                       "font-bold text-gray-900 dark:text-[#f0f0f0] flex items-center gap-2",
-                      getHeaderSize()
+                      getHeaderSize(),
                     )}
                   >
                     <span className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
@@ -797,7 +836,7 @@ export function GithubConnectModal({
                 onClick={handleDisconnect}
                 className={cn(
                   "text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800/50 transition-all duration-200",
-                  isSmallMobile ? "h-7 text-xs" : "h-8 text-sm"
+                  isSmallMobile ? "h-7 text-xs" : "h-8 text-sm",
                 )}
               >
                 <XCircle
@@ -812,7 +851,7 @@ export function GithubConnectModal({
             <div
               className={cn(
                 "w-full mx-6 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 backdrop-blur-sm shrink-0",
-                isSmallMobile ? "p-2" : "p-3"
+                isSmallMobile ? "p-2" : "p-3",
               )}
             >
               <div className="flex items-start gap-2 w-full">
@@ -823,7 +862,7 @@ export function GithubConnectModal({
                   <p
                     className={cn(
                       "text-red-800 dark:text-red-300 font-medium leading-relaxed",
-                      isSmallMobile ? "text-xs" : "text-sm"
+                      isSmallMobile ? "text-xs" : "text-sm",
                     )}
                   >
                     {error}
@@ -837,7 +876,7 @@ export function GithubConnectModal({
             <div
               className={cn(
                 "w-full mx-6 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 backdrop-blur-sm shrink-0",
-                isSmallMobile ? "p-2" : "p-3"
+                isSmallMobile ? "p-2" : "p-3",
               )}
             >
               <div className="flex items-start gap-2 w-full">
@@ -848,7 +887,7 @@ export function GithubConnectModal({
                   <p
                     className={cn(
                       "text-green-800 dark:text-green-300 font-medium leading-relaxed",
-                      isSmallMobile ? "text-xs" : "text-sm"
+                      isSmallMobile ? "text-xs" : "text-sm",
                     )}
                   >
                     {success}
@@ -870,7 +909,7 @@ export function GithubConnectModal({
             <TabsList
               className={cn(
                 "w-full shrink-0 bg-gray-100/80 dark:bg-[#252528] rounded-xl border border-gray-200 dark:border-[#2a2a2d] mb-4",
-                getTabListLayout()
+                getTabListLayout(),
               )}
             >
               {getTabLabels().map((tab) => (
@@ -898,7 +937,7 @@ export function GithubConnectModal({
               value="overview"
               className={cn(
                 "space-y-4 overflow-y-auto flex-1 opacity-100",
-                getContentPadding()
+                getContentPadding(),
               )}
             >
               {repoStats && (
@@ -938,20 +977,20 @@ export function GithubConnectModal({
                 <div
                   className={cn(
                     "rounded-xl border border-green-200 dark:border-green-800/50 bg-green-50/80 dark:bg-green-900/20 backdrop-blur-sm",
-                    getCardPadding()
+                    getCardPadding(),
                   )}
                 >
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(
                         "bg-green-100 dark:bg-green-900/40 rounded-lg flex items-center justify-center",
-                        isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                        isSmallMobile ? "w-8 h-8" : "w-10 h-10",
                       )}
                     >
                       <CheckCircle2
                         className={cn(
                           "text-green-600 dark:text-green-400",
-                          isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                          isSmallMobile ? "h-4 w-4" : "h-5 w-5",
                         )}
                       />
                     </div>
@@ -959,7 +998,7 @@ export function GithubConnectModal({
                       <p
                         className={cn(
                           "font-semibold text-green-900 dark:text-green-300",
-                          isSmallMobile ? "text-xs" : "text-sm"
+                          isSmallMobile ? "text-xs" : "text-sm",
                         )}
                       >
                         Repository Connected
@@ -968,7 +1007,7 @@ export function GithubConnectModal({
                         <p
                           className={cn(
                             "text-green-700 dark:text-green-400 break-all opacity-80 flex-1",
-                            isSmallMobile ? "text-[10px]" : "text-xs"
+                            isSmallMobile ? "text-[10px]" : "text-xs",
                           )}
                         >
                           {connectedRepo.fullUrl}
@@ -980,14 +1019,14 @@ export function GithubConnectModal({
                             onClick={(event) => {
                               event.preventDefault();
                               navigator.clipboard.writeText(
-                                connectedRepo.fullUrl
+                                connectedRepo.fullUrl,
                               );
                               setIsCopied(true);
                               setTimeout(() => setIsCopied(false), 2000);
                             }}
                             className={cn(
                               "p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-green-100 dark:hover:bg-green-900/40 rounded-lg shrink-0 cursor-pointer relative",
-                              isSmallMobile ? "h-5 w-5" : "h-6 w-6"
+                              isSmallMobile ? "h-5 w-5" : "h-6 w-6",
                             )}
                             title="Copy repository URL"
                           >
@@ -1018,20 +1057,20 @@ export function GithubConnectModal({
                 <div
                   className={cn(
                     "rounded-xl border border-gray-200 dark:border-[#2a2a2d] bg-gray-50/80 dark:bg-[#252528]/80 backdrop-blur-sm",
-                    getCardPadding()
+                    getCardPadding(),
                   )}
                 >
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(
                         "bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center",
-                        isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                        isSmallMobile ? "w-8 h-8" : "w-10 h-10",
                       )}
                     >
                       <RefreshCw
                         className={cn(
                           "text-blue-600 dark:text-blue-400",
-                          isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                          isSmallMobile ? "h-4 w-4" : "h-5 w-5",
                         )}
                       />
                     </div>
@@ -1039,7 +1078,7 @@ export function GithubConnectModal({
                       <p
                         className={cn(
                           "font-semibold text-gray-900 dark:text-[#f0f0f0]",
-                          isSmallMobile ? "text-xs" : "text-sm"
+                          isSmallMobile ? "text-xs" : "text-sm",
                         )}
                       >
                         Last Synced
@@ -1047,7 +1086,7 @@ export function GithubConnectModal({
                       <p
                         className={cn(
                           "text-gray-600 dark:text-[#a0a0a0] mt-1",
-                          isSmallMobile ? "text-[10px]" : "text-xs"
+                          isSmallMobile ? "text-[10px]" : "text-xs",
                         )}
                       >
                         {connectedRepo.lastSyncAt
@@ -1062,19 +1101,19 @@ export function GithubConnectModal({
               <div
                 className={cn(
                   "flex items-center gap-2 rounded-xl border border-gray-200 dark:border-[#2a2a2d] bg-gray-50/80 dark:bg-[#252528]/80 backdrop-blur-sm",
-                  isSmallMobile ? "p-2" : "p-3"
+                  isSmallMobile ? "p-2" : "p-3",
                 )}
               >
                 <div
                   className={cn(
                     "bg-purple-100 dark:bg-purple-900/40 rounded-lg flex items-center justify-center shrink-0",
-                    isSmallMobile ? "w-8 h-8" : "w-10 h-10"
+                    isSmallMobile ? "w-8 h-8" : "w-10 h-10",
                   )}
                 >
                   <GitBranch
                     className={cn(
                       "text-purple-600 dark:text-purple-400",
-                      isSmallMobile ? "h-4 w-4" : "h-5 w-5"
+                      isSmallMobile ? "h-4 w-4" : "h-5 w-5",
                     )}
                   />
                 </div>
@@ -1082,7 +1121,7 @@ export function GithubConnectModal({
                   <label
                     className={cn(
                       "font-semibold text-gray-600 dark:text-[#a0a0a0] block mb-1",
-                      isSmallMobile ? "text-[10px]" : "text-xs"
+                      isSmallMobile ? "text-[10px]" : "text-xs",
                     )}
                   >
                     Current Branch
@@ -1102,7 +1141,7 @@ export function GithubConnectModal({
                         "border border-gray-200 dark:border-[#2a2a2d] rounded-lg bg-white dark:bg-[#1a1a1c] text-gray-900 dark:text-[#f0f0f0] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
                         isSmallMobile
                           ? "text-xs px-2 py-1 max-w-[120px]"
-                          : "text-sm px-3 py-2 max-w-[150px]"
+                          : "text-sm px-3 py-2 max-w-[150px]",
                       )}
                     >
                       {branches.map((branch) => (
@@ -1115,7 +1154,7 @@ export function GithubConnectModal({
                       variant="outline"
                       className={cn(
                         "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/50",
-                        isSmallMobile ? "text-[10px] px-1.5" : "text-xs"
+                        isSmallMobile ? "text-[10px] px-1.5" : "text-xs",
                       )}
                     >
                       {branches.length}{" "}
@@ -1130,14 +1169,14 @@ export function GithubConnectModal({
                   disabled={isLoading}
                   className={cn(
                     "shrink-0 rounded-lg border border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#252528] hover:bg-gray-100 dark:hover:bg-[#2a2a2d] cursor-pointer",
-                    isSmallMobile ? "h-7 w-7" : "h-8 w-8"
+                    isSmallMobile ? "h-7 w-7" : "h-8 w-8",
                   )}
                   title="Refresh branches"
                 >
                   <RefreshCw
                     className={cn(
                       isSmallMobile ? "h-3 w-3" : "h-3 w-3",
-                      isLoading ? "animate-spin" : ""
+                      isLoading ? "animate-spin" : "",
                     )}
                   />
                 </Button>
@@ -1183,20 +1222,20 @@ export function GithubConnectModal({
                     variant="outline"
                     className={cn(
                       "w-full justify-start rounded-lg border border-gray-200 dark:border-[#2a2a2d] bg-white dark:bg-[#252528] hover:bg-gray-50 dark:hover:bg-[#2a2a2d] hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 text-gray-700 dark:text-[#f0f0f0]",
-                      isSmallMobile ? "h-10 text-xs" : "h-12 text-sm"
+                      isSmallMobile ? "h-10 text-xs" : "h-12 text-sm",
                     )}
                     onClick={item.action}
                   >
                     <div
                       className={cn(
                         "bg-linear-to-br from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40 rounded-lg flex items-center justify-center mr-2",
-                        isSmallMobile ? "w-7 h-7" : "w-8 h-8"
+                        isSmallMobile ? "w-7 h-7" : "w-8 h-8",
                       )}
                     >
                       <item.icon
                         className={cn(
                           "text-blue-600 dark:text-blue-400",
-                          isSmallMobile ? "h-3 w-3" : "h-4 w-4"
+                          isSmallMobile ? "h-3 w-3" : "h-4 w-4",
                         )}
                       />
                     </div>
@@ -1263,7 +1302,7 @@ export function GithubConnectModal({
                           onClick={() =>
                             addToDocument(
                               `Issue #${issue.number}: ${issue.title}\n\n${issue.body}`,
-                              "issue"
+                              "issue",
                             )
                           }
                         >
@@ -1333,7 +1372,7 @@ export function GithubConnectModal({
                           onClick={() =>
                             addToDocument(
                               `PR #${pr.number}: ${pr.title}\n\n${pr.body}`,
-                              "pr"
+                              "pr",
                             )
                           }
                         >
@@ -1367,7 +1406,7 @@ export function GithubConnectModal({
                       "flex items-center",
                       isSmallMobile || isMobile
                         ? "justify-between"
-                        : "justify-end"
+                        : "justify-end",
                     )}
                   >
                     {(isSmallMobile || isMobile) && (
