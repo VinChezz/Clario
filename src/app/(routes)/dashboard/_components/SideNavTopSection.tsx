@@ -1,4 +1,5 @@
 "use client";
+
 import {
   ChevronDown,
   FileText,
@@ -43,6 +44,7 @@ import {
 import { Plan } from "@prisma/client";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
 import { useFavorites } from "@/app/_context/FavoritesContext";
+import { useTeamData } from "@/hooks/useTeamData";
 
 export interface TeamMember {
   id: string;
@@ -74,28 +76,16 @@ interface SideNavTopSectionProps {
   onItemClick?: () => void;
   isMobile?: boolean;
   isTablet?: boolean;
-  fileList_?: FILE[];
-  fileCount?: number;
   onFileClick?: (fileId: string) => void;
-  refreshTrigger?: number;
-  onRefreshFiles?: () => void;
   onOpenFilesWithFilter?: (filter: "all" | "recent" | "favorites") => void;
-  recentFiles?: FILE[];
-  favoriteFiles?: FILE[];
 }
 
 function SideNavTopSection({
   user,
   setActiveTeamInfo,
   onItemClick,
-  fileList_ = [],
-  fileCount = 0,
   onFileClick,
-  refreshTrigger = 0,
-  onRefreshFiles,
   onOpenFilesWithFilter,
-  recentFiles,
-  favoriteFiles,
 }: SideNavTopSectionProps) {
   const router = useRouter();
   const [teamList, setTeamList] = useState<TEAM[]>();
@@ -105,13 +95,9 @@ function SideNavTopSection({
   const [fileFilter, setFileFilter] = useState<"all" | "recent" | "favorites">(
     "all",
   );
-  const [localFileList, setLocalFileList] = useState<FILE[]>(fileList_);
-
   const [userPlan, setUserPlan] = useState<Plan>(Plan.FREE);
   const [currentTeamsCount, setCurrentTeamsCount] = useState(0);
   const [canCreateTeam, setCanCreateTeam] = useState(true);
-  const [recentFilesList, setRecentFilesList] = useState<FILE[]>([]);
-  const [favoriteFilesList, setFavoriteFilesList] = useState<FILE[]>([]);
 
   const isMobileDevice = useIsMobile();
   const isTabletDevice = useIsTablet();
@@ -120,19 +106,22 @@ function SideNavTopSection({
   const isHorizontalTablet = useIsHorizontalTablet();
   const isLandscapeDevice = useIsLandscape();
   const { activeTeam, setActiveTeam } = useActiveTeam();
-
   const { isFavorite, toggleFavorite } = useFavorites();
 
-  const memoizedLocalFileList = useMemo(
-    () => localFileList,
-    [JSON.stringify(localFileList)],
-  );
+  const { files, refresh, isLoading } = useTeamData(activeTeam?.id);
 
-  useEffect(() => {
-    if (refreshTrigger > 0) {
-      loadFiles();
-    }
-  }, [refreshTrigger]);
+  const recentFilesList = useMemo(() => {
+    return [...files]
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
+      .slice(0, 10);
+  }, [files]);
+
+  const favoriteFilesList = useMemo(() => {
+    return files.filter((file) => file.id && isFavorite(file.id));
+  }, [files, isFavorite]);
 
   useEffect(() => {
     if (user) {
@@ -143,41 +132,7 @@ function SideNavTopSection({
 
   useEffect(() => {
     if (activeTeam) setActiveTeamInfo(activeTeam);
-  }, [activeTeam]);
-
-  useEffect(() => {
-    if (activeTeam?.id) {
-      loadFiles();
-      updateRecentFiles();
-      updateFavoriteFiles();
-    }
-  }, [activeTeam?.id, localFileList]);
-
-  const updateRecentFiles = () => {
-    if (localFileList.length === 0) return;
-
-    const recent = [...localFileList]
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )
-      .slice(0, 10);
-
-    setRecentFilesList(recent);
-  };
-
-  const updateFavoriteFiles = () => {
-    if (localFileList.length === 0) {
-      setFavoriteFilesList([]);
-      return;
-    }
-
-    const favorites = localFileList.filter(
-      (file) => file.id && isFavorite(file.id),
-    );
-
-    setFavoriteFilesList(favorites);
-  };
+  }, [activeTeam, setActiveTeamInfo]);
 
   const fetchUserPlan = async () => {
     try {
@@ -189,35 +144,6 @@ function SideNavTopSection({
       setCanCreateTeam(data.usage.teams.canCreate);
     } catch (error) {
       console.error("Error fetching user plan:", error);
-    }
-  };
-
-  const loadFiles = async () => {
-    try {
-      if (!activeTeam?.id) return;
-
-      console.log("🔄 Loading files for sidenav team:", activeTeam.id);
-
-      const response = await fetch(`/api/files?teamId=${activeTeam.id}`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const files = await response.json();
-      console.log("📁 Sidenav files response:", files);
-
-      const activeFiles = Array.isArray(files)
-        ? files.filter((file) => !file.deletedAt)
-        : [];
-
-      setLocalFileList(activeFiles);
-      updateFavoriteFiles();
-      console.log("✅ Sidenav files loaded successfully:", activeFiles.length);
-    } catch (error) {
-      console.error("❌ Failed to load files in sidenav:", error);
-      setLocalFileList([]);
-      setFavoriteFilesList([]);
     }
   };
 
@@ -287,9 +213,6 @@ function SideNavTopSection({
     setActiveTeam(team);
     setTeamsModalOpen(false);
     setSearchQuery("");
-    if (team.id !== activeTeam?.id) {
-      loadFiles();
-    }
   };
 
   const onMenuClick = async (item: any) => {
@@ -306,8 +229,6 @@ function SideNavTopSection({
       if (onOpenFilesWithFilter) {
         onOpenFilesWithFilter(item.filter);
       }
-
-      handleRefreshFiles();
     } else if (item.actionType === "route" && item.path) {
       const pathWithTeamId = item.path.replace(
         /:teamId/g,
@@ -330,7 +251,7 @@ function SideNavTopSection({
       case "favorites":
         return favoriteFilesList;
       default:
-        return localFileList;
+        return files;
     }
   };
 
@@ -341,13 +262,6 @@ function SideNavTopSection({
       file?.fileName?.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [currentFiles, searchQuery]);
-
-  const handleRefreshFiles = () => {
-    loadFiles();
-    if (onRefreshFiles) {
-      onRefreshFiles();
-    }
-  };
 
   const menu = [
     {
@@ -757,7 +671,6 @@ function SideNavTopSection({
       <button
         onClick={() => {
           setFilesModalOpen(true);
-          handleRefreshFiles();
         }}
         className={cn(
           "group flex items-center w-full rounded-xl border transition-all duration-200",
@@ -814,11 +727,13 @@ function SideNavTopSection({
                 : "text-xs",
             )}
           >
-            {fileFilter === "recent"
-              ? `${recentFilesList.length} recent files`
-              : fileFilter === "favorites"
-                ? `${favoriteFilesList.length} favorite files`
-                : `${localFileList.length} files`}
+            {isLoading
+              ? "Loading..."
+              : fileFilter === "recent"
+                ? `${recentFilesList.length} recent files`
+                : fileFilter === "favorites"
+                  ? `${favoriteFilesList.length} favorite files`
+                  : `${files.length} files`}
           </p>
         </div>
         <ChevronRight
@@ -1064,6 +979,7 @@ function SideNavTopSection({
                   width={36}
                   height={36}
                   className="rounded-full ring-2 ring-gray-100 dark:ring-[#2a2a2d]"
+                  priority
                 />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm truncate text-gray-900 dark:text-[#f0f0f0]">
@@ -1124,9 +1040,9 @@ function SideNavTopSection({
                 variant="secondary"
                 className="text-xs font-semibold px-3 py-1 bg-white dark:bg-[#252528] shadow-sm border-gray-200 dark:border-[#2a2a2d] text-gray-900 dark:text-[#f0f0f0]"
               >
-                {filteredFiles.length}
-                {fileFilter === "recent" && " recent"}
-                {fileFilter === "favorites" && " favorite"}
+                {isLoading ? "..." : filteredFiles.length}
+                {!isLoading && fileFilter === "recent" && " recent"}
+                {!isLoading && fileFilter === "favorites" && " favorite"}
               </Badge>
             </div>
           </DialogHeader>
@@ -1208,7 +1124,11 @@ function SideNavTopSection({
                 : "max-h-[480px]",
             )}
           >
-            {filteredFiles.length > 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+              </div>
+            ) : filteredFiles.length > 0 ? (
               <div className={cn("grid gap-3", modalSizes.fileGrid)}>
                 {filteredFiles.map((file) => (
                   <div
