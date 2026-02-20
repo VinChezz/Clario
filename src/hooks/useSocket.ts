@@ -1,33 +1,55 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 
-export const useSocket = (fileId: string, currentUser: any) => {
+let globalSocket: Socket | null = null;
+let globalConnectionAttempts = 0;
+const MAX_GLOBAL_ATTEMPTS = 3;
+
+export const useSocket = (
+  fileId: string,
+  currentUser: any,
+  enabled: boolean = true,
+) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isError, setIsError] = useState(false);
   const socketRef = useRef<Socket | null>(null);
-  const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
+  const isActiveRef = useRef(false);
 
   const connectSocket = useCallback(() => {
-    if (!fileId || !currentUser?.id) {
+    if (!fileId || !currentUser?.id || !enabled) {
+      return;
+    }
+
+    if (globalSocket?.connected) {
+      socketRef.current = globalSocket;
+      setSocket(globalSocket);
+      setIsConnected(true);
+
+      globalSocket.emit("join_room", { fileId });
+      return;
+    }
+
+    if (globalConnectionAttempts >= MAX_GLOBAL_ATTEMPTS) {
+      setIsError(true);
       return;
     }
 
     if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
+      return;
     }
 
     try {
+      globalConnectionAttempts++;
+
       const socketUrl =
         process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
 
       const newSocket = io(socketUrl, {
         transports: ["websocket", "polling"],
         upgrade: true,
-        forceNew: true,
-        timeout: 10000,
+        forceNew: false,
+        timeout: 5000,
         auth: {
           userId: currentUser.id,
         },
@@ -35,12 +57,20 @@ export const useSocket = (fileId: string, currentUser: any) => {
           fileId,
           userId: currentUser.id,
         },
+
+        reconnection: true,
+        reconnectionAttempts: 3,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
       });
 
       newSocket.on("connect", () => {
+        globalSocket = newSocket;
+        socketRef.current = newSocket;
+        setSocket(newSocket);
         setIsConnected(true);
         setIsError(false);
-        reconnectAttempts.current = 0;
+        globalConnectionAttempts = 0;
 
         newSocket.emit("join_room", { fileId });
       });
@@ -49,80 +79,63 @@ export const useSocket = (fileId: string, currentUser: any) => {
         setIsConnected(false);
 
         if (reason === "io server disconnect") {
-          newSocket.connect();
+          globalSocket = null;
+          socketRef.current = null;
         }
       });
 
       newSocket.on("connect_error", (error) => {
+        console.error("💥 Socket connection error:", error);
         setIsConnected(false);
         setIsError(true);
-
-        reconnectAttempts.current += 1;
-        if (reconnectAttempts.current <= maxReconnectAttempts) {
-          setTimeout(() => {
-            connectSocket();
-          }, 2000 * reconnectAttempts.current);
-        } else {
-          console.error("🚨 Max reconnection attempts reached");
-        }
       });
 
-      newSocket.on("reconnect", (attemptNumber) => {
+      newSocket.on("reconnect", () => {
         setIsConnected(true);
         setIsError(false);
-      });
 
-      newSocket.on("reconnect_attempt", (attemptNumber) => {
-        console.log(`🔄 Socket.IO reconnection attempt ${attemptNumber}`);
+        newSocket.emit("join_room", { fileId });
       });
-
-      newSocket.on("reconnect_error", (error) => {
-        console.error("💥 Socket.IO reconnection error:", error);
-      });
-
-      newSocket.on("reconnect_failed", () => {
-        console.error("🚨 Socket.IO reconnection failed");
-        setIsError(true);
-      });
-
-      socketRef.current = newSocket;
-      setSocket(newSocket);
     } catch (error) {
       console.error("💥 Error creating Socket.IO connection:", error);
       setIsError(true);
     }
-  }, [fileId, currentUser]);
+  }, [fileId, currentUser, enabled]);
 
   useEffect(() => {
-    connectSocket();
+    if (enabled && fileId && currentUser?.id) {
+      isActiveRef.current = true;
+      connectSocket();
+    }
 
     return () => {
+      isActiveRef.current = false;
+
+      if (socketRef.current?.connected && fileId) {
+        socketRef.current.emit("leave_room", { fileId });
+      }
+
+      socketRef.current = null;
+      setSocket(null);
       setIsConnected(false);
     };
-  }, [connectSocket]);
+  }, [fileId, currentUser, enabled, connectSocket]);
 
   const emitEvent = useCallback(
     (event: string, data: any) => {
-      if (socketRef.current && isConnected) {
-        try {
-          socketRef.current.emit(event, {
-            ...data,
-            fileId,
-          });
-        } catch (error) {
-          console.error(`💥 Error emitting ${event}:`, error);
-        }
-      } else {
-        console.warn(`⚠️ Cannot emit ${event}: socket not connected`);
+      if (socketRef.current?.connected && isActiveRef.current) {
+        socketRef.current.emit(event, {
+          ...data,
+          fileId,
+        });
       }
     },
-    [fileId, isConnected],
+    [fileId],
   );
 
   const subscribe = useCallback(
     (event: string, callback: (data: any) => void) => {
       if (!socketRef.current) {
-        console.warn(`⚠️ Cannot subscribe to ${event}: socket not initialized`);
         return () => {};
       }
 
@@ -136,17 +149,13 @@ export const useSocket = (fileId: string, currentUser: any) => {
   );
 
   const disconnect = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-      setIsConnected(false);
+    if (globalSocket) {
+      globalSocket.disconnect();
+      globalSocket = null;
     }
+    socketRef.current = null;
+    setIsConnected(false);
   }, []);
-
-  const reconnect = useCallback(() => {
-    reconnectAttempts.current = 0;
-    connectSocket();
-  }, [connectSocket]);
 
   return {
     socket: socketRef.current,
@@ -155,6 +164,6 @@ export const useSocket = (fileId: string, currentUser: any) => {
     emitEvent,
     subscribe,
     disconnect,
-    reconnect,
+    reconnect: connectSocket,
   };
 };
