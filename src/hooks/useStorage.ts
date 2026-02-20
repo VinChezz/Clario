@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { requestManager } from "@/lib/requestManager";
+import { useState, useEffect, useRef } from "react";
 
 interface StorageStats {
   usedBytes: bigint;
@@ -72,26 +73,35 @@ export interface StorageData {
 }
 
 export function useStorage(teamId?: string, includeTrash: boolean = true) {
-  const [data, setData] = useState<StorageData | null>(null);
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
-  const fetchStorageData = async () => {
+  const fetchStorageData = async (force = false) => {
     try {
       setLoading(true);
 
-      const url = teamId
-        ? `/api/users/storage?teamId=${teamId}&includeTrash=true`
-        : `/api/users/storage?includeTrash=true`;
+      const cacheKey = teamId ? `storage-${teamId}` : `storage-user`;
 
-      const response = await fetch(url);
+      const storageData = await requestManager.fetch(
+        cacheKey,
+        "storage",
+        async () => {
+          const url = teamId
+            ? `/api/users/storage?teamId=${teamId}&includeTrash=true`
+            : `/api/users/storage?includeTrash=true`;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+          const response = await fetch(url);
+          if (!response.ok)
+            throw new Error(`HTTP error! status: ${response.status}`);
+          return response.json();
+        },
+        force,
+      );
 
-      const storageData = await response.json();
       setData(storageData);
+      setError(null);
     } catch (err) {
       console.error("Failed to fetch storage data:", err);
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -101,7 +111,10 @@ export function useStorage(teamId?: string, includeTrash: boolean = true) {
   };
 
   useEffect(() => {
-    fetchStorageData();
+    if (!fetchedRef.current) {
+      fetchedRef.current = true;
+      fetchStorageData();
+    }
   }, [teamId, includeTrash]);
 
   const canUploadFile = (fileSizeBytes: number): boolean => {
