@@ -589,49 +589,6 @@ export default function FileList({
     }
   };
 
-  const CreateFileButton = ({
-    variant = "default",
-    size = "default",
-  }: {
-    variant?: "default" | "outline";
-    size?: "default" | "sm" | "icon";
-  }) => {
-    const { status, canCreate, message, plan, loading } = storageStatus;
-
-    const getButtonState = () => {
-      return {
-        disabled: !canCreate || loading,
-        title: message,
-        className: getButtonStyles(status, variant, size),
-        status,
-      };
-    };
-
-    const buttonState = getButtonState();
-    const isDisabled = buttonState.disabled;
-    const buttonText = getButtonText(status, plan);
-
-    const shouldShowLock = status === "full";
-
-    return (
-      <Button
-        onClick={() => !isDisabled && setCreateFileModalOpen(true)}
-        disabled={!storageStatus.canCreate}
-        title={buttonState.title}
-        className={buttonState.className}
-      >
-        {shouldShowLock ? (
-          <Lock className="h-4 w-4" />
-        ) : (
-          <Plus className="h-4 w-4" />
-        )}
-        {size !== "icon" && (
-          <span className="hidden sm:inline">{buttonText}</span>
-        )}
-      </Button>
-    );
-  };
-
   const EmptyState = () => {
     const { activeTeam } = useActiveTeam();
     const storageHook = useStorage(activeTeam?.id);
@@ -795,10 +752,6 @@ export default function FileList({
                     : `${filteredAndSortedFiles.length} document${filteredAndSortedFiles.length !== 1 ? "s" : ""}`}
                   {searchQuery && ` matching "${searchQuery}"`}
                 </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <CreateFileButton />
               </div>
             </div>
 
@@ -1141,6 +1094,7 @@ export default function FileList({
                                     width={24}
                                     height={24}
                                     className="rounded-full ring-1 ring-gray-200 dark:ring-[#2a2a2d]"
+                                    priority
                                   />
                                   <span className="text-sm text-gray-700 dark:text-[#f0f0f0]">
                                     {file.createdBy.name}
@@ -1693,6 +1647,7 @@ const FileGridItem = ({
                     width={20}
                     height={20}
                     className="rounded-full ring-1 ring-gray-200 dark:ring-[#2a2a2d]"
+                    priority
                   />
                   <span className="text-xs text-gray-600 dark:text-[#a0a0a0] truncate max-w-20">
                     {file.createdBy.name}
