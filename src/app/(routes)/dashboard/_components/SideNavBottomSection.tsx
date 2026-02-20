@@ -16,7 +16,13 @@ import {
   Zap,
   CheckCircle,
 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Dialog,
   DialogClose,
@@ -66,6 +72,196 @@ import { toast } from "sonner";
 import { useStorageStatus } from "@/hooks/useStorageStatus";
 import { getButtonStyles, getButtonText } from "@/lib/storageButtonUtils";
 
+const CreateFileDialog = ({
+  open,
+  onOpenChange,
+  fileName,
+  setFileName,
+  onSubmit,
+  isCreating,
+  activeTeam,
+  canCreate,
+  storageData,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  fileName: string;
+  setFileName: (name: string) => void;
+  onSubmit: (shouldOpenFile: boolean) => void;
+  isCreating: boolean;
+  activeTeam: any;
+  canCreate: boolean;
+  storageData: any;
+}) => {
+  const storageHook = useStorage(activeTeam?.id);
+  const [canCreateFile, setCanCreateFile] = useState(true);
+  const [storageInfo, setStorageInfo] = useState<string>("");
+
+  useEffect(() => {
+    if (open && storageHook.data) {
+      const fileSizeBytes = 75 * 1024 * 1024;
+      const hasSpace = storageHook.canCreateFile
+        ? storageHook.canCreateFile(fileSizeBytes)
+        : true;
+
+      setCanCreateFile(hasSpace);
+
+      const usedGB = storageHook.getUsedGB();
+      const limitGB = storageHook.getLimitGB();
+      const percentage = storageHook.percentage;
+
+      setStorageInfo(
+        `Storage: ${usedGB.toFixed(1)}GB of ${limitGB.toFixed(1)}GB used (${Math.round(percentage)}%)`,
+      );
+    }
+  }, [open, storageHook.data, storageHook.percentage]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md p-0 gap-0 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
+              <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                New Document
+              </DialogTitle>
+              <DialogDescription className="text-sm text-gray-500 dark:text-gray-400">
+                {canCreate
+                  ? canCreateFile
+                    ? "Give your document a name to get started"
+                    : "Storage limit reached"
+                  : "You don't have permission to create documents"}
+              </DialogDescription>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          {canCreate ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-4"
+            >
+              <Input
+                placeholder="Document name..."
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (
+                    e.key === "Enter" &&
+                    fileName.trim() &&
+                    !isCreating &&
+                    activeTeam?.id &&
+                    canCreateFile
+                  ) {
+                    onSubmit(false);
+                  }
+                }}
+                disabled={isCreating || !canCreateFile}
+                autoFocus
+                className={`h-11 rounded-xl border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 ${
+                  !canCreateFile ? "border-red-300 dark:border-red-700" : ""
+                }`}
+              />
+
+              {!canCreateFile && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                    ❌ Cannot create file - storage is full!
+                  </p>
+                  <p className="text-xs text-red-500 dark:text-red-300 mt-1">
+                    Delete files or upgrade plan to create new documents. (75MB
+                    required per file)
+                  </p>
+                </div>
+              )}
+
+              {storageInfo && canCreateFile && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {storageInfo}
+                </p>
+              )}
+
+              {!activeTeam?.id && (
+                <p className="text-sm text-red-500 font-medium">
+                  Please select a team first
+                </p>
+              )}
+            </motion.div>
+          ) : (
+            <div className="text-center py-6">
+              <Lock className="h-12 w-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+              <p className="text-gray-600 dark:text-gray-400">
+                Your role doesn't allow creating new documents.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-gray-50/50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isCreating}
+              className="border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              Cancel
+            </Button>
+            {canCreate && (
+              <>
+                <Button
+                  onClick={() => onSubmit(false)}
+                  disabled={
+                    !fileName.trim() ||
+                    isCreating ||
+                    !activeTeam?.id ||
+                    !canCreateFile
+                  }
+                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+                >
+                  {isCreating ? (
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : !canCreateFile ? (
+                    "Storage Full"
+                  ) : (
+                    "Create"
+                  )}
+                </Button>
+                <Button
+                  onClick={() => onSubmit(true)}
+                  disabled={
+                    !fileName.trim() ||
+                    isCreating ||
+                    !activeTeam?.id ||
+                    !canCreateFile
+                  }
+                  className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white"
+                >
+                  {isCreating ? (
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : !canCreateFile ? (
+                    "Storage Full"
+                  ) : (
+                    "Create & Open"
+                  )}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 interface StorageIndicatorProps {
   currentUsageGB?: number;
   maxStorageGB?: number;
@@ -111,24 +307,6 @@ export function StorageIndicator({
   let currentUsageGB = propCurrentUsageGB;
   let maxStorageGB = propMaxStorageGB;
   let plan = propPlan;
-
-  if (storageHook?.data && (teamId || useTeamStorage)) {
-    if (storageHook.teamStorage) {
-      const usedBytes = Number(storageHook.teamStorage.usedBytes || "0");
-      const limitBytes = Number(storageHook.teamStorage.limitBytes || "0");
-
-      currentUsageGB = usedBytes / 1024 ** 3;
-      maxStorageGB = limitBytes / 1024 ** 3;
-      plan = storageHook.teamStorage.creatorPlan;
-    } else {
-      const usedBytes = Number(storageHook.data.storage.usedBytes || "0");
-      const limitBytes = Number(storageHook.data.storage.limitBytes || "0");
-
-      currentUsageGB = usedBytes / 1024 ** 3;
-      maxStorageGB = limitBytes / 1024 ** 3;
-      plan = storageHook.data.user.plan;
-    }
-  }
 
   if (storageData) {
     if (storageData.usedBytes) {
@@ -247,7 +425,7 @@ export function StorageIndicator({
                 : "text-sm",
           )}
         >
-          Storage {plan !== "FREE" && `(${plan})`}
+          Storage
         </span>
         <span
           className={cn(
@@ -492,6 +670,8 @@ export default function SideNavBottomSection({
     reason?: string;
     timestamp?: number;
   }>({ canCreate: true });
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const [permanentlyDeletedCount, setPermanentlyDeletedCount] =
     useState<number>(0);
@@ -540,6 +720,20 @@ export default function SideNavBottomSection({
     percentage: 0,
     canCreateFiles: true,
   });
+
+  const canCreateFiles = useMemo(() => {
+    if (!activeTeam?.id || !dbUser) return false;
+
+    const currentUserMember = teamMembers.find(
+      (member) => member.userId === dbUser?.id,
+    );
+    const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
+
+    const hasPermission =
+      isCurrentUserCreator || currentUserMember?.role === "EDIT";
+
+    return hasPermission && storageData.canCreateFiles;
+  }, [activeTeam, dbUser, teamMembers, storageData.canCreateFiles]);
 
   const checkStorage = useCallback(() => {
     if (!user?.email || !activeTeam?.id) {
@@ -673,6 +867,14 @@ export default function SideNavBottomSection({
   };
 
   useEffect(() => {
+    if (activeTeam?.id) {
+      refreshStorageData();
+      checkGithubConnection();
+      checkStorage();
+    }
+  }, [activeTeam?.id]);
+
+  useEffect(() => {
     if (activeTeam?.id !== prevTeamIdRef.current) {
       setStorageData({
         currentUsageGB: 0,
@@ -700,9 +902,7 @@ export default function SideNavBottomSection({
   useEffect(() => {
     if (user?.email && activeTeam?.id) {
       refreshStorageData();
-
       checkGithubConnection();
-
       checkStorage();
     }
   }, [user?.email, activeTeam?.id]);
@@ -767,7 +967,7 @@ export default function SideNavBottomSection({
     return () => clearTimeout(timeoutId);
   }, [checkStorage]);
 
-  const handleFileCreate = async (fileName: string) => {
+  const handleFileCreate = async (fileName: string, shouldOpenFile = false) => {
     if (!storageCheckResult.canCreate) {
       toast.error(
         storageCheckResult.reason || "Cannot create file due to storage limits",
@@ -807,9 +1007,12 @@ export default function SideNavBottomSection({
       }
     }
 
+    setIsCreating(true);
     try {
-      onFileCreate(fileName);
+      await onFileCreate(fileName);
       onAction?.();
+      setCreateDialogOpen(false);
+      setFileInput("");
 
       setTimeout(() => {
         refreshStorageData();
@@ -818,6 +1021,8 @@ export default function SideNavBottomSection({
     } catch (error) {
       console.error("Error creating file:", error);
       toast.error("Failed to create file");
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -826,9 +1031,27 @@ export default function SideNavBottomSection({
   );
   const isCurrentUserCreator = activeTeam?.createdById === dbUser?.id;
 
-  const canCreateFiles =
-    (isCurrentUserCreator || currentUserMember?.role === "EDIT") &&
-    storageData.canCreateFiles;
+  const createButtonContent = useMemo(() => {
+    if (!canCreateFiles) {
+      if (!storageData.canCreateFiles) {
+        return {
+          text: storageData.percentage >= 100 ? "Storage Full" : "Almost Full",
+          icon: Lock,
+          disabled: true,
+        };
+      }
+      return {
+        text: "No Permission",
+        icon: Lock,
+        disabled: true,
+      };
+    }
+    return {
+      text: getButtonText(storageStatus.status, storageStatus.plan),
+      icon: storageStatus.status === "full" ? Lock : Plus,
+      disabled: !storageStatus.canCreate,
+    };
+  }, [canCreateFiles, storageData, storageStatus]);
 
   const getStorageInfo = () => {
     const { status, message, percentage, plan, showUpgrade } = storageStatus;
@@ -1700,164 +1923,44 @@ export default function SideNavBottomSection({
                   disabled
                 >
                   <Lock className={cn("text-white", buttonSize.icon)} />
-                  <span className="text-white font-semibold ">
-                    {storageInfo.status === "full"
-                      ? "Storage Full"
-                      : storageInfo.status === "warning"
-                        ? "Almost Full"
-                        : "No Permission"}
+                  <span className="text-white font-semibold">
+                    {createButtonContent.text}
                   </span>
                 </Button>
               ) : (
-                <Dialog>
-                  <DialogTrigger className="w-full" asChild>
-                    <button
-                      className={cn(
-                        getButtonStyles(storageStatus.status),
-                        buttonSize.height,
-                        buttonSize.text,
-                        buttonSize.gap,
-                        "w-full",
-                      )}
-                      disabled={!storageStatus.canCreate}
-                      id="create-file-button-sidenav"
-                    >
-                      {storageStatus.status === "full" ? (
-                        <Lock className={buttonSize.icon} />
-                      ) : (
-                        <Plus className={buttonSize.icon} />
-                      )}
-                      {getButtonText(storageStatus.status, storageStatus.plan)}
-                    </button>
-                  </DialogTrigger>
-
-                  <DialogContent
+                <>
+                  <button
+                    onClick={() => setCreateDialogOpen(true)}
                     className={cn(
-                      "rounded-xl border",
-                      "bg-white dark:bg-[#1a1a1c]",
-                      "border-gray-200 dark:border-[#2a2a2d]",
-                      isHorizontalMobileDevice || isLandscapeDevice
-                        ? "sm:max-w-xs"
-                        : isMobileDevice
-                          ? "sm:max-w-sm"
-                          : "sm:max-w-lg",
-                      isLargeTabletDevice && "sm:max-w-lg",
+                      getButtonStyles(storageStatus.status),
+                      buttonSize.height,
+                      buttonSize.text,
+                      buttonSize.gap,
+                      "w-full",
                     )}
+                    disabled={createButtonContent.disabled}
+                    id="create-file-button-sidenav"
                   >
-                    <DialogHeader>
-                      <DialogTitle
-                        className={cn(
-                          "text-gray-900 dark:text-[#f0f0f0]",
-                          isHorizontalMobileDevice || isLandscapeDevice
-                            ? "text-base"
-                            : isMobileDevice
-                              ? "text-lg"
-                              : "text-xl",
-                          isLargeTabletDevice && "text-2xl",
-                        )}
-                      >
-                        Create New File
-                      </DialogTitle>
-                      <DialogDescription
-                        className={cn(
-                          "text-gray-600 dark:text-[#a0a0a0]",
-                          isHorizontalMobileDevice || isLandscapeDevice
-                            ? "text-xs"
-                            : isMobileDevice
-                              ? "text-sm"
-                              : "text-base",
-                          isLargeTabletDevice && "text-lg",
-                        )}
-                      ></DialogDescription>
-                    </DialogHeader>
+                    {React.createElement(createButtonContent.icon, {
+                      className: buttonSize.icon,
+                    })}
+                    {createButtonContent.text}
+                  </button>
 
-                    <div className="space-y-4">
-                      <Input
-                        placeholder="Enter file name..."
-                        className={cn(
-                          "rounded-lg border",
-                          "border-gray-300 dark:border-[#2a2a2d]",
-                          "focus:border-blue-500 dark:focus:border-blue-500",
-                          "bg-white dark:bg-[#252528]",
-                          "text-gray-900 dark:text-[#f0f0f0]",
-                          isHorizontalMobileDevice || isLandscapeDevice
-                            ? "text-xs h-9"
-                            : isMobileDevice
-                              ? "text-sm h-10"
-                              : "text-base h-12",
-                          isLargeTabletDevice && "text-lg h-14",
-                        )}
-                        onChange={(e) => setFileInput(e.target.value)}
-                        value={fileInput}
-                        autoFocus
-                      />
-
-                      {storageData.plan !== "FREE" && (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-lg">
-                          <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-                            💡 Storage Information
-                          </p>
-                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                            Storage calculation includes all files (even those
-                            in trash). Files in trash will be permanently
-                            deleted after 30 days.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <DialogFooter
-                      className={cn(
-                        "gap-3",
-                        (isHorizontalMobileDevice || isLandscapeDevice) &&
-                          "gap-2",
-                        isTabletDevice && "gap-2",
-                        isLargeTabletDevice && "gap-4",
-                      )}
-                    >
-                      <DialogClose asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "border-gray-300 dark:border-[#2a2a2d] hover:bg-gray-50 dark:hover:bg-[#252528]",
-                            "text-gray-700 dark:text-[#f0f0f0]",
-                            isHorizontalMobileDevice || isLandscapeDevice
-                              ? "text-xs h-8"
-                              : isMobileDevice
-                                ? "text-sm h-9"
-                                : "text-base h-11",
-                            isLargeTabletDevice && "text-lg h-12",
-                          )}
-                        >
-                          Cancel
-                        </Button>
-                      </DialogClose>
-                      <DialogClose asChild>
-                        <Button
-                          className={cn(
-                            "group relative px-6 py-3 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300",
-                            storageInfo.status === "warning"
-                              ? "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 dark:from-amber-600 dark:to-orange-700 dark:hover:from-amber-700 dark:hover:to-orange-800"
-                              : "from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 dark:from-blue-500 dark:to-indigo-600 dark:hover:from-blue-600 dark:hover:to-indigo-700",
-                            isHorizontalMobileDevice || isLandscapeDevice
-                              ? "text-xs h-8"
-                              : isMobileDevice
-                                ? "text-sm h-9"
-                                : "text-base h-11",
-                            isLargeTabletDevice && "text-lg h-12",
-                          )}
-                          disabled={!(fileInput && fileInput.length > 3)}
-                          onClick={() => {
-                            handleFileCreate(fileInput);
-                            setFileInput("");
-                          }}
-                        >
-                          Create File
-                        </Button>
-                      </DialogClose>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                  <CreateFileDialog
+                    open={createDialogOpen}
+                    onOpenChange={setCreateDialogOpen}
+                    fileName={fileInput}
+                    setFileName={setFileInput}
+                    onSubmit={(shouldOpenFile) =>
+                      handleFileCreate(fileInput, shouldOpenFile)
+                    }
+                    isCreating={isCreating}
+                    activeTeam={activeTeam}
+                    canCreate={canCreateFiles}
+                    storageData={storageData}
+                  />
+                </>
               )}
             </>
           )}
@@ -2282,6 +2385,7 @@ export default function SideNavBottomSection({
                 onUpgradeClick={handleUpgradeClick}
                 teamId={activeTeam?.id}
                 useTeamStorage={true}
+                key={activeTeam?.id}
               />
             </div>
           )}
