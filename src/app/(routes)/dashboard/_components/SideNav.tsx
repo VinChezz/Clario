@@ -7,6 +7,7 @@ import { FileListContext } from "@/app/_context/FileListContext";
 import SideNavTopSection, { TEAM } from "./SideNavTopSection";
 import SideNavBottomSection from "./SideNavBottomSection";
 import { useActiveTeam } from "@/app/_context/ActiveTeamContext";
+import { useLoading } from "@/app/_context/LoadingContext";
 import { X, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,23 +17,27 @@ import {
   useIsLargeTablet,
   useIsDesktop,
 } from "@/hooks/useMediaQuery";
+import { useTeamData } from "@/hooks/useTeamData";
 
 interface SideNavProps {
   onCloseSidebar?: () => void;
   isMobileMenuOpen?: boolean;
   onToggleSidebar?: () => void;
+  onReady?: () => void;
 }
 
 export default function SideNav({
   onCloseSidebar,
   isMobileMenuOpen,
   onToggleSidebar,
+  onReady,
 }: SideNavProps) {
   const { user }: any = useKindeBrowserClient();
   const { activeTeam, setActiveTeam } = useActiveTeam();
   const { fileList_, setFileList_ } = useContext(FileListContext);
   const [totalFiles, setTotalFiles] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isComponentReady, setIsComponentReady] = useState(false);
+  const { setSideNavReady } = useLoading();
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
@@ -41,32 +46,32 @@ export default function SideNav({
 
   const isCollapsibleTablet = isTablet || isLargeTablet;
 
+  const {
+    files,
+    refresh: refreshTeamData,
+    isLoading: teamDataLoading,
+  } = useTeamData(activeTeam?.id);
+
   useEffect(() => {
-    if (activeTeam) getFiles();
-    else {
+    if (!isComponentReady) {
+      const timer = setTimeout(() => {
+        setIsComponentReady(true);
+        setSideNavReady(true);
+        onReady?.();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isComponentReady, setSideNavReady, onReady]);
+
+  useEffect(() => {
+    if (files.length > 0) {
+      setFileList_(files);
+      setTotalFiles(files.length);
+    } else {
       setFileList_([]);
       setTotalFiles(0);
     }
-  }, [activeTeam]);
-
-  const getFiles = async () => {
-    if (!activeTeam || !user) return;
-    setIsLoading(true);
-    try {
-      const resp = await fetch(`/api/teams/${activeTeam.id}/files`, {
-        method: "GET",
-      });
-      if (!resp.ok) throw new Error("Failed to fetch files");
-      const result = await resp.json();
-      setFileList_(result);
-      setTotalFiles(result?.length || 0);
-    } catch (err) {
-      toast.error("Error fetching files");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [files, setFileList_]);
 
   const onFileCreate = async (fileName: string) => {
     if (!activeTeam || !user)
@@ -85,7 +90,7 @@ export default function SideNav({
         return;
       }
 
-      getFiles();
+      refreshTeamData();
       onCloseSidebar?.();
     } catch (err) {
       console.error(err);
@@ -95,7 +100,8 @@ export default function SideNav({
 
   const getSidebarWidth = () => {
     if (isMobile) return "w-80";
-    if (isCollapsibleTablet) return "w-68";
+    if (isTablet) return "w-72";
+    if (isLargeTablet) return "w-70";
     return "w-76";
   };
 
@@ -168,7 +174,6 @@ export default function SideNav({
               user={user}
               setActiveTeamInfo={setActiveTeam}
               onItemClick={onCloseSidebar}
-              fileList_={fileList_}
             />
           </div>
 
