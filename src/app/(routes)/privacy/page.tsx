@@ -1,19 +1,18 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Shield, Lock, Eye, FileText, ChevronRight } from "lucide-react";
+import { Shield, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 
 export default function PrivacyPolicyPage() {
   const router = useRouter();
-  const lastUpdated = "January 15, 2024";
+  const lastUpdated = "February 21, 2026";
 
   const sections = [
     {
       id: "data-collection",
       title: "Information We Collect",
-      icon: Eye,
       content: [
         "Personal Information: Name, email address, phone number, company details when you register or contact us.",
         "Usage Data: Information about how you interact with our platform, including IP address, browser type, pages visited, and time spent.",
@@ -24,7 +23,6 @@ export default function PrivacyPolicyPage() {
     {
       id: "data-usage",
       title: "How We Use Your Information",
-      icon: FileText,
       content: [
         "To provide and maintain our services",
         "To notify you about changes to our services",
@@ -39,7 +37,6 @@ export default function PrivacyPolicyPage() {
     {
       id: "data-sharing",
       title: "Data Sharing and Disclosure",
-      icon: Shield,
       content: [
         "We do not sell your personal information to third parties.",
         "We may share your information with service providers who assist in operating our platform.",
@@ -51,7 +48,6 @@ export default function PrivacyPolicyPage() {
     {
       id: "data-security",
       title: "Data Security",
-      icon: Lock,
       content: [
         "We implement industry-standard security measures to protect your data.",
         "All data transmissions are encrypted using SSL/TLS protocols.",
@@ -225,11 +221,6 @@ export default function PrivacyPolicyPage() {
             >
               <div className="bg-white dark:bg-[#1a1a1c] rounded-2xl p-6 lg:p-8 border border-gray-200 dark:border-[#2a2a2d] shadow-sm">
                 <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100 dark:border-[#2a2a2d]">
-                  {section.icon && (
-                    <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                      <section.icon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                  )}
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                       {section.title}
