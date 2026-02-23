@@ -30,6 +30,12 @@ model User {
   storageUsedBytes  BigInt @default(0)
   storageLimitBytes BigInt?
 
+  stripeCustomerId   String?   @unique
+  stripeSubscriptionId String?
+  subscriptionStatus String?
+  currentPeriodEnd   DateTime?
+
+
   files       File[]
   received    Invite[]     @relation("Invitee")
   invited     Invite[]     @relation("Inviter")
