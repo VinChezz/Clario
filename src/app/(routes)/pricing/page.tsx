@@ -22,6 +22,9 @@ import {
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, Variants } from "framer-motion";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import NotFound from "@/app/not-found";
+import { EnterpriseModal } from "@/components/EnterpriseModal";
 
 export default function PricingPage() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
@@ -29,7 +32,9 @@ export default function PricingPage() {
   );
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [enterpriseModalOpen, setEnterpriseModalOpen] = useState(false);
   const router = useRouter();
+  const { user } = useKindeBrowserClient();
 
   useEffect(() => {
     setIsVisible(true);
@@ -181,11 +186,36 @@ export default function PricingPage() {
     },
   ];
 
-  const handleUpgrade = (plan: string) => {
+  const handleUpgrade = async (plan: string) => {
+    if (!user) {
+      router.push("/api/auth/login");
+      return;
+    }
+
+    if (plan === "Enterprise") {
+      setEnterpriseModalOpen(true);
+      return;
+    }
+
     if (plan === "Pro") {
-      console.log("Upgrading to Pro plan");
-    } else if (plan === "Enterprise") {
-      router.push("/contact-sales");
+      try {
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            plan: "PRO",
+            billingPeriod: billingPeriod,
+            userId: user.id,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+      } catch (error) {
+        console.error("Error during checkout:", error);
+      }
     }
   };
 
@@ -726,6 +756,11 @@ export default function PricingPage() {
           </a>
         </p>
       </motion.div>
+
+      <EnterpriseModal
+        open={enterpriseModalOpen}
+        onOpenChange={setEnterpriseModalOpen}
+      />
     </div>
   );
 }
