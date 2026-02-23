@@ -1,7 +1,7 @@
 "use client";
 
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { FileListContext } from "@/app/_context/FileListContext";
@@ -20,6 +20,8 @@ import { FavoritesProvider } from "@/app/_context/FavoritesContext";
 import { ApperanceProvider } from "@/app/_context/AppearanceContext";
 import { cn } from "@/lib/utils";
 import { requestManager } from "@/lib/requestManager";
+import { Plan } from "@prisma/client";
+import { toast } from "sonner";
 
 const SideNav = dynamic(() => import("./_components/SideNav"), {
   ssr: false,
@@ -89,10 +91,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { setSideNavReady, setDashboardReady, areAllComponentsReady } =
     useLoading();
   const skipTeamCheck = searchParams.get("skipTeamCheck") === "true";
+  const pathname = usePathname();
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const isLargeTablet = useIsLargeTablet();
+
+  const isSuccessPage = pathname === "/dashboard/success";
 
   useEffect(() => {
     if (!user || skipTeamCheck || isSetupComplete) return;
@@ -162,6 +167,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }, [user, skipTeamCheck, router, isSetupComplete]);
 
   useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      if (user) {
+        try {
+          const res = await fetch("/api/users/subscription-status");
+          const data = await res.json();
+
+          if (
+            data.plan === Plan.FREE &&
+            data.message === "Your subscription has expired"
+          ) {
+            toast.info(
+              "Your subscription has expired. Upgrade to continue using Pro features.",
+            );
+          }
+        } catch (error) {
+          console.error("Error checking subscription:", error);
+        }
+      }
+    };
+
+    checkSubscriptionStatus();
+  }, [user]);
+
+  useEffect(() => {
     if (isSetupComplete && !authLoading) {
       const timer = setTimeout(() => {
         setDashboardReady(true);
@@ -176,6 +205,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     if (isLargeTablet) return "w-64";
     return "w-64";
   };
+
+  if (isSuccessPage) {
+    return <>{children}</>;
+  }
 
   if (authLoading || !isSetupComplete) {
     return (
