@@ -693,6 +693,7 @@ export default function FileList({
               whileTap={{ scale: 0.95 }}
               onClick={() => setCreateFileModalOpen(true)}
               className="group relative px-6 py-3 rounded-xl text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/25 hover:shadow-blue-500/40"
+              id="create-file-button-filelist"
             >
               <div className="absolute inset-0 rounded-xl transition-colors bg-white/10 group-hover:bg-white/20" />
               <div className="relative flex items-center gap-2">
