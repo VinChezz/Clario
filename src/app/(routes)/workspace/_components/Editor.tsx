@@ -257,6 +257,17 @@ export default function Editor({
         HTMLAttributes: {
           class: "ce-header",
         },
+      }).extend({
+        addAttributes() {
+          return {
+            level: {
+              default: 1,
+              renderHTML: (attributes) => ({
+                class: `ce-header h${attributes.level}`,
+              }),
+            },
+          };
+        },
       }),
 
       BulletList.configure({
