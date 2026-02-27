@@ -12,6 +12,10 @@ export async function middleware(request: NextRequest) {
     passed2fa: passed2fa || "NO_COOKIE",
   });
 
+  if (pathname === "/teams/create") {
+    return NextResponse.next();
+  }
+
   if (pathname === "/" && token) {
     console.log("🏠 Root access with token, redirecting to dashboard");
 
