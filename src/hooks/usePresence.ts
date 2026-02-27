@@ -21,6 +21,7 @@ export function usePresence(fileId: string) {
   const updateIntervalRef = useRef<NodeJS.Timeout>(null);
   const retryCountRef = useRef(0);
   const maxRetries = 3;
+  const isInitializedRef = useRef(false);
 
   const lastUpdateRef = useRef<number>(0);
   const updateCooldown = 2000;
@@ -97,7 +98,6 @@ export function usePresence(fileId: string) {
 
         retryCountRef.current = 0;
 
-        // Отправляем отложенное обновление если есть
         if (pendingUpdateRef.current) {
           setTimeout(() => {
             const pendingData = pendingUpdateRef.current;
@@ -115,7 +115,7 @@ export function usePresence(fileId: string) {
         }
       }
     },
-    [fileId]
+    [fileId],
   );
 
   const startPresenceUpdates = useCallback(
@@ -138,7 +138,7 @@ export function usePresence(fileId: string) {
         }
       };
     },
-    [updatePresence, fetchPresence]
+    [updatePresence, fetchPresence],
   );
 
   const stopPresenceUpdates = useCallback(() => {
@@ -149,10 +149,16 @@ export function usePresence(fileId: string) {
   }, []);
 
   useEffect(() => {
+    if (!fileId || isInitializedRef.current) return;
+
+    isInitializedRef.current = true;
+    const cleanup = startPresenceUpdates(30000);
+
     return () => {
+      cleanup();
       stopPresenceUpdates();
     };
-  }, [stopPresenceUpdates]);
+  }, [fileId, startPresenceUpdates, stopPresenceUpdates]);
 
   return {
     activeUsers,
