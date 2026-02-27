@@ -77,7 +77,7 @@ export default function CreateTeam() {
 
         if (res.status === 503) {
           toast.error(
-            "Service temporarily unavailable. Please try again in a moment."
+            "Service temporarily unavailable. Please try again in a moment.",
           );
         } else {
           toast.error(data.error || `Failed to create team: ${res.status}`);
@@ -91,7 +91,7 @@ export default function CreateTeam() {
       sessionStorage.setItem("new-team-created", "true");
 
       setTimeout(() => {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       }, 1000);
     } catch (e) {
       console.error("Network error: ", e);
