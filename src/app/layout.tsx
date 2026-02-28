@@ -1,31 +1,24 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+// import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
-import { Toaster } from "sonner";
-import { ActiveTeamProvider } from "./_context/ActiveTeamContext";
 import { Providers } from "./providers";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Clario",
   description:
-    "AI-powered documentation and diagramming tool for engineering teams",
+    "Clario is the collaborative whiteboard tool that helps teams brainstorm, plan, and build together in real-time. Beautifully designed. Blazingly fast.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0d0d14",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="en">
       <head>
@@ -40,15 +33,12 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <ActiveTeamProvider>
-          <Providers>
-            {children}
-            <Toaster position="top-right" richColors />
-          </Providers>
-        </ActiveTeamProvider>
+      <body className="font-sans antialiased">
+        <Providers>
+          {children}
+          <Toaster position="top-right" richColors />
+        </Providers>
+        {/* <Analytics /> */}
       </body>
     </html>
   );
