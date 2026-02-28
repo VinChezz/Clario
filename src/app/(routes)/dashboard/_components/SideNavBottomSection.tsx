@@ -1524,7 +1524,7 @@ export default function SideNavBottomSection({
   };
 
   const handleUpgradeClick = () => {
-    router.push("/pricing");
+    router.push("/pricing?from=dashboard");
     onAction?.();
   };
 

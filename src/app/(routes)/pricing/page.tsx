@@ -34,11 +34,15 @@ export default function PricingPage() {
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [enterpriseModalOpen, setEnterpriseModalOpen] = useState(false);
+  const [referrer, setReferrer] = useState<string | null>(null);
   const router = useRouter();
   const { user } = useKindeBrowserClient();
 
   useEffect(() => {
     setIsVisible(true);
+    if (typeof window !== "undefined") {
+      setReferrer(document.referrer);
+    }
   }, []);
 
   const plans = [
@@ -221,7 +225,14 @@ export default function PricingPage() {
   };
 
   const handleGoBack = () => {
-    router.back();
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get("from");
+
+    if (from === "dashboard") {
+      router.push("/dashboard");
+    } else {
+      router.push("/");
+    }
   };
 
   const containerVariants: Variants = {
