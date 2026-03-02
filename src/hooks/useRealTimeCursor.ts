@@ -34,8 +34,14 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
         return;
       }
 
+      const position = {
+        x: cursorData.position.x ?? 0,
+        y: cursorData.position.y ?? 0,
+      };
+
       const fullCursorData = {
         ...cursorData,
+        position,
         user: {
           id: currentUser.id,
           name: currentUser.name,
@@ -56,10 +62,15 @@ export const useRealtimeCursor = (fileId: string, currentUser: any) => {
       (data: CursorData) => {
         setCursors((prev) => {
           const existingIndex = prev.findIndex((c) => c.userId === data.userId);
+
           const newCursor = {
             ...data,
             lastActive: Date.now(),
             isActive: true,
+            position: {
+              x: data.position.x,
+              y: data.position.y,
+            },
           };
 
           if (existingIndex >= 0) {
