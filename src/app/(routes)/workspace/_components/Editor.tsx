@@ -817,8 +817,6 @@ export default function Editor({
         throw new Error(`Server error: ${res.status}`);
       }
 
-      const updatedFile = await res.json();
-
       lastSavedContent.current = contentString;
       setHasUnsavedChanges(false);
 
@@ -1061,16 +1059,15 @@ export default function Editor({
     throttle((event: React.MouseEvent) => {
       if (!currentUser || !canEdit) return;
 
-      const editorElement = document.querySelector(".tiptap");
-      if (!editorElement) return;
+      const container = editorContainerRef.current;
+      if (!container) return;
 
-      const rect = editorElement.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
+      const rect = container.getBoundingClientRect();
 
-      if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
-        return;
-      }
+      const x = event.clientX - rect.left + container.scrollLeft;
+      const y = event.clientY - rect.top + container.scrollTop;
+
+      if (x < 0 || y < 0) return;
 
       sendTypingUpdate({
         userId: currentUser.id,
@@ -1080,39 +1077,8 @@ export default function Editor({
         isActive: true,
         lastActive: Date.now(),
       });
-
-      const now = Date.now();
-      if (now - lastMousePresenceUpdate.current > 10000) {
-        updatePresence({
-          status: "VIEWING",
-          cursor: { x, y },
-        }).catch(console.error);
-        updateLightPresence("VIEWING", { x, y });
-        lastMousePresenceUpdate.current = now;
-      }
-
-      if (mouseMoveTimeoutRef.current) {
-        clearTimeout(mouseMoveTimeoutRef.current);
-      }
-
-      mouseMoveTimeoutRef.current = setTimeout(() => {
-        sendCursorUpdate({
-          userId: currentUser.id,
-          userColor: generateUserColor(currentUser.id),
-          position: { x, y },
-          isActive: false,
-        });
-      }, 100);
-    }, 20),
-    [
-      currentUser,
-      permissions,
-      sendCursorUpdate,
-      sendTypingUpdate,
-      updatePresence,
-      updateLightPresence,
-      canEdit,
-    ],
+    }, 30),
+    [currentUser, canEdit, sendTypingUpdate],
   );
 
   const handleEditorMouseLeave = useCallback(() => {
@@ -1137,18 +1103,22 @@ export default function Editor({
 
       updateEditingPresence();
 
+      const container = editorContainerRef.current;
       const editorElement = document.querySelector(".tiptap");
+
       let position = { x: 0, y: 0 };
 
-      if (editorElement) {
-        const rect = editorElement.getBoundingClientRect();
+      if (editorElement && container) {
+        const containerRect = container.getBoundingClientRect();
         const selection = window.getSelection();
+
         if (selection && selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
           const cursorRect = range.getBoundingClientRect();
+
           position = {
-            x: cursorRect.left - rect.left,
-            y: cursorRect.top - rect.top,
+            x: cursorRect.left - containerRect.left + container.scrollLeft,
+            y: cursorRect.top - containerRect.top + container.scrollTop,
           };
         }
       }
@@ -1156,18 +1126,22 @@ export default function Editor({
       sendTypingUpdate({
         userId: currentUser.id,
         userColor: generateUserColor(currentUser.id),
-        position: position,
+        position,
         isTyping: true,
       });
 
-      setTimeout(() => {
+      if (editingTimeoutRef.current) {
+        clearTimeout(editingTimeoutRef.current);
+      }
+
+      editingTimeoutRef.current = setTimeout(() => {
         sendTypingUpdate({
           userId: currentUser.id,
           userColor: generateUserColor(currentUser.id),
-          position: position,
+          position,
           isTyping: false,
         });
-      }, 2000);
+      }, 3000);
     },
     [currentUser, permissions, sendTypingUpdate, updateEditingPresence],
   );
@@ -1237,6 +1211,7 @@ export default function Editor({
               ? `border-r ${isDark ? "border-[#2b3133]" : "border-gray-200"}`
               : ""
           } ${isFullscreen ? "" : isDark ? "bg-[#171717]" : "bg-white"}`}
+          style={{ position: "relative", overflowY: "auto" }}
         >
           <div
             className={`${
@@ -1245,18 +1220,6 @@ export default function Editor({
                 : "ml-4 sm:ml-12 mr-4 sm:mr-12"
             }`}
           >
-            {canEdit && (
-              <div className="sticky top-0 z-10 pt-3.5 bg-inherit">
-                <EditorToolbar
-                  editor={editor}
-                  isDark={isDark}
-                  isSplitMode={isSplitMode}
-                  handleEditorSave={handleEditorSave}
-                  fileId={fileId}
-                />
-              </div>
-            )}
-
             <div
               className={`tiptap-editor ${isDark ? "dark-editor dark" : ""} ${
                 !canEdit ? "select-none" : ""
@@ -1271,12 +1234,24 @@ export default function Editor({
                 <TableControls editor={editor} isDark={isDark} />
               )}
 
+              {canEdit && (
+                <div className="sticky top-0 z-10 pt-3.5 bg-inherit">
+                  <EditorToolbar
+                    editor={editor}
+                    isDark={isDark}
+                    isSplitMode={isSplitMode}
+                    handleEditorSave={handleEditorSave}
+                    fileId={fileId}
+                  />
+                </div>
+              )}
+
               <EditorContent editor={editor} />
             </div>
             <div className="h-20"></div>
           </div>
 
-          {editorContainerRef.current && (
+          {editorContainerRef.current && canEdit && (
             <>
               <UserSelections
                 users={selections}
