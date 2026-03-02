@@ -608,17 +608,13 @@ export default function Canvas({
 
   const handleCanvasMouseMove = useCallback(
     throttle((event: React.MouseEvent) => {
-      if (!currentUser || !canEdit || !canvasContainerRef.current) {
-        return;
-      }
+      if (!currentUser || !canEdit || !canvasContainerRef.current) return;
 
-      const canvasElement =
-        canvasContainerRef.current.querySelector(".excalidraw");
-      if (!canvasElement) return;
+      const container = canvasContainerRef.current;
+      const rect = container.getBoundingClientRect();
 
-      const rect = canvasElement.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
+      const x = event.clientX - rect.left + container.scrollLeft;
+      const y = event.clientY - rect.top + container.scrollTop;
 
       if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
         sendCursorUpdate({
@@ -638,39 +634,8 @@ export default function Canvas({
         tool: currentTool,
         isActive: true,
       });
-
-      const now = Date.now();
-      if (now - lastMousePresenceUpdate.current > 5000) {
-        updatePresence({
-          status: "VIEWING",
-          cursor: { x, y },
-        }).catch(console.error);
-        updateLightPresence("VIEWING", { x, y });
-        lastMousePresenceUpdate.current = now;
-      }
-
-      if (mouseMoveTimeoutRef.current) {
-        clearTimeout(mouseMoveTimeoutRef.current);
-      }
-
-      mouseMoveTimeoutRef.current = setTimeout(() => {
-        sendCursorUpdate({
-          userId: currentUser.id,
-          userColor: generateUserColor(currentUser.id),
-          position: { x, y },
-          tool: currentTool,
-          isActive: false,
-        });
-      }, 1000);
     }, 20),
-    [
-      currentUser,
-      canEdit,
-      sendCursorUpdate,
-      currentTool,
-      updatePresence,
-      updateLightPresence,
-    ],
+    [currentUser, canEdit, sendCursorUpdate, currentTool],
   );
 
   const handleCanvasMouseLeave = useCallback(() => {
