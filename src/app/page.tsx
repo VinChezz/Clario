@@ -30,7 +30,7 @@ export default function Home() {
           </p>
         </div>
         <VideoPlayer
-          src="/videos/clario-demo.mp4"
+          src="https://xtmtujq4hznlol4k.public.blob.vercel-storage.com/clario-demo.mp4"
           poster="thumbnail-clario-demo.png"
           title="Clario Demo - Real-time Collaboration"
         />
