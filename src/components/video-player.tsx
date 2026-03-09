@@ -26,7 +26,7 @@ export function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout>(undefined);
 
   useEffect(() => {
     setMounted(true);
