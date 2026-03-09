@@ -7,7 +7,7 @@ export function generateOTP(): string {
 
 export async function sendOTPEmail(email: string, code: string): Promise<void> {
   const appName = process.env.APP_NAME || "Clario";
-  const appUrl = process.env.APP_URL || "http://localhost:3000";
+  const appUrl = process.env.PUBLIC_URL || "http://localhost:3000";
   const supportEmail = process.env.SUPPORT_EMAIL || "support@clario.com";
   const currentYear = new Date().getFullYear();
 

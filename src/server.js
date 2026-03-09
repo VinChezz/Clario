@@ -10,8 +10,8 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: [
+      "https://clario967.vercel.app/",
       "http://localhost:3000",
-      "http://127.0.0.1:3000",
       "http://localhost:3001",
     ],
     methods: ["GET", "POST"],
@@ -201,7 +201,7 @@ io.on("connection", (socket) => {
         console.log(
           `🔄 Sent editor content sync to ${socket.userData.name}:`,
           roomState.editorContent.blocks?.length,
-          "blocks"
+          "blocks",
         );
       }
 
@@ -210,7 +210,7 @@ io.on("connection", (socket) => {
         console.log(
           `🎨 Sent canvas content sync to ${socket.userData.name}:`,
           roomState.canvasContent.length,
-          "elements"
+          "elements",
         );
       }
 
@@ -223,7 +223,7 @@ io.on("connection", (socket) => {
         }));
 
       console.log(
-        `📊 Sending presence state with ${roomUsers.length} other users`
+        `📊 Sending presence state with ${roomUsers.length} other users`,
       );
       socket.emit("room_presence_state", roomUsers);
 
@@ -234,7 +234,7 @@ io.on("connection", (socket) => {
       });
 
       console.log(
-        `✅ User ${socket.userData.name} successfully joined room ${fileId}`
+        `✅ User ${socket.userData.name} successfully joined room ${fileId}`,
       );
     } catch (error) {
       console.error("❌ Error in join_room:", error);
@@ -280,7 +280,7 @@ io.on("connection", (socket) => {
           content: content,
           user: userData,
         });
-      }
+      },
     );
   });
 
@@ -301,7 +301,7 @@ io.on("connection", (socket) => {
           ...cursor,
           user: userData,
         });
-      }
+      },
     );
   });
 
@@ -326,7 +326,7 @@ io.on("connection", (socket) => {
           content: content,
           user: userData,
         });
-      }
+      },
     );
   });
 
@@ -347,7 +347,7 @@ io.on("connection", (socket) => {
           ...cursor,
           user: userData,
         });
-      }
+      },
     );
   });
 
@@ -534,7 +534,7 @@ io.on("connection", (socket) => {
       "Reason:",
       reason,
       "User:",
-      socket.userData.name
+      socket.userData.name,
     );
 
     roomStates.forEach((roomState, fileId) => {
@@ -567,6 +567,6 @@ httpServer.listen(PORT, () => {
   console.log(`🚀 Socket.IO server running on port ${PORT}`);
   console.log(`🔧 Transports: websocket, polling`);
   console.log(
-    `🌐 CORS enabled for: localhost:3000, 127.0.0.1:3000, localhost:3001`
+    `🌐 CORS enabled for: localhost:3000, 127.0.0.1:3000, localhost:3001`,
   );
 });

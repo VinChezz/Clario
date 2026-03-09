@@ -130,7 +130,7 @@ export default function PublicFilePage({
   const fetchFileData = useCallback(async () => {
     try {
       const { token } = await params;
-      const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+      const baseUrl = process.env.PUBLIC_URL || "http://localhost:3000";
       const fileRes = await fetch(`${baseUrl}/api/share/${token}`, {
         cache: "no-store",
       });

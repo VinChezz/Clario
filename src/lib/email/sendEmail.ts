@@ -128,7 +128,7 @@ export async function sendEmail(options: EmailOptions) {
 
 export const emailTemplates = {
   contactSales: (data: any) => {
-    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const appUrl = process.env.PUBLIC_URL || "http://localhost:3000";
 
     return {
       subject: `Thank you for contacting Clario Sales Team - ${data.company}`,
@@ -496,7 +496,7 @@ export const emailTemplates = {
   },
 
   bookDemo: (data: any, calendarLink: string) => {
-    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const appUrl = process.env.PUBLIC_URL || "http://localhost:3000";
 
     return {
       subject: `Your Clario Demo Confirmation — ${getDemoTypeLabel(data.demoType)}`,
@@ -1364,7 +1364,7 @@ export const emailTemplates = {
       transactionId,
       downloadLink,
     } = data;
-    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const appUrl = process.env.PUBLIC_URL || "http://localhost:3000";
 
     return {
       subject: `🎉 Payment Confirmed - Your ${planName} is now active!`,

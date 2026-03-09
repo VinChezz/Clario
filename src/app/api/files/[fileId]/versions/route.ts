@@ -150,7 +150,7 @@ export async function POST(
     const versionSize = calculateVersionSize(content, type, previousContent);
 
     const storageResponse = await fetch(
-      `${process.env.APP_URL || "http://localhost:3000"}/api/users/storage?teamId=${file.teamId}`,
+      `${process.env.PUBLIC_URL || "http://localhost:3000"}/api/users/storage?teamId=${file.teamId}`,
     );
 
     if (storageResponse.ok) {

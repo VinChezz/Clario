@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
           invites.push(invite);
 
           const inviteLink = `${
-            process.env.APP_URL || "http://localhost:3000"
+            process.env.PUBLIC_URL || "http://localhost:3000"
           }/invite/accept?token=${token}`;
 
           try {
