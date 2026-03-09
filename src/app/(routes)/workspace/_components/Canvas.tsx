@@ -86,8 +86,7 @@ export default function Canvas({
   const lastSavedContent = useRef<string>("");
   const excalidrawRef = useRef<any>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const mouseMoveTimeoutRef = useRef<NodeJS.Timeout>(null);
-  const lastMousePresenceUpdate = useRef<number>(0);
+  const mouseMoveTimeoutRef = useRef<NodeJS.Timeout>(undefined);
   const hasAppliedInitialData = useRef(false);
   const lastSentContent = useRef<string>("");
   const isApplyingRemoteUpdate = useRef(false);

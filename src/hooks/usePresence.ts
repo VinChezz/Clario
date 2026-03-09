@@ -18,7 +18,7 @@ export function usePresence(fileId: string) {
   const [activeUsers, setActiveUsers] = useState<PresenceUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const updateIntervalRef = useRef<NodeJS.Timeout>(null);
+  const updateIntervalRef = useRef<NodeJS.Timeout>(undefined);
   const retryCountRef = useRef(0);
   const maxRetries = 3;
   const isInitializedRef = useRef(false);
@@ -144,7 +144,7 @@ export function usePresence(fileId: string) {
   const stopPresenceUpdates = useCallback(() => {
     if (updateIntervalRef.current) {
       clearInterval(updateIntervalRef.current);
-      updateIntervalRef.current = null;
+      updateIntervalRef.current = undefined;
     }
   }, []);
 
