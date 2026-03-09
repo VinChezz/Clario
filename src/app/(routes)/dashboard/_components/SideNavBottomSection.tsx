@@ -683,7 +683,7 @@ export default function SideNavBottomSection({
     percentage?: number;
   }>({});
 
-  const prevTeamIdRef = useRef<string | undefined>(null);
+  const prevTeamIdRef = useRef<string | undefined>(undefined);
 
   const router = useRouter();
 
