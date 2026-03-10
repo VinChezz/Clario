@@ -410,7 +410,7 @@ export default function InviteModal({
               transition={{ delay: 0.4 }}
               className="text-center text-xs text-gray-400 dark:text-gray-500 mt-6"
             >
-              ✨ Team members will get access immediately
+              Team members will get access immediately
             </motion.p>
           </motion.div>
         </DialogContent>

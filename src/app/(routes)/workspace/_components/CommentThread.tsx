@@ -22,6 +22,10 @@ import {
   RotateCcw,
   ChevronUp,
   ChevronDown,
+  Award,
+  Bug,
+  Lightbulb,
+  HelpCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -57,30 +61,30 @@ const CommentTypeSelector = ({
   const types = [
     {
       value: "QUESTION" as const,
-      label: "❓",
-      color: "purple",
+      label: HelpCircle,
       title: "Question",
+      color: "purple",
       darkColor: "indigo",
     },
     {
       value: "SUGGESTION" as const,
-      label: "💡",
-      color: "blue",
+      label: Lightbulb,
       title: "Suggestion",
+      color: "blue",
       darkColor: "blue",
     },
     {
       value: "ISSUE" as const,
-      label: "🐛",
-      color: "red",
+      label: Bug,
       title: "Issue",
+      color: "red",
       darkColor: "red",
     },
     {
       value: "PRAISE" as const,
-      label: "🎉",
-      color: "green",
+      label: Award,
       title: "Praise",
+      color: "green",
       darkColor: "green",
     },
   ];
@@ -99,7 +103,7 @@ const CommentTypeSelector = ({
           title={type.title}
           className={`
             flex flex-col items-center justify-center w-19.5 h-15
-            p-3 rounded-xl border-2 transition-all duration-200 min-w-[60px]
+            p-3 rounded-xl border-2 transition-all duration-200 min-w-15
             ${
               selectedType === type.value
                 ? `
@@ -118,9 +122,9 @@ const CommentTypeSelector = ({
             }
           `}
         >
-          <span className={`${isMobile ? "text-2xl" : "text-xl"} mb-1`}>
-            {type.label}
-          </span>
+          <div className={`${isMobile ? "text-2xl" : "text-xl"} mb-1`}>
+            <type.label />
+          </div>
           <span
             className={`text-xs font-medium ${
               selectedType === type.value
@@ -165,7 +169,7 @@ export function CommentThread({
     "all" | "QUESTION" | "SUGGESTION" | "ISSUE" | "PRAISE"
   >("all");
   const [expandedComments, setExpandedComments] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [filterOpen, setFilterOpen] = useState(false);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
@@ -180,7 +184,7 @@ export function CommentThread({
     const resolvedComments = comments.filter((c) => c.status === "RESOLVED");
     const totalReplies = comments.reduce(
       (sum, comment) => sum + (comment.replies?.length || 0),
-      0
+      0,
     );
 
     const typeCounts = {
@@ -245,7 +249,7 @@ export function CommentThread({
     (type: "QUESTION" | "SUGGESTION" | "ISSUE" | "PRAISE") => {
       setCommentType(type);
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -344,7 +348,7 @@ export function CommentThread({
   const handleKeyDown = (
     e: React.KeyboardEvent,
     action: () => void,
-    shiftAction?: () => void
+    shiftAction?: () => void,
   ) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -367,7 +371,7 @@ export function CommentThread({
     handleKeyDown(
       e,
       () => handleSubmitComment(),
-      () => setNewComment((prev) => prev + "\n")
+      () => setNewComment((prev) => prev + "\n"),
     );
   };
 
@@ -375,7 +379,7 @@ export function CommentThread({
     handleKeyDown(
       e,
       () => handleSubmitReply(commentId),
-      () => setReplyContent((prev) => prev + "\n")
+      () => setReplyContent((prev) => prev + "\n"),
     );
   };
 
@@ -383,7 +387,7 @@ export function CommentThread({
     handleKeyDown(
       e,
       () => handleSaveEdit(),
-      () => setEditContent((prev) => prev + "\n")
+      () => setEditContent((prev) => prev + "\n"),
     );
   };
 
@@ -656,8 +660,8 @@ export function CommentThread({
                             {
                               key: "all",
                               label: "All",
-                              emoji: "📝",
                               color: "gray",
+                              emoji: null,
                               activeClasses:
                                 "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-800/50",
                               textClasses: "text-gray-700 dark:text-gray-400",
@@ -665,7 +669,7 @@ export function CommentThread({
                             {
                               key: "QUESTION",
                               label: "Questions",
-                              emoji: "❓",
+                              emoji: HelpCircle,
                               color: "purple",
                               activeClasses:
                                 "bg-purple-100 dark:bg-purple-800/30 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-800/50",
@@ -675,7 +679,7 @@ export function CommentThread({
                             {
                               key: "SUGGESTION",
                               label: "Suggestions",
-                              emoji: "💡",
+                              emoji: Lightbulb,
                               color: "blue",
                               activeClasses:
                                 "bg-blue-100 dark:bg-blue-800/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-800/50",
@@ -686,13 +690,13 @@ export function CommentThread({
                               key={type.key}
                               onClick={() => {
                                 setFilterByType(
-                                  type.key as "all" | "QUESTION" | "SUGGESTION"
+                                  type.key as "all" | "QUESTION" | "SUGGESTION",
                                 );
                                 setFilterOpen(false);
                               }}
                               className={`
                                 flex flex-col items-center justify-center p-2
-                                rounded-xl border-2 transition-all duration-200 min-h-[60px] w-full
+                                rounded-xl border-2 transition-all duration-200 min-h-60px w-full
                                 ${
                                   filterByType === type.key
                                     ? `${type.activeClasses} shadow-sm scale-105`
@@ -700,7 +704,11 @@ export function CommentThread({
                                 }
                               `}
                             >
-                              <span className="text-lg mb-1">{type.emoji}</span>
+                              {type.emoji && (
+                                <div className="text-lg mb-1">
+                                  <type.emoji className="w-5 h-5" />
+                                </div>
+                              )}
                               <span
                                 className={`
                                   text-xs font-medium text-center
@@ -746,7 +754,7 @@ export function CommentThread({
                               }}
                               className={`
                                 flex flex-col items-center justify-center p-2
-                                rounded-xl border-2 transition-all duration-200 min-h-[60px] w-[calc(33.333%-0.5rem)]
+                                rounded-xl border-2 transition-all duration-200 min-h-60px w-[calc(33.333%-0.5rem)]
                                 ${
                                   filterByType === type.key
                                     ? `${type.activeClasses} shadow-sm scale-105`
@@ -881,24 +889,24 @@ export function CommentThread({
                         <Badge
                           variant="outline"
                           className={`${getTypeColor(
-                            comment.type
+                            comment.type,
                           )} dark:${getTypeColorDark(
-                            comment.type
+                            comment.type,
                           )} border-0 text-xs`}
                         >
-                          {comment.type === "QUESTION" && "❓"}
-                          {comment.type === "SUGGESTION" && "💡"}
-                          {comment.type === "ISSUE" && "🐛"}
-                          {comment.type === "PRAISE" && "🎉"}
+                          {comment.type === "QUESTION" && <HelpCircle />}
+                          {comment.type === "SUGGESTION" && <Lightbulb />}
+                          {comment.type === "ISSUE" && <Bug />}
+                          {comment.type === "PRAISE" && <Award />}
                           {comment.type.toLowerCase()}
                         </Badge>
 
                         <Badge
                           variant="outline"
                           className={`${getStatusColor(
-                            comment.status
+                            comment.status,
                           )} dark:${getStatusColorDark(
-                            comment.status
+                            comment.status,
                           )} text-xs`}
                         >
                           {comment.status.toLowerCase()}
@@ -1048,7 +1056,7 @@ export function CommentThread({
                           size="sm"
                           onClick={() =>
                             setReplyingTo(
-                              replyingTo === comment.id ? null : comment.id
+                              replyingTo === comment.id ? null : comment.id,
                             )
                           }
                           className="h-7 text-xs px-3 border-gray-300 dark:border-[#2a2a2d] text-gray-700 dark:text-[#a0a0a0] hover:bg-gray-100 dark:hover:bg-[#252528]"

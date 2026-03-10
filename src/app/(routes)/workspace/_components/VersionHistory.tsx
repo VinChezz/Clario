@@ -252,10 +252,10 @@ export function VersionHistory({
     return {
       totalVersions: currentVersions.length,
       last30Days: currentVersions.filter(
-        (v) => new Date(v.createdAt) > last30Days
+        (v) => new Date(v.createdAt) > last30Days,
       ).length,
       last7Days: currentVersions.filter(
-        (v) => new Date(v.createdAt) > last7Days
+        (v) => new Date(v.createdAt) > last7Days,
       ).length,
       uniqueAuthors: new Set(currentVersions.map((v) => v.author.id)).size,
       totalSize,
@@ -403,7 +403,7 @@ export function VersionHistory({
       .filter((v) => v.type === version.type)
       .sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
 
     const currentIndex = sameTypeVersions.findIndex((v) => v.id === version.id);
@@ -446,7 +446,7 @@ export function VersionHistory({
 
     const getFileTypeInfo = (
       content: string,
-      type?: string
+      type?: string,
     ): Record<string, number> => {
       if (type === "whiteboard") {
         try {
@@ -504,7 +504,7 @@ export function VersionHistory({
         percentage:
           previousChars > 0
             ? (((currentChars - previousChars) / previousChars) * 100).toFixed(
-                1
+                1,
               )
             : "100",
       };
@@ -621,8 +621,8 @@ export function VersionHistory({
                     changeStats.chars > 0
                       ? "text-green-600 dark:text-green-400"
                       : changeStats.chars < 0
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-gray-600 dark:text-[#a0a0a0]"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-gray-600 dark:text-[#a0a0a0]"
                   }`}
                 >
                   {changeStats.chars > 0 ? "+" : ""}
@@ -638,8 +638,8 @@ export function VersionHistory({
                     changeStats.words > 0
                       ? "text-green-600 dark:text-green-400"
                       : changeStats.words < 0
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-gray-600 dark:text-[#a0a0a0]"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-gray-600 dark:text-[#a0a0a0]"
                   }`}
                 >
                   {changeStats.words > 0 ? "+" : ""}
@@ -655,8 +655,8 @@ export function VersionHistory({
                     changeStats.lines > 0
                       ? "text-green-600 dark:text-green-400"
                       : changeStats.lines < 0
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-gray-600 dark:text-[#a0a0a0]"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-gray-600 dark:text-[#a0a0a0]"
                   }`}
                 >
                   {changeStats.lines > 0 ? "+" : ""}
@@ -672,8 +672,8 @@ export function VersionHistory({
                     changeStats.sizeIncreased
                       ? "text-green-600 dark:text-green-400"
                       : changeStats.sizeDifference < 0
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-gray-600 dark:text-[#a0a0a0]"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-gray-600 dark:text-[#a0a0a0]"
                   }`}
                 >
                   {changeStats.sizeIncreased ? "+" : ""}
@@ -912,8 +912,8 @@ export function VersionHistory({
                       {filterByType === "document"
                         ? "Doc"
                         : filterByType === "whiteboard"
-                        ? "Board"
-                        : "Avg"}{" "}
+                          ? "Board"
+                          : "Avg"}{" "}
                       Size
                     </span>
                   </div>
@@ -1190,7 +1190,7 @@ export function VersionHistory({
                                   setExpandedVersion(
                                     expandedVersion === version.id
                                       ? null
-                                      : version.id
+                                      : version.id,
                                   );
                                 }}
                                 className="text-gray-600 dark:text-[#a0a0a0] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 h-8 text-xs px-3"
@@ -1252,7 +1252,7 @@ export function VersionHistory({
                                         ) {
                                           compareVersions(
                                             compareTarget,
-                                            version
+                                            version,
                                           );
                                           setCompareTarget(null);
                                         } else {
@@ -1266,8 +1266,8 @@ export function VersionHistory({
                                       compareTarget.id !== version.id
                                         ? "Compare with selected"
                                         : compareTarget?.id === version.id
-                                        ? "Cancel comparison"
-                                        : "Select for comparison"}
+                                          ? "Cancel comparison"
+                                          : "Select for comparison"}
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -1283,7 +1283,7 @@ export function VersionHistory({
                                         versionType: version.type,
                                         componentType: componentType,
                                         canRestore: canRestoreVersion(version),
-                                      }
+                                      },
                                     );
                                     onRestoreVersion(version);
                                   }}
@@ -1334,9 +1334,9 @@ export function VersionHistory({
             </div>
           )}
           <div className="text-gray-600 dark:text-[#a0a0a0] space-y-1 text-center text-xs">
-            <p>💡 Click "Save" to create new versions</p>
-            <p>🔄 Click refresh button to update the list</p>
-            <p>⏰ Press ESC to close</p>
+            <p>Click "Save" to create new versions</p>
+            <p>Click refresh button to update the list</p>
+            <p>Press ESC to close</p>
           </div>
         </div>
       </div>
