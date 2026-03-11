@@ -991,7 +991,7 @@ function SideNavTopSection({
                 </div>
               </div>
             )}
-            <LogoutLink>
+            <LogoutLink postLogoutRedirectURL="https://clario967.vercel.app/">
               <button className="w-full flex items-center justify-center gap-2 p-1.5 rounded-xl transition-all border bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border-red-200 dark:border-red-800/50">
                 <LogOut className="h-4 w-4" />
                 <span className="text-sm font-semibold">Logout</span>
