@@ -1009,7 +1009,7 @@ function SideNavTopSection({
             "border border-gray-200 dark:border-[#2a2a2d]",
             isHorizontalMobileDevice || isLandscapeDevice
               ? "max-h-96"
-              : "max-h-[600px]",
+              : "max-h-150",
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -1121,7 +1121,7 @@ function SideNavTopSection({
                 isLandscapeDevice ||
                 isHorizontalTablet
                 ? "max-h-48"
-                : "max-h-[480px]",
+                : "max-h-120",
             )}
           >
             {isLoading ? (
